@@ -1,0 +1,827 @@
+---
+# Copyright 2016 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# This file is the master reference for the format of the config
+# and inventory file.
+#
+# Its purpose is to act as the authoritative source on key names,
+# structure, and representative values.
+
+version: 1.0
+
+reference-architecture:
+    - private-compute-cloud
+# The reference-architecture setting specifies which of the reference
+# architecture building blocks the inventory file is describing.
+# The setting can be used for downstream code checks rather than
+# complex logic to guess the building blocks based on other structures
+# seen in the inventory.
+
+# Some reference architecture pieces can be standalone such as swift
+# and ceph-standalone and some can be used in conjunction with others
+# such as a combination of both private-compute-cloud and swift.  Some
+# pieces such as ceph-standalone are not compatible with others such as
+# private-compute-cloud. The valid combinations should be validated by
+# toolkit code and the toolkit code itself may choose to only support
+# a subset of the valid combinations.
+
+
+# Possible reference-architecture values are:
+
+    # private-compute-cloud
+        # This reference architectures defines a private compute cloud.
+        # It features a 3x HA control plane on x86 with the compute nodes
+        # residing on Power servers.  It uses Ceph for block storage with
+        # the Ceph monitors residing on the controllers and the Ceph OSDs
+        # residing on Power servers.
+
+    # swift
+        # This reference architecture defines a scale out Swift standalone cluster.
+        # It features a 3x HA control plane on x86 servers.  The control plane
+        # contains the HAProxy, OpenStack Keystone service for Swift authentication,
+        # and other services as required by Keystone.  While it does not have most of
+        # the other services that the private-compute-cloud reference architecture
+        # uses, it can be used in conjunction with the private-compute-cloud architecture.
+        # It contains a minimum of 3x Swift proxies on separate servers.
+        # It also contains a minimum of 3x Swift object servers.
+        # It optionally contains a minimum of 3x Swift metadata servers
+        # for the account and container rings.
+        # The account and container services can be run on the object
+        # server and the distinction is made by the location of the
+        # account-devices and container-devices settings in the node templates.
+        # Those settings can be placed on the object server template for
+        # a converged server or on a metadata server template for separate
+        # servers.
+
+    # swift-minimum-hardware
+        # This reference architecture provides a 3x HA control plane on x86
+        # servers.
+
+        # The Swift proxy runs in an lxc container on the 3x x86 servers.
+        # The account, container, and object services are converged on
+        # a minimum of 3x Power servers.
+
+        # This reference architecture is meant to be used in conjunction with
+        # the swift architecture and is intended to trigger to the toolkit code
+        # to run the Swift proxy on the controller nodes.  It is not to be
+        # specified by itself.
+
+    # ceph-standalone
+        # This reference architecture creates a standalone Ceph cluster.
+        # It features a minimum of three Power servers which host the Ceph
+        # monitor service.  The Ceph OSD services are hosted on a minumum
+        # of three Power servers.
+
+        # The Ceph cluster contains a Ceph public storage network and a
+        # Ceph replication network and the networks are 'flat', that is,
+        # they are bridged VLANs as they are in the private-cloud-* reference
+        # architectures.
+
+ipaddr-mgmt-network: 192.168.16.0/20   # 4096 addresses
+ipaddr-mgmt-switch:
+    rack1: 192.168.16.20  # if redundant-network is set to 1, genesis will look for an additional switch at the next sequential address.
+    rack2: 192.168.16.2
+    rack3: 192.168.16.3
+    rack4: 192.168.16.4
+    rack5: 192.168.16.5
+    spine: 192.168.16.6
+ipaddr-data-switch:
+    rack1: 192.168.16.20  # if redundant-network is set to 1, genesis will look for an additional switch at the next sequential address.
+    rack2: 192.168.16.25
+    rack3: 192.168.16.30
+    rack4: 192.168.16.35
+    rack5: 192.168.16.40
+redundant-network: false
+userid-default: user
+password-default: passw0rd
+userid-mgmt-switch: user        # applied to all mgmt switches
+password-mgmt-switch: passw0rd  # applied to all mgmt switches
+userid-data-switch: user
+password-data-switch: passw0rd
+internal-floating-ipaddr: 1.2.3.4/22
+external-floating-ipaddr: 1.2.3.5/22
+networks:
+    external1:
+        description: Organization site or external network
+        addr: 10.0.16.0/22
+        available-ips:
+            - 10.0.16.20
+            - 10.0.16.35
+            - 10.0.16.106 10.0.16.110
+            - 10.0.16.115
+        broadcast: 10.0.16.255
+        gateway: 10.0.16.1
+        dns-nameservers: 10.0.16.200
+        dns-search: mycompany.domain.com
+        method: static
+        eth-port: eth10
+        mtu: 9000
+    external2:
+        description: Interface for eth11
+        method: manual
+        eth-port: eth11
+    base-eth0:
+        description: Interface for eth0
+        method: manual
+        eth-port: eth0
+    base-eth1:
+        description: Interface for eth1
+        method: manual
+        eth-port: eth1
+    pxe-dhcp:
+        description: Change pxe port(eth15) to dhcp
+        method: dhcp
+        eth-port: eth15
+    standalone-bond0:
+        description: Multilink bond
+        bond: mybond0
+        addr: 10.0.16.0/22
+        broadcast: 10.0.16.255
+        gateway: 10.0.16.1
+        dns-nameservers: 10.0.16.200
+        dns-search: mycompany.domain.com
+        method: static
+        #name of physical interfaces to bond together.
+        bond-interfaces:
+            - eth0
+            - eth1
+        #if necessary not all bond modes support a primary slave
+        bond-primary: eth10
+        #bond-mode, needs to be one of 7 types
+        # either name or number can be used.
+        #0 balance-rr
+        #1 active-backup
+        #2 balance-xor
+        #3 broadcast
+        #4 802.3ad
+        #5 balance-tlb
+        #6 balance-alb
+        #bond-mode: active-backup
+        bond-mode: 1
+        #there is a long list of optional bond arguments.
+        #Specify them here and they will be added to end of bond definition
+        optional-bond-arguments:
+            bond-miimon: 100
+            bond-lacp-rate: 1
+    manual-bond1:
+        description: bond network to be used by future bridges
+        bond: bond1
+        method: manual
+        bond-mode: balance-rr
+        bond-interfaces:
+              - eth10
+              - eth11
+    openstack-mgmt:
+        description: OpenStack Management Network
+        bridge: br-mgmt
+        method: static
+        tcp_segmentation_offload: off
+        addr: 172.29.236.0/22  # ipv4 openstack management network
+        vlan: 10
+        eth-port: bond1
+    openstack-stg:
+        description: OpenStack Management Network
+        bridge: br-storage
+        method: static
+        tcp_segmentation_offload: off
+        addr: 172.29.244.0/22  # ipv4 openstack storage network
+        vlan: 20
+        eth-port: eth10
+    openstack-tenant-vxlan:
+        description: OpenStack Tenant vxlan Network
+        bridge: br-vxlan
+        method: static
+        addr: 172.29.240.0/22  # ipv4 openstack tenant network
+        vlan: 30     # vxlan vlan id
+        eth-port: eth11
+        bridge-port: veth12
+    openstack-tenant-vlan:
+        description: OpenStack Tenant vlan Network
+        bridge: br-vlan
+        method: static
+        addr: 0.0.0.0/1  # Nodes do not get IPs assigned in this network
+        eth-port: eth11
+    ceph-replication:
+        addr: 172.29.248.0/22  # ipv4 ceph replication network
+        bridge: br-replication
+        method: static
+        vlan: 40
+        eth-port: eth11
+    swift-replication:
+        addr: 172.29.252.0/22
+        bridge: br-swift-repl
+        method: static
+        vlan: 50
+        eth-port: eth11
+racks:   # This information is optional (not required to be present)
+    - rack-id: rack1
+      data-center: dataeast
+      room: room33
+      row: row1
+switches:
+    mgmt:  # single management switch (single rack) for first release
+        - hostname: mgmtswitch1
+          ipv4-addr: 10.0.16.2
+          userid: joeuser
+          password: letmein
+          rack-id: rack1
+          rack-eia: 39
+          model: G8052
+          serial-number: abc123
+    leaf:    # single leaf switch for first release
+        - hostname: leafswitch1
+          ipv4-addr: 10.0.16.3
+          userid: joeuser
+          password: letmein
+          rack-id: rack1
+          rack-eia: 40
+          model: SX1410
+          serial-number: cde234
+# spine switches not supported in first release
+node-templates:
+    controllers:
+        hostname: hostname seed
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: controllerx86
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+            mac-eth11: eth11
+        ports:
+            pxe:
+                rack1:
+                    - 20
+                    - 21
+                    - 23
+            ipmi:
+                rack1:
+                    - 41
+                    - 42
+                    - 43
+            eth10:
+                rack1:
+                    - 2
+                    - 3
+                    - 5
+            eth11:
+                rack1:
+                    - 12
+                    - 13
+                    - 15
+        networks:
+            - openstack-mgmt
+            - openstack-stg
+            - openstack-tenant-vlan
+            - openstack-tenant-vxlan
+            - external1
+            - external2
+            - pxe-dhcp
+    compute:
+        hostname: hostname seed
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: computeppc64le
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+            mac-eth11: eth11
+        ports:
+            pxe:
+                rack1:
+                    - 20
+                    - 21
+                    - 23
+            ipmi:
+                rack1:
+                    - 41
+                    - 42
+                    - 43
+            eth10:
+                rack1:
+                    - 2
+                    - 3
+                    - 5
+            eth11:
+                rack1:
+                    - 12
+                    - 13
+                    - 15
+        networks:
+            - openstack-mgmt
+            - openstack-stg
+            - openstack-tenant-vlan
+            - openstack-tenant-vxlan
+            - external1
+            - external2
+            - pxe-dhcp
+            - base-eth0
+            - base-eth1
+            - manual-bond1
+            - standalone-bond0
+    ceph-mon:
+        hostname: hostname seed
+        # The ceph-mon template is only used in the ceph-standalone
+        # reference architecture.  It would list only one network,
+        # the Ceph storage network.
+        #
+        # <common properties> All of the other common node
+        # template properties
+    ceph-osd:
+        hostname: hostname seed
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: cephppc64le
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+            mac-eth11: eth11
+        ports:
+            pxe:
+                rack1:
+                    - 20
+                    - 21
+                    - 23
+            ipmi:
+                rack1:
+                    - 41
+                    - 42
+                    - 43
+            eth10:
+                rack1:
+                    - 2
+                    - 3
+                    - 5
+            eth11:
+                rack1:
+                    - 12
+                    - 13
+                    - 15
+        networks:
+            - external1
+            - openstack-stg
+            - ceph-replication
+            - pxe-dhcp
+        journal-devices:
+            - /dev/sdc
+            - /dev/sdd
+        osd-devices:
+            - /dev/sde
+            - /dev/sdf
+            - /dev/sdg
+            - /dev/sdh
+    swift-proxy:
+        networks:
+            - openstack-mgmt
+            - openstack-stg
+            - external1
+            - external2
+            - pxe-dhcp
+        # <common properties> All of the other common node
+        # template properties
+
+    swift-metadata:
+        networks:
+            - openstack-mgmt
+            - openstack-stg
+            - swift-replication
+            - external1
+            - external2
+            - pxe-dhcp
+        # <common properties> All of the other common node
+        # template properties
+
+        domain-settings: {}
+        # Domain specific node template properties are nested under
+        # the domain-settings hash.
+
+            # The swift-metadata template is an optional template used
+            # to specify servers which are intended to run the Swift
+            # account and container metadata services.
+
+            # It contains special tags for these services:
+
+            # account-ring-devices (required)
+                # Used to specify one or more devices which will be
+                # inspected to find the drives for the account ring.
+                # Example:
+                    # account-ring-devices:
+                        # - /dev/disk/by-path/pci-0000:01:00.0-scsi-0
+
+            # container-ring-devices (required)
+                # Used to specify one or more devices which will be
+                # inspected to find the drives for the container ring.
+                # Example:
+                    # container-ring-devices:
+                        # - /dev/disk/by-path/pci-0000:01:00.0-scsi-0
+
+            # mount-point (optional)
+                # Used to specify the directory where the drives for
+                # the rings will be mounted.  Defaults to /srv/node
+                # if not specified.
+
+            # zone-count (optional)
+                # Used to specify the number of zones the swift-metadata
+                # hosts should be distributed in.  The hosts will
+                # be distributed equally among zones 0 to 'zone-count'-1.
+                # Defaults to 3 if not specified.
+
+    swift-object:
+        networks:
+            - openstack-mgmt
+            - openstack-stg
+            - swift-replication
+            - external1
+            - external2
+            - pxe-dhcp
+        # <common properties> All of the other common node
+        # template properties
+
+        domain-settings: {}
+        # Domain specific node template properties are nested under
+        # the domain-settings hash.
+
+        # The swift-object template is an optional template used
+        # to specify servers which are intended to run the Swift
+        # object services.  These nodes can also optionally
+        # run the account and container services.  This template
+        # is required for all reference architectures using Swift.
+
+        # It contains special tags for these services:
+
+            # object-ring-devices (required)
+                # Used to specify one or more devices which will be
+                # inspected to find the drives for the object ring.
+                # Example:
+                    # object-ring-devices:
+                        # - /dev/disk/by-path/pci-0000:01:00.0-scsi-0
+
+            # account-ring-devices (optional)
+                # Used to specify one or more devices which will be
+                # inspected to find the drives for the account ring.
+                # Example:
+                    # account-ring-devices:
+                        # - /dev/disk/by-path/pci-0000:01:00.0-scsi-0
+
+            # container-ring-devices (optional)
+                # Used to specify one or more devices which will be
+                # inspected to find the drives for the container ring.
+                # Example:
+                    # container-ring-devices:
+                        # - /dev/disk/by-path/pci-0000:01:00.0-scsi-0
+
+            # mount-point (optional)
+                # Used to specify the directory where the drives for
+                # the rings will be mounted.  Defaults to /srv/node
+                # if not specified.
+
+            # zone-count (optional)
+                # Used to specify the number of zones the swift-metadata
+                # hosts should be distributed in.  The hosts will
+                # be distributed equally among zones 0 to 'zone-count'-1.
+                # Defaults to 3 if not specified.
+
+software-bootstrap-hosts: controllers[0]  # Select first 'controllers' node
+software-bootstrap-cmd: |
+    set -o pipefail
+    type git >/dev/null 2>&1
+    if [ $? != 0 ]; then
+        apt-get install -qq -y git
+    fi
+    if [ ! -d os-services ]; then
+        git clone git://github.com/open-power/os-services.git
+    fi
+    cd os-services
+    git checkout v1.0.0    # Leverages openstack-ansible mitaka 13.1.0
+    export DEPLOY_CEPH=yes
+    export DEPLOY_OPSMGR=yes
+    # export ANSIBLE_HOST_KEY_CHECKING=False
+    export ADMIN_PASSWORD=passw0rd
+    export KIBANA_PASSWORD=passw0rd
+    ./scripts/bootstrap-cluster.sh | tee -a ../bootstrap-cluster.out
+    rc=$?
+    if [ $rc != 0 ]; then
+        echo "./scripts/bootstrap-cluster.sh failed, rc=$rc"
+        exit $rc
+    fi
+    # Ignore signal SIGHUP as create-cluster takes hours to run...
+    # Session may be disconnected due to inactivity
+    trap '' SIGHUP
+    ./scripts/create-cluster.sh | tee -a ../create-cluster.out
+    rc=$?
+    if [ $rc != 0 ]; then
+        echo "./scripts/cluster-cluster.sh failed, rc=$rc"
+        exit $rc
+    fi
+
+nodes:
+    controllers:     # OpenStack controller nodes
+        - hostname: controller1  # (associated with external1-addr below)
+          external1-addr: 10.0.16.20  # on the eth10 interface
+          external2-addr: ''
+          template: controller
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 8
+          chassis-part-number: xyz123       # ipmi field value
+          chassis-serial-number: abcd-1234  # ipmi field value
+          model: RD550             # ipmi field value
+          serial-number: abcd1234  # ipmi field value
+          ipv4-ipmi: 192.168.16.200
+          mac-ipmi: 11:22:33:44:55:66  # mac address of the ipmi port
+          userid-ipmi: joeuser      # userid for logging into the ipmi port
+          password-ipmi: joeuserpw  # password for logging into the ipmi port
+          switch-port-ipmi: 2
+          ipv4-pxe: 192.168.16.220
+          mac-pxe: 22:33:44:55:66:77
+          mac-eth10: 32:33:44:55:66:77
+          mac-eth11: 42:33:44:55:66:77
+          switch-port-pxe: 10
+          openstack-mgmt-addr: 172.29.236.2
+          openstack-stg-addr: 172.29.244.2
+          openstack-tenant-vlxan-addr: 172.29.240.2
+          openstack-tenant-vlan-addr: 0.0.0.0
+        - hostname: controller2  # (associated with external1-addr below)
+          external1-addr: 10.0.16.35  # on the eth10 interface
+          external2-addr: ''
+          template: controller
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 9
+          chassis-part-number: xyz123       # ipmi field value
+          chassis-serial-number: abcd-1235  # ipmi field value
+          model: RD550             # ipmi field value
+          serial-number: abcd1235  # ipmi field value
+          ipv4-ipmi: 192.168.16.201
+          mac-ipmi: 11:22:33:44:55:67  # mac address of the ipmi port
+          userid-ipmi: joeuser      # userid for logging into the ipmi port
+          password-ipmi: joeuserpw  # password for logging into the ipmi port
+          switch-port-ipmi: 3
+          ipv4-pxe: 192.168.16.220
+          mac-pxe: 22:33:44:55:66:78
+          mac-eth10: 32:33:44:55:66:78
+          mac-eth11: 42:33:44:55:66:78
+          switch-port-pxe: 11
+          openstack-mgmt-addr: 172.29.236.3
+          openstack-stg-addr: 172.29.244.3
+          openstack-tenant-vlxan-addr: 172.29.240.3
+          openstack-tenant-vlan-addr: 0.0.0.0
+        - hostname: controller3  # (associated with external1-addr below)
+          external1-addr: 10.0.16.106  # on the eth10 interface
+          external2-addr: ''
+          template: controller
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 10
+          chassis-part-number: xyz123       # ipmi field value
+          chassis-serial-number: abcd-1234  # ipmi field value
+          model: RD550             # ipmi field value
+          serial-number: abcd1234  # ipmi field value
+          ipv4-ipmi: 192.168.16.202
+          mac-ipmi: 11:22:33:44:55:66  # mac address of the ipmi port
+          userid-ipmi: joeuser      # userid for logging into the ipmi port
+          password-ipmi: joeuserpw  # password for logging into the ipmi port
+          switch-port-ipmi: 4
+          ipv4-pxe: 192.168.16.220
+          mac-pxe: 22:33:44:55:66:79
+          mac-eth10: 32:33:44:55:66:79
+          mac-eth11: 42:33:44:55:66:79
+          switch-port-pxe: 12
+          openstack-mgmt-addr: 172.29.236.4
+          openstack-stg-addr: 172.29.244.4
+          openstack-tenant-vlxan-addr: 172.29.240.4
+          openstack-tenant-vlan-addr: 0.0.0.0
+    compute:    # OpenStack compute nodes
+        - hostname: compute1
+          external1-addr: 10.0.16.107  # on the eth10 port
+          external2-addr: ''
+          template: compute
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 11
+          chassis-part-number: 8335-GCA  # ipmi field value
+          chassis-serial-number: abc124  # ipmi field value
+          # Note: 8335 model and serial-number not present in ipmi
+          ipv4-ipmi: 192.168.16.203
+          mac-ipmi: 11:22:33:44:55:67
+          userid-ipmi: joeuser
+          password-ipmi: joeuserpw
+          switch-port-ipmi: 5
+          ipv4-pxe: 192.168.16.223
+          mac-pxe: 11:22:33:44:55:68
+          mac-eth10: 32:33:44:55:66:80
+          mac-eth11: 42:33:44:55:66:80
+          switch-port-pxe: 13
+          openstack-mgmt-addr: 172.29.236.5          # ipv4 management network
+          openstack-stg-addr: 172.29.244.5           # ipv4 storage network
+          openstack-tenant-vlxan-addr: 172.29.240.5  # ipv4 tenant network
+          openstack-tenant-vlan-addr: 0.0.0.0
+        - hostname: compute2
+          external1-addr: 10.0.16.108  # on the eth10 port
+          external2-addr: ''
+          template: compute
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 13
+          chassis-part-number: 8335-GCA  # ipmi field value
+          chassis-serial-number: abc125  # ipmi field value
+          ipv4-ipmi: 192.168.16.204
+          mac-ipmi: 11:22:33:44:55:69
+          userid-ipmi: joeuser
+          password-ipmi: joeuserpw
+          switch-port-ipmi: 6
+          ipv4-pxe: 192.168.16.224
+          mac-pxe: 11:22:33:44:55:67
+          mac-eth10: 32:33:44:55:66:90
+          mac-eth11: 42:33:44:55:66:90
+          switch-port-pxe: 14
+          openstack-mgmt-addr: 172.29.236.6          # ipv4 management network
+          openstack-stg-addr: 172.29.244.6           # ipv4 storage network
+          openstack-tenant-vlxan-addr: 172.29.240.6  # ipv4 tenant network
+          openstack-tenant-vlan-addr: 0.0.0.0
+    ceph-mon:
+        - hostname: ceph-mon1
+          template: ceph-mon
+          # All of the common node properties
+
+    ceph-osd:
+        - hostname: ceph-osd1  # Linux hostname
+          external1-addr: 10.0.16.109  # on the eth10 interface
+          template: ceph-osd
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 15
+          chassis-part-number: 8348-21C  # ipmi field value
+          chassis-serial-number: abc126  # ipmi field value
+          ipv4-ipmi: 192.168.16.205
+          mac-ipmi: 11:22:33:44:55:68
+          userid-ipmi: joeuser
+          password-ipmi: joeuserpw
+          switch-port-ipmi: 7
+          ipv4-pxe: 192.168.16.225
+          mac-pxe: 11:22:33:44:55:69
+          mac-eth10: 32:33:44:55:66:91
+          mac-eth11: 42:33:44:55:66:91
+          switch-port-pxe: 15
+          openstack-stg-addr: 172.29.244.7     # ipv4 storage network
+          ceph-replication-addr: 172.29.240.7  # ipv4 replication network
+        - hostname: ceph-osd2
+          external1-addr: 10.0.16.110  # on the eth10 port
+          template: ceph-osd
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 17
+          chassis-part-number: 8348-21C  # ipmi field value
+          chassis-serial-number: abc127  # ipmi field value
+          ipv4-ipmi: 192.168.16.206
+          mac-ipmi: 11:22:33:44:55:70
+          userid-ipmi: joeuser
+          password-ipmi: joeuserpw
+          switch-port-ipmi: 8
+          ipv4-pxe: 192.168.16.226
+          mac-pxe: 11:22:33:44:55:71
+          mac-eth10: 32:33:44:55:66:92
+          mac-eth11: 42:33:44:55:66:92
+          switch-port-pxe: 16
+          openstack-stg-addr: 172.29.244.8     # ipv4 storage network
+          ceph-replication-addr: 172.29.240.8  # ipv4 replication network
+        - hostname: ceph-osd3
+          external1-addr: 10.0.16.115  # on the eth10 port
+          template: ceph-osd
+          userid: janeuser
+          rack-id: rack1
+          rack-eia: 19
+          chassis-part-number: 8348-21C  # ipmi field value
+          chassis-serial-number: abc128  # ipmi field value
+          model: system model number     # ipmi field value
+          serial-number: system serial number  # ipmi field value
+          ipv4-ipmi: 192.168.16.207
+          mac-ipmi: 11:22:33:44:55:72
+          userid-ipmi: joeuser
+          password-ipmi: joeuserpw
+          switch-port-ipmi: 9
+          ipv4-pxe: 192.168.16.227
+          mac-pxe: 11:22:33:44:55:73
+          mac-eth10: 32:33:44:55:66:93
+          mac-eth11: 42:33:44:55:66:93
+          switch-port-pxe: 17
+          openstack-stg-addr: 172.29.244.9     # ipv4 storage network
+          ceph-replication-addr: 172.29.240.9  # ipv4 replication network
+
+    swift-proxy:
+        - hostname: swiftproxy1
+          template: swift-proxy
+          # All of the common node properties
+
+    swift-metadata:
+        - hostname: swiftmetadata1
+          template: swift-metadata
+          # All of the common node properties
+
+          domain-settings: {}
+          # Domain specific node template properties are nested under
+          # the domain-settings hash.
+
+              # Additional properties:
+              #
+              # account-ring-disks:
+              #
+              # This property is intended to contain the Swift disk mount point
+              # name of all of the disks for the ring. The values are intended
+              # to be directly used for Swift ring building.
+              #
+              # It is intended that toolkit code will take the account-ring-devices
+              # property from the template, prepare the disks, mount them,
+              # and then populate this property with the mount point names.
+              # Example:
+                # account-ring-disks:
+                    # - meta1
+                    # - meta2
+                    # - meta3
+
+              # container-ring-disks:
+              #
+              # This property is intended to contain the Swift disk mount point
+              # name of all of the disks for the ring. The values are intended
+              # to be directly used for Swift ring building.
+              #
+              # It is intended that toolkit code will take the container-ring-devices
+              # property from the template, prepare the disks, mount them,
+              # and then populate this property with the mount point names.
+              # Example:
+                # container-ring-disks:
+                    # - meta1
+                    # - meta2
+                    # - meta3
+
+    swift-object:
+        - hostname: swiftobject1
+          template: swift-object
+          # All of the common node properties
+
+          domain-settings: {}
+          # Domain specific node template properties are nested under
+          # the domain-settings hash.
+              # Additional properties:
+              #
+              # object-ring-disks: (Required)
+              #
+              # This property is intended to contain the Swift disk mount point
+              # name of all of the disks for the ring. The values are intended
+              # to be directly used for Swift ring building.
+              #
+              # It is intended that toolkit code will take the object-ring-devices
+              # property from the template, prepare the disks, mount them,
+              # and then populate this property with the mount point names.
+              # Example:
+                # object-ring-disks:
+                    # - disk1
+                    # - disk2
+                    # - disk3
+
+              # account-ring-disks: (Optional. Specified when metadata servers aren't used)
+              #
+              # This property is intended to contain the Swift disk mount point
+              # name of all of the disks for the ring. The values are intended
+              # to be directly used for Swift ring building.
+              #
+              # It is intended that toolkit code will take the account-ring-devices
+              # property from the template, prepare the disks, mount them,
+              # and then populate this property with the mount point names.
+              # Example:
+                # account-ring-disks:
+                    # - meta1
+                    # - meta2
+                    # - meta3
+
+              # container-ring-disks: (Optional. Specified when metadata servers aren't used)
+              #
+              # This property is intended to contain the Swift disk mount point
+              # name of all of the disks for the ring. The values are intended
+              # to be directly used for Swift ring building.
+              #
+              # It is intended that toolkit code will take the container-ring-devices
+              # property from the template, prepare the disks, mount them,
+              # and then populate this property with the mount point names.
+              # Example:
+                # container-ring-disks:
+                    # - meta1
+                    # - meta2
+                    # - meta3
+
+...

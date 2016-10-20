@@ -1,0 +1,115 @@
+---
+# Copyright 2016 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+version: 1.0
+ipaddr-mgmt-network: 192.168.3.0/24
+ipaddr-mgmt-switch:
+    rack1: 192.168.3.5
+ipaddr-data-switch:
+    rack1: 192.168.3.6
+redundant-network: false
+userid-default: ibm
+password-default: yggdrasil
+userid-mgmt-switch: admin
+password-mgmt-switch: yggdrasil
+userid-data-switch: admin
+password-data-switch: yggdrasil
+networks:
+    external1:
+        description: Organization site or external network
+        addr: 9.3.89.0/24
+        broadcast: 9.3.89.255
+        gateway: 9.3.89.1
+        dns-nameservers: 9.3.1.200
+        dns-search: aus.stglabs.ibm.com
+        method: static
+        eth-port: eth10
+    openstack-mgmt-network:
+        vlan: 10
+        eth-port: eth10
+    openstack-stg-network:
+        vlan: 20
+        eth-port: eth10
+    openstack-tenant-network:
+        vlan: 30
+        eth-port: eth10
+node-templates:
+    controller1:
+        hostname: controller
+        userid-ipmi: ADMIN
+        password-ipmi: ADMIN
+        cobbler-profile: ubuntu-14.04.4-server-amd64.sm
+        os-disk: /dev/sda
+        users:
+            - name: user1
+              groups: sudo
+            - name: testuser1
+              groups: testgroup
+        groups:
+            - name: testgroup
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+        ports:
+            ipmi:
+                rack1:
+                    - 1
+                    - 2
+                    - 3
+            pxe:
+                rack1:
+                    - 19
+                    - 20
+                    - 21
+            eth10:
+                rack1:
+                    - 1
+                    - 2
+                    - 3
+            eth11:
+                rack1:
+                    - 19
+                    - 20
+                    - 21
+        networks:
+            - openstack-mgmt-network
+            - openstack-stg-network
+            - external1
+    controller2:
+        hostname: power
+        userid-ipmi: ADMIN
+        password-ipmi: admin
+        cobbler-profile: ubuntu-14.04.4-server-ppc64el
+        os-disk: /dev/sdj
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+        ports:
+            ipmi:
+                rack1:
+                    - 6
+            pxe:
+                rack1:
+                    - 24
+            eth10:
+                rack1:
+                    - 6
+            eth11:
+                rack1:
+                    - 24
+        networks:
+            - openstack-tenant-network
+            - external1

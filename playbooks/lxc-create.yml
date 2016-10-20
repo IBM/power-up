@@ -1,0 +1,167 @@
+---
+# Copyright 2016 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: lxc-create.yml
+  hosts: localhost
+  tasks:
+    - name: "Print local project path"
+      debug:
+        msg: "{{ item }}"
+      with_items:
+        - "Project name: {{ project_path_local }}"
+
+    - name: "Install aptitude"
+      apt:
+        name: aptitude
+        update_cache: yes
+      become: yes
+      become_method: sudo
+
+    - name: "Update apt cache and upgrade (safe)"
+      apt:
+        update_cache: yes
+        upgrade: safe
+      become: yes
+      become_method: sudo
+
+    - name: "Install LXC"
+      apt:
+        name: lxc
+      become: yes
+      become_method: sudo
+
+    - name: "Install liblxc1"
+      apt:
+        name: liblxc1
+      become: yes
+      become_method: sudo
+      when: ansible_distribution_version == "14.04"
+
+    - name: "Install python-lxc"
+      apt:
+        name: python-lxc
+      become: yes
+      become_method: sudo
+      when: ansible_distribution_version == "16.04"
+
+    - name: "Update ~/.config/lxc/default.conf"
+      lineinfile:
+        dest: ~/.config/lxc/default.conf
+        line: "{{ item }}"
+        create: yes
+      with_items:
+        - lxc.id_map = u 0 100000 65536
+        - lxc.id_map = g 0 100000 65536
+
+    - name: "Make backup of /etc/lxc/lxc-usernet"
+      copy:
+        src: /etc/lxc/lxc-usernet
+        dest: /etc/lxc/lxc-usernet.orig
+      become: yes
+      become_method: sudo
+
+    - name: "Update /etc/lxc/lxc-usernet"
+      lineinfile:
+        dest: /etc/lxc/lxc-usernet
+        line: "{{ user }} veth lxcbr0 2"
+      become: yes
+      become_method: sudo
+
+    - name: "Register management network subnet address"
+      shell: "grep ipaddr-mgmt-network {{ config_local }} | awk '{print $2}'"
+      register: ipaddr_mgmt_network
+
+    - name: "Update group_vars/all container_mgmt_subnet"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/group_vars/all"
+        regexp: '^(container_mgmt_subnet:).*$'
+        replace: '\1 {{ ipaddr_mgmt_network.stdout }}'
+      when: ipaddr_mgmt_network.stdout != ""
+
+    - name: "Update lxc.conf container mgmt ipv4 address"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/lxc.conf"
+        regexp: '^(lxc.network.ipv4 =).*$'
+        replace: |
+            \1 {{ ipaddr_mgmt_network.stdout |
+            ipaddr(container_mgmt_ipv4_offset) }}
+
+    - name: "Create private/public ssh key pair"
+      user:
+        name: "{{ ansible_env.USER }}"
+        generate_ssh_key: yes
+        ssh_key_file: "{{ ssh_key_private }}"
+
+    - name: "Create LXC deployment container"
+      lxc_container:
+        name: "{{ container_name }}"
+        template: ubuntu
+        template_options:
+          --user {{ user }}
+          --auth-key {{ ssh_key_public }}
+          --release trusty
+          --arch amd64
+          --packages python,aptitude
+        config: "{{ project_path_local }}/playbooks/lxc.conf"
+        container_command: |
+          cp -p /etc/sudoers /etc/sudoers.orig
+          echo -e "{{ user }}\tALL=NOPASSWD: ALL" >> /etc/sudoers
+      register: container_info
+      become: yes
+      become_method: sudo
+
+    - name: "Pause 5 seconds"
+      pause:
+        seconds: 5
+
+    - name: "Register container internal ip address"
+      command: lxc-info -n {{ container_name }} -iH
+      register: container_ip
+      become: yes
+      become_method: sudo
+
+    - name: "Print container IP information"
+      debug:
+        msg: "{{ item }}"
+      with_items:
+        - |
+            Deployment container internal IP:
+            {{ container_ip.stdout_lines | first }}
+        - |
+            Deployment container management network IP:
+            {{ ipaddr_mgmt_network.stdout | ipaddr(container_mgmt_ipv4_offset) |
+            ipaddr("address") }}'
+
+    - name: "Update \"deployer\" host with ssh private key."
+      replace:
+        dest: "{{ project_path_local }}/playbooks/hosts"
+        regexp: '^(deployer .+?ansible_ssh_private_key_file=).+?[ ]'
+        replace: '\1{{ ssh_key_private }} '
+      become: yes
+      become_method: sudo
+
+    - name: |
+        Update "deployer" host with container management network IP
+        address.
+      replace:
+        dest: "{{ project_path_local }}/playbooks/hosts"
+        regexp: '^(deployer .+?)=\d+\.\d+\.\d+\.\d+$'
+        replace: |
+            \1={{ ipaddr_mgmt_network.stdout |
+            ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
+      become: yes
+      become_method: sudo

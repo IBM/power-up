@@ -1,0 +1,98 @@
+---
+# Copyright 2016 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Check for interface name collisions
+  debug:
+    msg: "Host already has interface {{ item }} which has the MAC address {{ hostvars[inventory_hostname]['ansible_' + item]['macaddress'] }}. Renaming the interface with MAC address {{ name_interfaces.get(item) }} to {{ item }} will force rename of first interface."
+  when:
+    - name_interfaces is defined
+    - "{{ item in name_interfaces }}"
+    - "{{ name_interfaces.get(item) != hostvars[inventory_hostname]['ansible_' + item]['macaddress'] }}"
+  with_items: "{{ ansible_interfaces }}"
+
+- name: Generate udev persistent net rules
+  template:
+    src: "{{ playbook_dir }}/templates/persistent-net-rules.j2"
+    dest: /etc/udev/rules.d/99-persistent-net.rules
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: wrote_netrules
+
+- name: Generate Ubuntu interfaces file
+  template:
+    src: "{{ playbook_dir }}/templates/interfaces_ubuntu.j2"
+    dest: "/etc/network/interfaces"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    backup: yes
+  when:
+  - "{{ ansible_distribution == 'Ubuntu' }}"
+  register: wrote_interfaces
+
+- name: Generate RHEL/CentOS interfaces files
+  template:
+    src: "{{ playbook_dir }}/templates/interfaces_rhel.j2"
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ networks[item].get('eth-port') }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    backup: yes
+  when:
+  - networks[item].bridge is not defined
+  - "{{ ansible_distribution == 'CentOS' }}"
+  with_items: "{{ host_networks.keys() }}"
+  register: wrote_interfaces
+
+- name: Generate RHEL/CentOS vlan files
+  template:
+    src: "{{ playbook_dir }}/templates/vlan_rhel.j2"
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ networks[item].get('eth-port') }}.{{ networks[item].get('vlan') }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    backup: yes
+  when:
+  - networks[item].vlan is defined
+  - "{{ ansible_distribution == 'CentOS' }}"
+  with_items: "{{ host_networks.keys() }}"
+  register: wrote_interfaces
+
+- name: Generate RHEL/CentOS bridge files
+  template:
+    src: "{{ playbook_dir }}/templates/bridges_rhel.j2"
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ networks[item].get('bridge') }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    backup: yes
+  when:
+  - networks[item] is defined
+  - networks[item].bridge is defined
+  - "{{ ansible_distribution == 'CentOS' }}"
+  with_items: "{{ host_networks.keys() }}"
+
+- name: Reboot
+  command: reboot
+  when: wrote_netrules.changed or wrote_interfaces.changed
+
+- name: Wait for system to come back up
+  local_action: wait_for state=started delay="{{ reboot_delay_time }}" port=22 search_regex=OpenSSH timeout="{{ reboot_wait_interval }}" host="{{ inventory_hostname }}"
+  when: wrote_netrules.changed or wrote_interfaces.changed
+
+...

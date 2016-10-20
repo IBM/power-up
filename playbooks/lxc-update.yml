@@ -1,0 +1,151 @@
+---
+# Copyright 2016 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: lxc-update.yml
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    os_image_links:
+      - name: ubuntu-14.04.5-server-amd64
+        images:
+          - url: "http://releases.ubuntu.com/14.04.5/ubuntu-14.04.5-server-amd64.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-amd64.iso"
+      - name: ubuntu-16.04.1-server-amd64
+        images:
+          - url: "http://releases.ubuntu.com/16.04.1/ubuntu-16.04.1-server-amd64.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-amd64.iso"
+      - name: ubuntu-14.04.5-server-ppc64el
+        images:
+          - url: "http://cdimage.ubuntu.com/releases/14.04.5/release/ubuntu-14.04.5-server-ppc64el.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-ppc64el.iso"
+          - url: "http://ports.ubuntu.com/dists/trusty-updates/main/installer-ppc64el/current/images/xenial-netboot/mini.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-ppc64el.mini.iso"
+      - name: ubuntu-16.04.1-server-ppc64el
+        images:
+          - url: "http://cdimage.ubuntu.com/releases/16.04.1/release/ubuntu-16.04.1-server-ppc64el.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-ppc64el.iso"
+          - url: "http://ports.ubuntu.com/dists/xenial-updates/main/installer-ppc64el/current/images/netboot/mini.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-ppc64el.mini.iso"
+  tasks:
+    - name: "Get list of OS images from config.yml cobbler-profile keys"
+      shell: "grep cobbler-profile {{ config_local }} | awk '{print $2}'"
+      register: os_image_list
+
+    - name: "Loop through both lists"
+      set_fact:
+        images: "{{ item[0]['images'] }}"
+      with_nested:
+        - "{{ os_image_links }}"
+        - "{{ os_image_list.stdout_lines }}"
+      when: ( item[0]['name'] == (item[1]|splitext)[0] ) or
+            ( item[0]['name'] == item[1] )
+      register: image_list
+
+    - name: "Compile results into single list with unique entries"
+      set_fact:
+        image_list_unique:
+          "{{ image_list.results | selectattr('ansible_facts', 'defined') | \
+           map(attribute='ansible_facts.images') | list | unique }}"
+
+    - name: "Download OS installer images"
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ item.dest }}"
+        force: no
+      with_items: "{{ image_list_unique }}"
+
+- hosts: deployer
+  vars:
+    scripts_path_local: "{{ hostvars['localhost']['scripts_path_local'] }}"
+    images_local: "{{ hostvars['localhost']['project_path_local'] }}/os_images"
+    config_local: "{{ hostvars['localhost']['config_local'] }}"
+  tasks:
+    - name: "Print local scripts/config paths"
+      debug:
+        msg: "{{ item }}"
+      with_items:
+        - "Local Scripts Path: {{ scripts_path_local }}"
+        - "Local Config file: {{ config_local }}"
+
+    - name: "Update apt cache and upgrade (safe)"
+      apt:
+        update_cache: yes
+        upgrade: safe
+      become: yes
+      become_method: sudo
+
+    - name: "Install distro packages"
+      apt:
+        name: "{{ item }}"
+      with_items:
+        - python-pip
+        - python-dev
+        - libffi-dev
+        - libssl-dev
+        - python-pysnmp4
+        - ipmitool
+        - git
+      become: yes
+      become_method: sudo
+
+    - name: "Install python pip packages"
+      pip:
+        name: "{{ item }}"
+      with_items:
+        - pip
+        - setuptools
+        - wheel
+        - virtualenv
+      become: yes
+      become_method: sudo
+
+    - name: "Create project root directory"
+      file:
+        path: "{{ project_path }}"
+        state: directory
+
+    - name: "Create python virtual environment"
+      command: virtualenv --no-wheel --system-site-packages {{ venv_path }}
+
+    - name: "Activate python venv and install pip packages"
+      command: >
+        /bin/bash -c "
+        source {{ venv_path }}/bin/activate &&
+        pip install --ignore-installed pyaml orderedattrdict pysnmp pyghmi \
+        paramiko &&
+        deactivate"
+
+    - name: "Copy config file into deployment container"
+      copy:
+        src: "{{ config_local }}"
+        dest: "{{ project_path }}"
+
+    - name: "Copy scripts into deployment container"
+      copy:
+        src: "{{ scripts_path_local }}"
+        dest: "{{ project_path }}"
+
+    - name: "Copy OS images and configs into deployment container"
+      copy:
+        src: "{{ images_local }}"
+        dest: "{{ project_path }}"
+
+    - name: "Create log file"
+      file:
+        path: "{{ project_path }}/log.txt"
+        state: touch
+        mode: 0644
