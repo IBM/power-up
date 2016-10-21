@@ -15,7 +15,7 @@
 // # limitations under the License.
 
 task check (type : Exec) {
-    print 'Running Check Task on yggdrasil'
+    print 'Running Check Task on cluster-genesis'
     workingDir '.'
     executable = "ls";
     standardOutput = new ByteArrayOutputStream()

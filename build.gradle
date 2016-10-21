@@ -15,7 +15,7 @@
 // # limitations under the License.
 
 task build (type : Exec) {
-     print 'Building yggdrasil'
+     print 'Building cluster-genesis'
      //TODO: Project team need to implement build task
      //executable = "Command_Or_Script_To_Run"; args = ["Arguments_To_Command_Or_Script"]
     commandLine 'ls'

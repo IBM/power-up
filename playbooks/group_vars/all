@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-project_name: "yggdrasil"
+project_name: "cluster-genesis"
 user: deployer
 project_path: "/home/{{ user }}/{{ project_name }}"
 venv_path: "{{ project_path }}/deployenv"
