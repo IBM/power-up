@@ -40,6 +40,12 @@ When finished, Genesis generates a YAML formatted inventory file which can be
 read by operational management software and used to seed configuration files
 needed for installing a solution software stack.
 
+Project Resources
+=================
+
+* Wiki: https://github.com/open-power/cluster-genesis/wiki
+* IRC:  #cluster-genesis channel on chat.freenode.net
+
 Installation
 ============
 ::
