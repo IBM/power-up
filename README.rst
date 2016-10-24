@@ -43,7 +43,7 @@ needed for installing a solution software stack.
 Project Resources
 =================
 
-* Wiki: https://github.com/open-power/cluster-genesis/wiki
+* Wiki: https://github.com/open-power-ref-design/cluster-genesis/wiki
 * IRC:  #cluster-genesis channel on chat.freenode.net
 
 Installation
@@ -51,7 +51,7 @@ Installation
 ::
 
 $ sudo apt update; sudo apt install git
-$ git clone https://github.com/open-power/cluster-genesis.git
+$ git clone https://github.com/open-power-ref-design/cluster-genesis.git
 $ cd cluster-genesis
 $ ./scripts/install.sh
 $ source scripts/setup-env
