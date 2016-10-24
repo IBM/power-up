@@ -504,7 +504,7 @@ software-bootstrap-cmd: |
         apt-get install -qq -y git
     fi
     if [ ! -d os-services ]; then
-        git clone git://github.com/open-power/os-services.git
+        git clone git://github.com/open-power-ref-design/os-services.git
     fi
     cd os-services
     git checkout v1.0.0    # Leverages openstack-ansible mitaka 13.1.0
