@@ -16,6 +16,12 @@
 # limitations under the License.
 
 - name: Run Bootstrap Command
-  shell: "{{ software_bootstrap_cmd }}"
+  shell: "{{ software_bootstrap_cmd | \
+          default('echo no software_bootstrap_cmd defined; false') }}"
+  register: output
+
+- name: Print stdout
+  debug:
+    var: output.stdout_lines
 
 ...
