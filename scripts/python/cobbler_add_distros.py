@@ -73,7 +73,7 @@ class CobblerAddDistros(object):
                 elif item.lower().startswith('7'):
                     os_version = 'rhel7'
             kernel_options = "text"
-            kickstart = "/var/lib/cobbler/kickstarts/%s.cfg" % name
+            kickstart = "/var/lib/cobbler/kickstarts/%s.ks" % name
 
         cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
         token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)

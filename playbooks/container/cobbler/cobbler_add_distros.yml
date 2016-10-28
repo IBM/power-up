@@ -55,11 +55,11 @@
         patterns: "*.list"
       register: list_files_all
 
-    - name: "Register list of *.cfg files"
+    - name: "Register list of *.ks files"
       find:
         paths: "{{ project_path }}/os_images/config"
-        patterns: "*.cfg"
-      register: cfg_files
+        patterns: "*.ks"
+      register: ks_files
 
     - name: "Mount Distro installer images"
       mount:
@@ -98,6 +98,7 @@
         regexp: "defaultuser"
         replace: "{{ userid_default.stdout }}"
       with_items:
+        - "{{ ks_files.files }}"
         - "{{ seed_files.files }}"
       when: userid_default.stdout != ""
       become: yes
@@ -113,6 +114,7 @@
         regexp: "passw0rd"
         replace: "{{ password_default.stdout }}"
       with_items:
+        - "{{ ks_files.files }}"
         - "{{ seed_files.files }}"
       when: password_default.stdout != ""
       become: yes
@@ -124,7 +126,7 @@
         remote_src: True
         dest: /var/lib/cobbler/kickstarts/
       with_items:
-        - "{{ cfg_files.files }}"
+        - "{{ ks_files.files }}"
         - "{{ seed_files.files }}"
       become: yes
       become_method: sudo
