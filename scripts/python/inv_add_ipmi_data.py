@@ -26,7 +26,7 @@ from lib.logger import Logger
 
 
 class IpmiData(object):
-    def __init__(self, log_level, inv_file, cfg_file):
+    def __init__(self, log_level, inv_file):
         self.log = Logger(__file__)
         if log_level is not None:
             self.log.set_level(log_level)
@@ -44,7 +44,7 @@ class IpmiData(object):
         self.IPMI_OPENPOWER_FW = b'OpenPOWER Firmware'
         self.PPC64 = b'ppc64'
 
-        self.inv_obj = Inventory(log_level, inv_file, cfg_file)
+        self.inv_obj = Inventory(log_level, inv_file)
 
         for inv, key, _key, index, self.node in self.inv_obj.yield_nodes():
             ipmi_cmd = ipmi_command.Command(
@@ -116,8 +116,6 @@ class IpmiData(object):
                     if ipmi_key == IPMI_NODE1:
                         break
 
-        self.inv_obj.dump()
-
     def get_ipmi(
         self,
             ipmi_key, ipmi_field, ipmi_value, inv_value=None):
@@ -152,11 +150,10 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
-    cfg_file = sys.argv[1]
-    inv_file = sys.argv[2]
+    inv_file = sys.argv[1]
     if argv_count == ARGV_MAX:
-        log_level = sys.argv[3]
+        log_level = sys.argv[2]
     else:
         log_level = None
 
-    ipmi_data = IpmiData(log_level, inv_file, cfg_file)
+    ipmi_data = IpmiData(log_level, inv_file)

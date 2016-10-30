@@ -23,7 +23,7 @@ import mellanox_switch
 
 def main(log_level, inv_file):
 
-    inv = inventory.Inventory(log_level, inv_file, inv_file)
+    inv = inventory.Inventory(log_level, inv_file)
     switch = mellanox_switch.MellanoxSwitch(log_level)
     switch.clear_mac_address_table(inv)
 

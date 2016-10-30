@@ -38,17 +38,17 @@ YAML_MODEL = 'model'
 YAML_SERIAL_NUMBER = 'serial-number'
 INV_TEMPLATE = 'template'
 
-CFG_NODES_TEMPLATES = 'node-templates'
-CFG_COBBLER_PROFILE = 'cobbler-profile'
+INV_NODES_TEMPLATES = 'node-templates'
+INV_COBBLER_PROFILE = 'cobbler-profile'
 YAML_COBBLER_PROFILE = 'cobbler-profile'
-CFG_OS_DISK = 'os-disk'
+INV_OS_DISK = 'os-disk'
 YAML_ARCH = 'architecture'
 COBBLER_PROFILE_X86_64 = 'ubuntu-14.04.4-server-amd64'
 COBBLER_PROFILE_PPC64 = 'ubuntu-14.04.4-server-ppc64el'
 
 
 class CobblerAddSystems(object):
-    def __init__(self, log_level, inv_file, cfg_file):
+    def __init__(self, log_level, inv_file):
         log = Logger(__file__)
         if log_level is not None:
             log.set_level(log_level)
@@ -56,7 +56,7 @@ class CobblerAddSystems(object):
         cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
         token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 
-        inv = Inventory(log_level, inv_file, cfg_file)
+        inv = Inventory(log_level, inv_file)
 
         for node_inv, INV_NODES, key, index, node in inv.yield_nodes():
             hostname = node[YAML_HOSTNAME]
@@ -69,11 +69,11 @@ class CobblerAddSystems(object):
             if YAML_COBBLER_PROFILE in node:
                 COBBLER_PROFILE = \
                     node[YAML_COBBLER_PROFILE]
-            elif (CFG_COBBLER_PROFILE in
-                    inv.cfg[CFG_NODES_TEMPLATES][node[INV_TEMPLATE]]):
+            elif (INV_COBBLER_PROFILE in
+                    inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]):
                 COBBLER_PROFILE = \
-                    (inv.cfg[CFG_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                            [CFG_COBBLER_PROFILE])
+                    (inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
+                            [INV_COBBLER_PROFILE])
             elif (YAML_ARCH in node and
                     node[YAML_ARCH] is not None):
                 if node[YAML_ARCH].lower() == 'x86_64':
@@ -132,10 +132,10 @@ class CobblerAddSystems(object):
                     "ipaddress-eth0": ipv4_pxe,
                     "dnsname-eth0": hostname},
                 token)
-            if CFG_OS_DISK in inv.cfg[CFG_NODES_TEMPLATES][node[INV_TEMPLATE]]:
+            if INV_OS_DISK in inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]:
                 disks = (
-                    inv.cfg[CFG_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                    [CFG_OS_DISK])
+                    inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
+                    [INV_OS_DISK])
                 if isinstance(disks, basestring):
                     KS_META = 'install_disk=%s' % disks
                 elif isinstance(disks, list) and len(disks) == 2:
@@ -146,8 +146,8 @@ class CobblerAddSystems(object):
                     log.error(
                         'Invalid %s[%s][%s] value: '
                         'Must be string or two item list.' %
-                        (CFG_NODES_TEMPLATES, node[INV_TEMPLATE],
-                            CFG_OS_DISK))
+                        (INV_NODES_TEMPLATES, node[INV_TEMPLATE],
+                            INV_OS_DISK))
                 cobbler_server.modify_system(
                     new_system_create,
                     "ks_meta",
@@ -203,11 +203,10 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
-    cfg_file = sys.argv[1]
-    inv_file = sys.argv[2]
+    inv_file = sys.argv[1]
     if argv_count == ARGV_MAX:
-        log_level = sys.argv[3]
+        log_level = sys.argv[2]
     else:
         log_level = None
 
-    cobbler_output = CobblerAddSystems(log_level, inv_file, cfg_file)
+    cobbler_output = CobblerAddSystems(log_level, inv_file)

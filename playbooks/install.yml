@@ -31,7 +31,6 @@
 - include: container/cobbler/cobbler_add_distros.yml
 - include: container/cobbler/cobbler_add_profiles.yml
 - include: container/cobbler/cobbler_add_systems.yml
-- include: container/inv_add_config_file.yml
 - include: container/allocate_ip_addresses.yml
 - include: container/get_inv_file.yml dest=/var/oprc
 - include: container/ipmi_set_bootdev.yml bootdev=network persistent=False

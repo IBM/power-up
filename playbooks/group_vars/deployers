@@ -16,5 +16,4 @@
 # limitations under the License.
 
 scripts_path: "{{ project_path }}/scripts"
-config: "{{ project_path }}/config.yml"
 inventory: "{{ project_path }}/inventory.yml"

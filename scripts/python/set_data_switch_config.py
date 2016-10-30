@@ -28,7 +28,7 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 class ConfigureDataSwitch(object):
-    def __init__(self, log_level, cfg_file):
+    def __init__(self, log_level, inv_file):
         self.SWITCH_PORT = 22
 
         self.DEBUG = b'DEBUG'
@@ -50,7 +50,7 @@ class ConfigureDataSwitch(object):
         if log_level is not None:
             log.set_level(log_level)
 
-        inv = Inventory(log_level, None, cfg_file)
+        inv = Inventory(log_level, inv_file)
 
         for self.ipv4, self.userid, self.password, vlans \
                 in inv.yield_data_vlans():
@@ -120,10 +120,10 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
-    cfg_file = sys.argv[1]
+    inv_file = sys.argv[1]
     if argv_count == ARGV_MAX:
         log_level = sys.argv[2]
     else:
         log_level = None
 
-    ipmi_data = ConfigureDataSwitch(log_level, cfg_file)
+    ipmi_data = ConfigureDataSwitch(log_level, inv_file)

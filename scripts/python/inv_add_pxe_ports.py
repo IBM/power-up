@@ -28,7 +28,7 @@ from get_dhcp_lease_info import GetDhcpLeases
 
 
 class InventoryAddPxe(object):
-    def __init__(self, dhcp_leases_file, log_level, inv_file, cfg_file):
+    def __init__(self, dhcp_leases_file, log_level, inv_file):
         log = Logger(__file__)
         if log_level is not None:
             log.set_level(log_level)
@@ -36,7 +36,7 @@ class InventoryAddPxe(object):
         dhcp_leases = GetDhcpLeases(dhcp_leases_file, log_level)
         dhcp_mac_ip = dhcp_leases.get_mac_ip()
 
-        inv = Inventory(log_level, inv_file, cfg_file)
+        inv = Inventory(log_level, inv_file)
         mgmt_switch_config = GetMgmtSwitchConfig(log_level)
         mgmt_sw_cfg = AttrDict()
         for rack, ipv4 in inv.yield_mgmt_rack_ipv4():
@@ -67,13 +67,12 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
-    cfg_file = sys.argv[1]
-    inv_file = sys.argv[2]
-    dhcp_leases_file = sys.argv[3]
+    inv_file = sys.argv[1]
+    dhcp_leases_file = sys.argv[2]
     if argv_count == ARGV_MAX:
-        log_level = sys.argv[4]
+        log_level = sys.argv[3]
     else:
         log_level = None
 
     ipmi_data = InventoryAddPxe(
-        dhcp_leases_file, log_level, inv_file, cfg_file)
+        dhcp_leases_file, log_level, inv_file)

@@ -23,7 +23,7 @@ import mellanox_switch
 
 def main(log_level, inv_file):
 
-    inv = inventory.Inventory(log_level, inv_file, inv_file)
+    inv = inventory.Inventory(log_level, inv_file)
     switch = mellanox_switch.MellanoxSwitch(log_level)
     switch_ip_to_port_to_macs = switch.get_macs(inv)
     success = inv.add_data_switch_port_macs(switch_ip_to_port_to_macs)

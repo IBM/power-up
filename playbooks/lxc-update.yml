@@ -132,7 +132,7 @@
     - name: "Copy config file into deployment container"
       copy:
         src: "{{ config_local }}"
-        dest: "{{ project_path }}"
+        dest: "{{ inventory }}"
 
     - name: "Copy scripts into deployment container"
       copy:

@@ -22,4 +22,6 @@
   tasks:
     - command: "awk '{system(\"ping -c 5 \"$3)}' {{ dhcp_leases_file }}"
       ignore_errors: yes
-    - command: "{{ python_executable }} {{ scripts_path }}/python/inv_add_ipmi_ports.py {{ config }} {{ inventory }} {{ dhcp_leases_file }} {{ log_level }}"
+    - command: "{{ python_executable }} \
+                {{ scripts_path }}/python/inv_add_ipmi_ports.py \
+                {{ inventory }} {{ dhcp_leases_file }} {{ log_level }}"

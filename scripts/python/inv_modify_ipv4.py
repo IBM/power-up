@@ -44,13 +44,13 @@ INV_HOSTNAME = 'hostname'
 
 
 class InventoryModifyIPv4(object):
-    def __init__(self, log_level, inv_file, cfg_file, node_mgmt_ipv4_start):
+    def __init__(self, log_level, inv_file, node_mgmt_ipv4_start):
         log = Logger(__file__)
         if log_level is not None:
             log.set_level(log_level)
 
-        inv_original = Inventory(log_level, inv_file, cfg_file)
-        inv = Inventory(log_level, inv_file, cfg_file)
+        inv_original = Inventory(log_level, inv_file)
+        inv = Inventory(log_level, inv_file)
 
         new_ip = netaddr.IPNetwork(node_mgmt_ipv4_start)
         i = 0
@@ -155,13 +155,12 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
-    cfg_file = sys.argv[1]
-    inv_file = sys.argv[2]
-    node_mgmt_ipv4_start = sys.argv[3]
+    inv_file = sys.argv[1]
+    node_mgmt_ipv4_start = sys.argv[2]
     if argv_count == ARGV_MAX:
-        log_level = sys.argv[4]
+        log_level = sys.argv[3]
     else:
         log_level = None
 
     ipmi_data = InventoryModifyIPv4(
-        log_level, inv_file, cfg_file, node_mgmt_ipv4_start)
+        log_level, inv_file, node_mgmt_ipv4_start)

@@ -24,6 +24,18 @@
       with_items:
         - "Project name: {{ project_path_local }}"
 
+    - name: "Print back-up config file path"
+      debug:
+        msg: "{{ item }}"
+      with_items:
+        - "Config file backup: {{ config_local_backup }}"
+
+    - name: "Back-up config file"
+      copy:
+        src: "{{ config_local }}"
+        dest: "{{ config_local_backup }}"
+        mode: 0444
+
     - name: "Install aptitude"
       apt:
         name: aptitude

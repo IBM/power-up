@@ -89,7 +89,7 @@
       become_method: sudo
 
     - name: "Register default user id"
-      shell: "grep userid-default {{ config }} | awk '{print $2}'"
+      shell: "grep userid-default {{ inventory }} | awk '{print $2}'"
       register: userid_default
 
     - name: "Update preseed configurations with default user id"
@@ -105,7 +105,7 @@
       become_method: sudo
 
     - name: "Register default password"
-      shell: "grep password-default {{ config }} | awk '{print $2}'"
+      shell: "grep password-default {{ inventory }} | awk '{print $2}'"
       register: password_default
 
     - name: "Update preseed configurations with default user password"

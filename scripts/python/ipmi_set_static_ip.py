@@ -51,7 +51,7 @@ class IpmiSetStaticIP(object):
                 password=_password)
 
             try:
-                cfg = ipmi_cmd.get_net_configuration(
+                inv = ipmi_cmd.get_net_configuration(
                     channel=None, gateway_macs=False)
             except pyghmi_exception.IpmiException as error:
                 log.error(
@@ -59,11 +59,11 @@ class IpmiSetStaticIP(object):
                     (rack_id, ipv4, str(error)))
                 sys.exit(1)
 
-            m = re.search('^(.+?)/', cfg['ipv4_address'])
-            cfg_ipv4_address_no_mask = m.group(1)
+            m = re.search('^(.+?)/', inv['ipv4_address'])
+            inv_ipv4_address_no_mask = m.group(1)
 
             # Check that IPMI port is not set to Static
-            if cfg['ipv4_configuration'] == STATIC:
+            if inv['ipv4_configuration'] == STATIC:
                 try:
                     raise Exception()
                 except:
@@ -72,12 +72,12 @@ class IpmiSetStaticIP(object):
                         (
                             STATIC,
                             rack_id,
-                            cfg_ipv4_address_no_mask,
-                            cfg['mac_address']))
+                            inv_ipv4_address_no_mask,
+                            inv['mac_address']))
                     sys.exit(1)
 
             # Compare ipv4 address on IPMI port versus inventory file
-            if cfg_ipv4_address_no_mask != ipv4:
+            if inv_ipv4_address_no_mask != ipv4:
                 try:
                     raise Exception()
                 except:
@@ -85,26 +85,26 @@ class IpmiSetStaticIP(object):
                         IPV4_ERR_MSG %
                         (
                             rack_id,
-                            cfg_ipv4_address_no_mask,
+                            inv_ipv4_address_no_mask,
                             ipv4,
-                            cfg['mac_address']))
+                            inv['mac_address']))
                     sys.exit(1)
 
             # Compare mac address on IPMI port versus inventory file
 
             try:
                 ipmi_cmd.set_net_configuration(
-                    ipv4_address=cfg['ipv4_address'],
+                    ipv4_address=inv['ipv4_address'],
                     ipv4_configuration='Static',
-                    ipv4_gateway=cfg['ipv4_gateway'],
+                    ipv4_gateway=inv['ipv4_gateway'],
                     channel=None)
                 log.info(
                     IPMI_SET_MSG %
-                    (STATIC, rack_id, ipv4, cfg['mac_address']))
+                    (STATIC, rack_id, ipv4, inv['mac_address']))
             except pyghmi_exception.IpmiException as error:
                 log.error(
                     IPMI_SET_ERR_MSG %
-                    (STATIC, rack_id, ipv4, cfg['mac_address'], str(error)))
+                    (STATIC, rack_id, ipv4, inv['mac_address'], str(error)))
                 sys.exit(1)
 
 
