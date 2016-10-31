@@ -21,6 +21,50 @@
 auto lo
 iface lo inet loopback
 
+{% for network in host_networks -%}
+{% if 'bond' in networks[network] %}
+# {{ networks[network]['description'] }}
+#We define bond-master in the necessary interfaces
+#bond-slaves can be none here.
+auto {{ networks[network]['bond'] }}
+iface {{ networks[network]['bond'] }} inet {{ networks[network]['method'] }}
+{% if 'addr' in host_networks[network] %}
+    address {{ host_networks[network]['addr'] }}
+{% endif %}
+{% if 'netmask' in networks[network] %}
+    netmask {{ networks[network]['netmask'] }}
+{% endif %}
+{% if 'gateway' in networks[network] %}
+    gateway {{ networks[network]['gateway'] }}
+{% endif %}
+{% if 'network' in networks[network] %}
+    network {{ networks[network]['network'] }}
+{% endif %}
+{% if 'broadcast' in networks[network] %}
+    broadcast {{ networks[network]['broadcast'] }}
+{% endif %}
+{% if 'dns-search' in networks[network] %}
+    dns-search {{ networks[network]['dns-search'] }}
+{% endif %}
+{% if 'dns-nameservers' in networks[network] %}
+    dns-nameservers {{ networks[network]['dns-nameservers'] }}
+{% endif %}
+{% if 'mtu' in networks[network] %}
+    mtu {{ networks[network]['mtu'] }}
+{% endif %}
+{% if 'bond-mode' in networks[network] %}
+    bond-mode {{ networks[network]['bond-mode'] }}
+{% endif %}
+    bond-slaves none
+{% if 'optional-bond-arguments' in networks[network] %}
+{% for argument in networks[network]['optional-bond-arguments'] %}
+    {{ argument }} {{ networks[network]['optional-bond-arguments'][argument] }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+
 {% for network in host_networks %}
 {% if 'bridge' not in networks[network] and 'bond' not in networks[network] %}
 # {{ networks[network]['description'] }}
@@ -65,46 +109,6 @@ iface {{ networks[network]['eth-port'] }} inet {{ networks[network]['method'] }}
 {% endif %}
 {% endfor %}
 
-
-{% for network in host_networks -%}
-{% if 'bond' in networks[network] %}
-# {{ networks[network]['description'] }}
-#We define bond-master in the necessary interfaces
-#bond-slaves can be none here.
-auto {{ networks[network]['bond'] }}
-iface {{ networks[network]['bond'] }} inet {{ networks[network]['method'] }}
-{% if 'addr' in host_networks[network] %}
-    address {{ host_networks[network]['addr'] }}
-{% endif %}
-{% if 'netmask' in networks[network] %}
-    netmask {{ networks[network]['netmask'] }}
-{% endif %}
-{% if 'gateway' in networks[network] %}
-    gateway {{ networks[network]['gateway'] }}
-{% endif %}
-{% if 'network' in networks[network] %}
-    network {{ networks[network]['network'] }}
-{% endif %}
-{% if 'broadcast' in networks[network] %}
-    broadcast {{ networks[network]['broadcast'] }}
-{% endif %}
-{% if 'dns-search' in networks[network] %}
-    dns-search {{ networks[network]['dns-search'] }}
-{% endif %}
-{% if 'dns-nameservers' in networks[network] %}
-    dns-nameservers {{ networks[network]['dns-nameservers'] }}
-{% endif %}
-{% if 'bond-mode' in networks[network] %}
-    bond-mode {{ networks[network]['bond-mode'] }}
-{% endif %}
-    bond-slave none
-{% if 'optional-bond-arguments' in networks[network] %}
-{% for argument in networks[network]['optional-bond-arguments'] %}
-    {{ argument }} {{ networks[network]['optional-bond-arguments'][argument] }}
-{% endfor %}
-{% endif %}
-{% endif %}
-{% endfor %}
 
 {% for network in host_networks %}
 {% if 'bridge' in networks[network] %}
