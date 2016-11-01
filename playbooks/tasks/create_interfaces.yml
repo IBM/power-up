@@ -41,8 +41,7 @@
     group: "root"
     mode: "0644"
     backup: yes
-  when:
-  - "{{ ansible_distribution == 'Ubuntu' }}"
+  when: (ansible_distribution == 'Ubuntu')
   register: wrote_interfaces
 
 - name: Generate RHEL/CentOS interfaces files
@@ -54,8 +53,8 @@
     mode: "0644"
     backup: yes
   when:
-  - networks[item].bridge is not defined
-  - "{{ ansible_distribution == 'CentOS' }}"
+    - networks[item].bridge is not defined
+    - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
   register: wrote_interfaces
 
@@ -68,8 +67,8 @@
     mode: "0644"
     backup: yes
   when:
-  - networks[item].vlan is defined
-  - "{{ ansible_distribution == 'CentOS' }}"
+    - networks[item].vlan is defined
+    - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
   register: wrote_interfaces
 
@@ -82,9 +81,9 @@
     mode: "0644"
     backup: yes
   when:
-  - networks[item] is defined
-  - networks[item].bridge is defined
-  - "{{ ansible_distribution == 'CentOS' }}"
+    - networks[item] is defined
+    - networks[item].bridge is defined
+    - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
 
 - name: Reboot
