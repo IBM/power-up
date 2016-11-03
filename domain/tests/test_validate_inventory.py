@@ -50,6 +50,18 @@ class TestValidateInventory(unittest.TestCase):
                           test_mod.validate_reference_architecture,
                           inv)
 
+        # test dbaas w/o private compute base
+        inv['reference-architecture'] = ['dbaas']
+        self.assertRaises(test_mod.UnsupportedConfig,
+                          test_mod.validate_reference_architecture,
+                          inv)
+
+        # DBaaS, with swift
+        inv['reference-architecture'] = ['swift', 'dbaas']
+        self.assertRaises(test_mod.UnsupportedConfig,
+                          test_mod.validate_reference_architecture,
+                          inv)
+
         # test min hardware, no base
         inv['reference-architecture'] = ['swift-minimum-hardware']
         self.assertRaises(test_mod.UnsupportedConfig,
@@ -83,6 +95,9 @@ class TestValidateInventory(unittest.TestCase):
         test_mod.validate_reference_architecture(inv)
 
         inv['reference-architecture'] = ['private-compute-cloud', 'swift']
+        test_mod.validate_reference_architecture(inv)
+
+        inv['reference-architecture'] = ['private-compute-cloud', 'dbaas']
         test_mod.validate_reference_architecture(inv)
 
         # Test base refs by themselves and together

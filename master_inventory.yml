@@ -50,6 +50,11 @@ reference-architecture:
         # the Ceph monitors residing on the controllers and the Ceph OSDs
         # residing on Power servers.
 
+    # dbaas
+        # This reference architecture is additive to the private-compute-cloud.
+        # It addess Database as a Service functionality to the base private
+        # cloud architecture.
+
     # swift
         # This reference architecture defines a scale out Swift standalone cluster.
         # It features a 3x HA control plane on x86 servers.  The control plane

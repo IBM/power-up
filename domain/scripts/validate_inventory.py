@@ -18,6 +18,13 @@ import argparse
 import sys
 import yaml
 
+SWIFT = 'swift'
+SWIFT_MIN = 'swift-minimum-hardware'
+CEPH = 'ceph-standalone'
+DBAAS = 'dbaas'
+COMPUTE = 'private-compute-cloud'
+BASE_ARCHS = {SWIFT, COMPUTE, CEPH}
+
 
 class UnsupportedConfig(Exception):
     pass
@@ -39,17 +46,21 @@ def validate_reference_architecture(inventory):
     if not reference_architecture:
         raise UnsupportedConfig('Missing reference-architecture setting.')
 
-    base_architectures = ['swift', 'private-compute-cloud', 'ceph-standalone']
     # Validate that we have at least one base architecture in the list
-    if len(set(base_architectures).intersection(reference_architecture)) == 0:
+    if len(BASE_ARCHS.intersection(reference_architecture)) == 0:
         raise UnsupportedConfig('Missing base architecture')
 
-    if ('swift-minimum-hardware' in reference_architecture and
+    if (DBAAS in reference_architecture and
+            COMPUTE not in reference_architecture):
+        raise UnsupportedConfig('dbaas cannot be used without '
+                                'private-compute-cloud.')
+
+    if (SWIFT_MIN in reference_architecture and
             'swift' not in reference_architecture):
         raise UnsupportedConfig('swift-minimum-hardware cannot be used alone')
 
-    if ('swift-minimum-hardware' in reference_architecture and
-            'private-compute-cloud' in reference_architecture):
+    if (SWIFT_MIN in reference_architecture and
+            COMPUTE in reference_architecture):
         # This is a valid thing to do, but swift-minimum-hardware, a.k.a
         # running Swift on the controller while doing a private compute
         # cloud is not a reference architecture we support.
@@ -57,8 +68,7 @@ def validate_reference_architecture(inventory):
                                 'private-compute-cloud')
 
     # Validate ceph standalone is alone
-    if ('ceph-standalone' in reference_architecture and
-            len(reference_architecture) != 1):
+    if CEPH in reference_architecture and len(reference_architecture) != 1:
         raise UnsupportedConfig('The ceph-standalone reference architecture '
                                 'cannot be used in conjunction with other '
                                 'reference architectures.')
@@ -77,7 +87,7 @@ def validate_swift(inventory):
 
     converged_metadata_object = _has_converged_metadata_object(inventory)
     separate_metadata_object = _has_separate_metadata_object(inventory)
-    if 'swift-minimum-hardware' in reference_architecture:
+    if SWIFT_MIN in reference_architecture:
         if 'swift-proxy' in inventory.get('node-templates'):
             msg = ('The swift-proxy node template must not be used with the '
                    'swift-minimum-hardware reference architecture.')
