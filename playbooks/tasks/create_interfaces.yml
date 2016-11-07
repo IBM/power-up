@@ -54,6 +54,7 @@
     backup: yes
   when:
     - networks[item].bridge is not defined
+    - networks[item].bond is not defined
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
   register: wrote_interfaces
@@ -83,6 +84,20 @@
   when:
     - networks[item] is defined
     - networks[item].bridge is defined
+    - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
+  with_items: "{{ host_networks.keys() }}"
+
+- name: Generate RHEL/CentOS bond files
+  template:
+    src: "{{ playbook_dir }}/templates/bond_rhel.j2"
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ networks[item].get('bond') }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    backup: yes
+  when:
+    - networks[item] is defined
+    - networks[item].bond is defined
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
 

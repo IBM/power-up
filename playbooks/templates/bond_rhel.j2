@@ -18,35 +18,24 @@
 # and how to activate them. For more information, see interfaces(5).
 
 # The loopback network interface
+#
 {% set network = item %}
 BOOTPROTO=none
 ONBOOT=yes
-TYPE=ETHERNET
-DEVICE={{ networks[network]['eth-port'] }}
-NAME={{  networks[network]['eth-port'] }}
-{# check if bridge name is already specified #}
-{% if 'bridge' in networks[network] %}
-BRIDGE={{ networks[network]['bridge'] }}
-{# if not, loop and see if other network is a bridge and referencing this define #}
-{% else %}
-{% for bridge_network in host_networks %}
-{# if vlan is not present, but bridge is, we need to specify BRIDGE= in interface. #}
-{% if ( 'vlan' not in networks[bridge_network] and
-'bridge' in networks[bridge_network] and
-networks[bridge_network]['eth-port'] == networks[network]['eth-port'] )
- %}
-BRIDGE={{ networks[bridge_network]['bridge'] }}
-{% endif %}
+TYPE=Bond
+BONDING_MASTER=yes
+DEVICE={{ networks[network]['bond'] }}
+{% set bonding_opts = [] %}
+{% do bonding_opts.append("mode="+ networks[network]['bond-mode'].__str__()) %}
+{% for argument in networks[network]['optional-bond-arguments'] %}
+{% do bonding_opts.append(argument+"="+networks[network]['optional-bond-arguments'][argument].__str__()) %}
 {% endfor %}
-{% endif %}
-{% for bond_net in host_networks %}
-{% if 'bond-interfaces' in networks[bond_net] %}
-{% if networks[network]['eth-port'] in networks[bond_net]['bond-interfaces'] %}
-MASTER={{ networks[bond_net]['bond'] }}
-SLAVE=yes
-{% endif %}
-{% endif %}
-{% endfor %}
+BONDING_OPTS="
+{%- for opts in bonding_opts %}
+ {{ opts }}
+{%- endfor -%}
+"
+NAME={{ networks[network]['bond'] }}
 {% if 'addr' in host_networks[network] %}
 IPADDR={{ host_networks[network]['addr'] }}
 {% endif %}
