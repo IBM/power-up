@@ -200,7 +200,7 @@ networks:
         vlan: 10
         eth-port: bond1
     openstack-stg:
-        description: OpenStack Management Network
+        description: OpenStack Storage Network
         bridge: br-storage
         method: static
         tcp_segmentation_offload: off
@@ -214,13 +214,13 @@ networks:
         addr: 172.29.240.0/22  # ipv4 openstack tenant network
         vlan: 30     # vxlan vlan id
         eth-port: eth11
-        bridge-port: veth12
     openstack-tenant-vlan:
         description: OpenStack Tenant vlan Network
         bridge: br-vlan
         method: static
         addr: 0.0.0.0/1  # Nodes do not get IPs assigned in this network
         eth-port: eth11
+        bridge-port: veth12
     ceph-replication:
         addr: 172.29.248.0/22  # ipv4 ceph replication network
         bridge: br-replication
@@ -516,21 +516,10 @@ software-bootstrap-cmd: |
     export DEPLOY_CEPH=yes
     export DEPLOY_OPSMGR=yes
     # export ANSIBLE_HOST_KEY_CHECKING=False
-    export ADMIN_PASSWORD=passw0rd
-    export KIBANA_PASSWORD=passw0rd
     ./scripts/bootstrap-cluster.sh | tee -a ../bootstrap-cluster.out
     rc=$?
     if [ $rc != 0 ]; then
         echo "./scripts/bootstrap-cluster.sh failed, rc=$rc"
-        exit $rc
-    fi
-    # Ignore signal SIGHUP as create-cluster takes hours to run...
-    # Session may be disconnected due to inactivity
-    trap '' SIGHUP
-    ./scripts/create-cluster.sh | tee -a ../create-cluster.out
-    rc=$?
-    if [ $rc != 0 ]; then
-        echo "./scripts/cluster-cluster.sh failed, rc=$rc"
         exit $rc
     fi
 
