@@ -20,22 +20,28 @@
   tasks:
     - name: Include localhost variables
       include_vars: host_vars/localhost
-  
-    - name: Clear switch MAC address table switch and write them to the inventory file
-      command: "{{ python_executable_local }} {{ scripts_path_local }}/python/clear_port_macs.py /var/oprc/inventory.yml {{ log_level }}"
+
+    - name: Clear switch MAC address table
+      command: "{{ python_executable_local }} \
+                {{ scripts_path_local }}/python/clear_port_macs.py \
+                /var/oprc/inventory.yml \
+                {{ log_level }}"
 
 - name: Bring up all non-ansible comm interfaces on IPv6
   hosts: all
   tasks:
-    - name: Bring down all interfaces that are not the ansible communication interface
+    - name: Bring down all interfaces except ansible communication interface
       command: "ifdown {{ item }}"
       when:
         - "{{ item != 'lo' }}"
-        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ inventory_hostname != \
+           hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
       with_items: "{{ ansible_interfaces }}"
 
     - name: Backup interfaces file
       command: "cp /etc/network/interfaces /etc/network/interfaces.bak"
+      when: ansible_distribution == 'Ubuntu'
 
     - name: 'Write interfaces file for ipv6 auto on all interfaces'
       template:
@@ -44,13 +50,16 @@
         owner: "root"
         group: "root"
         mode: "0644"
+      when: ansible_distribution == 'Ubuntu'
 
     - name: Bring up all interfaces
       command: "ifup {{ item }}"
       when:
         - "{{ item != 'lo' }}"
-        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
       with_items: "{{ ansible_interfaces }}"
+      ignore_errors: yes
 
 - name: Get MACs into the inventory file
   hosts: localhost
@@ -58,26 +67,35 @@
     - name: Wait for interfaces to communicate with the switch
       pause:
         seconds: 30
-    - name: Obtain interface MACs from the switch and write them to the inventory file
-      command: "{{ python_executable_local }} {{ scripts_path_local }}/python/set_port_macs.py /var/oprc/inventory.yml {{ log_level }}"
+
+    - name: Get interface MACs from the switch and write them to the inventory
+      command: "{{ python_executable_local }} \
+                {{ scripts_path_local }}/python/set_port_macs.py \
+                /var/oprc/inventory.yml \
+                {{ log_level }}"
       ignore_errors: yes
 
 - name: Restore system interfaces
   hosts: all
   tasks:
-    - name: Bring down all interfaces that are not the ansible communication interface
+    - name: Bring down all interfaces except ansible communication interface
       command: "ifdown {{ item }}"
       when:
         - "{{ item != 'lo' }}"
-        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - ansible_distribution == 'Ubuntu'
       with_items: "{{ ansible_interfaces }}"
 
     - name: Restore interfaces file
       command: "cp /etc/network/interfaces.bak /etc/network/interfaces"
+      when: ansible_distribution == 'Ubuntu'
 
     - name: Bring up all interfaces
       command: "ifup {{ item }}"
       when:
         - "{{ item != 'lo' }}"
-        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - ansible_distribution == 'Ubuntu'
       with_items: "{{ ansible_interfaces }}"
