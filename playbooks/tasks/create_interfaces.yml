@@ -102,11 +102,18 @@
   with_items: "{{ host_networks.keys() }}"
 
 - name: Reboot
-  command: reboot
+  command: shutdown -r +1 "Ansible is issuing a reboot!"
+  async: 90
+  poll: 0
   when: wrote_netrules.changed or wrote_interfaces.changed
 
 - name: Wait for system to come back up
-  local_action: wait_for state=started delay="{{ reboot_delay_time }}" port=22 search_regex=OpenSSH timeout="{{ reboot_wait_interval }}" host="{{ inventory_hostname }}"
+  local_action: wait_for state=started
+                delay="{{ reboot_delay_time }}"
+                port=22
+                search_regex=OpenSSH
+                timeout="{{ reboot_wait_interval }}"
+                host="{{ inventory_hostname }}"
   when: wrote_netrules.changed or wrote_interfaces.changed
 
 ...
