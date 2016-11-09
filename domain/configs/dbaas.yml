@@ -30,7 +30,7 @@ ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-switch:
     rack1: 192.168.16.20
 ipaddr-data-switch:
-    rack1: 192.168.16.20
+    rack1: 192.168.16.25
 redundant-network: false
 userid-default: user
 password-default: passw0rd
@@ -44,7 +44,7 @@ networks:
     external1:
         description: Organization site or external network
         addr: 10.0.16.0/22
-        # Note you can uncomment the following section provide a set of IPs
+        # Note you can uncomment the following section to provide a set of IPs
         # on this network that will be allocated to the hosts.  The default
         # behavior is to allocate from the full subnet.
         # available-ips:
@@ -112,25 +112,6 @@ racks:
       data-center: dataeast
       room: room33
       row: row1
-switches:
-    mgmt:
-        - hostname: mgmtswitch1
-          ipv4-addr: 10.0.16.2
-          userid: joeuser
-          password: letmein
-          rack-id: rack1
-          rack-eia: 39
-          model: G8052
-          serial-number: abc123
-    leaf:
-        - hostname: leafswitch1
-          ipv4-addr: 10.0.16.3
-          userid: joeuser
-          password: letmein
-          rack-id: rack1
-          rack-eia: 40
-          model: SX1410
-          serial-number: cde234
 node-templates:
     controllers:
         hostname: controller
