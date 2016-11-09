@@ -19,7 +19,11 @@
 
 # The loopback network interface
 {% set network = item %}
+{% if networks[network]['method'] == 'dhcp' %}
+BOOTPROTO=dhcp
+{% else %}
 BOOTPROTO=none
+{% endif %}
 ONBOOT=yes
 NAME={{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }}
 DEVICE={{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }}

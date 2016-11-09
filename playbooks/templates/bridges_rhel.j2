@@ -20,7 +20,11 @@
 # The loopback network interface
 {% set network = item %}
 {% set mybridge = [] %}
+{% if networks[network]['method'] == 'dhcp' %}
+BOOTPROTO=dhcp
+{% else %}
 BOOTPROTO=none
+{% endif %}
 ONBOOT=yes
 TYPE=Bridge
 DEVICE={{ networks[network]['bridge'] }}
