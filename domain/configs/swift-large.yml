@@ -16,13 +16,16 @@
 # limitations under the License.
 
 
-# This file describes the configuration for a private compute cloud.
-# It features three controller nodes, compute nodes, and Ceph OSD nodes.
+# This file describes the configuration for a scale out Swift cluster.
+#
+# It features three controller nodes, Swift proxy nodes,
+# and separate nodes for the metadata (account, container),
+# and object rings.
 
 version: 1.0
 
 reference-architecture:
-    - private-compute-cloud
+    - swift
 
 ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-switch:
@@ -84,32 +87,18 @@ networks:
         vlan: 20
         eth-port: eth10
         mtu: 9000
-    openstack-tenant-vxlan:
-        description: OpenStack Tenant vxlan Network
-        bridge: br-vxlan
-        method: static
-        addr: 172.29.240.0/22
-        vlan: 30
-        eth-port: eth11
-    openstack-tenant-vlan:
-        description: OpenStack Tenant vlan Network
-        bridge: br-vlan
-        method: static
-        addr: 0.0.0.0/1  # Nodes do not get IPs assigned in this network
-        eth-port: eth11
-        bridge-port: veth12
-    ceph-replication:
-        description: Ceph Replication Network
+    swift-replication:
+        description: Swift Replication Network
         addr: 172.29.248.0/22
-        bridge: br-replication
+        bridge: br-swift-repl
         method: static
-        vlan: 40
+        vlan: 30
         eth-port: eth11
         mtu: 9000
 racks:
     - rack-id: rack1
       data-center: dataeast
-      room: room33
+      room: room101
       row: row1
 node-templates:
     controllers:
@@ -151,13 +140,11 @@ node-templates:
         networks:
             - openstack-mgmt
             - openstack-stg
-            - openstack-tenant-vlan
-            - openstack-tenant-vxlan
             - external1
             - external2
             - pxe-dhcp
-    compute:
-        hostname: compute
+    swift-proxy:
+        hostname: swiftproxy
         userid-ipmi: userid
         password-ipmi: password
         cobbler-profile: ubuntu-14.04.5-server-ppc64el
@@ -174,34 +161,32 @@ node-templates:
         ports:
             pxe:
                 rack1:
-                    - 7
-                    - 8
-                    - 9
+                    - 19
+                    - 20
+                    - 21
             ipmi:
                 rack1:
-                    - 10
-                    - 11
-                    - 12
+                    - 22
+                    - 23
+                    - 24
             eth10:
                 rack1:
-                    - 7
-                    - 8
-                    - 9
+                    - 19
+                    - 20
+                    - 21
             eth11:
                 rack1:
-                    - 10
-                    - 11
-                    - 12
+                    - 22
+                    - 23
+                    - 24
         networks:
-            - openstack-mgmt
-            - openstack-stg
-            - openstack-tenant-vlan
-            - openstack-tenant-vxlan
+            - pxe-dhcp
             - external1
             - external2
-            - pxe-dhcp
-    ceph-osd:
-        hostname: cephosd
+            - openstack-mgmt
+            - openstack-stg
+    swift-metadata:
+        hostname: swiftmetadata
         userid-ipmi: userid
         password-ipmi: password
         cobbler-profile: ubuntu-14.04.5-server-ppc64el
@@ -218,39 +203,91 @@ node-templates:
         ports:
             pxe:
                 rack1:
-                    - 13
-                    - 14
-                    - 15
+                    - 25
+                    - 26
+                    - 27
             ipmi:
                 rack1:
-                    - 16
-                    - 17
-                    - 18
+                    - 28
+                    - 29
+                    - 30
             eth10:
                 rack1:
-                    - 13
-                    - 14
-                    - 15
+                    - 25
+                    - 26
+                    - 27
             eth11:
                 rack1:
-                    - 16
-                    - 17
-                    - 18
+                    - 28
+                    - 29
+                    - 30
+        domain-settings:
+            # These settings specify the list of devices that will be used
+            # for the rings.  The values can be disk device by path, in which
+            # case all the disks under the path will be used, or individual disks
+            # can be specified using /dev/sdb style naming.
+            account-ring-devices:
+                - /dev/disk/by-path/pci-0000:01
+            container-ring-devices:
+                - /dev/disk/by-path/pci-0000:01
         networks:
+            - pxe-dhcp
             - external1
             - external2
             - openstack-mgmt
             - openstack-stg
-            - ceph-replication
+            - swift-replication
+    swift-object:
+        hostname: swiftobject
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: ubuntu-14.04.5-server-ppc64el
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+            mac-eth11: eth11
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is cabled.  If a port can be broken out using breakout
+        # cables, then this would be specified as '- <port>/<sub-port>'.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
+        ports:
+            pxe:
+                rack1:
+                    - 31
+                    - 32
+                    - 33
+            ipmi:
+                rack1:
+                    - 34
+                    - 35
+                    - 36
+            eth10:
+                rack1:
+                    - 31
+                    - 32
+                    - 33
+            eth11:
+                rack1:
+                    - 34
+                    - 35
+                    - 36
+        domain-settings:
+            # These settings specify the list of devices that will be used
+            # for the rings.  The values can be disk device by path, in which
+            # case all the disks under the path will be used, or individual disks
+            # can be specified using /dev/sdb style naming.
+            object-ring-devices:
+                - /dev/disk/by-path/pci-0004:01
+
+        networks:
             - pxe-dhcp
-        journal-devices:
-            - /dev/sdc
-            - /dev/sdd
-        osd-devices:
-            - /dev/sde
-            - /dev/sdf
-            - /dev/sdg
-            - /dev/sdh
+            - external1
+            - external2
+            - openstack-mgmt
+            - openstack-stg
+            - swift-replication
 
 software-bootstrap-hosts: controllers[0]  # Select first 'controllers' node
 software-bootstrap-cmd: |
@@ -265,7 +302,7 @@ software-bootstrap-cmd: |
     fi
     cd os-services
     git checkout mitaka
-    export DEPLOY_CEPH=yes
+    export DEPLOY_CEPH=no
     export DEPLOY_OPSMGR=yes
     # export ANSIBLE_HOST_KEY_CHECKING=False
     ./scripts/bootstrap-cluster.sh | tee -a ../bootstrap-cluster.out

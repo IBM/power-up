@@ -16,13 +16,19 @@
 # limitations under the License.
 
 
-# This file describes the configuration for a private compute cloud.
+# This file describes the configuration for a private compute cloud with
+# a scale out OpenStack Swift cluster.
 # It features three controller nodes, compute nodes, and Ceph OSD nodes.
+# It also contains a Swift cluster with the Swift proxy on the controller
+# nodes, and the account, container, and object rings converged on the same
+# set of nodes.
 
 version: 1.0
 
 reference-architecture:
     - private-compute-cloud
+    - swift
+    - swift-minimum-hardware
 
 ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-switch:
@@ -106,10 +112,18 @@ networks:
         vlan: 40
         eth-port: eth11
         mtu: 9000
+    swift-replication:
+        description: Swift Replication Network
+        addr: 172.29.252.0/22
+        bridge: br-swift-repl
+        method: static
+        vlan: 50
+        eth-port: eth11
+        mtu: 9000
 racks:
     - rack-id: rack1
       data-center: dataeast
-      room: room33
+      room: room101
       row: row1
 node-templates:
     controllers:
@@ -251,6 +265,61 @@ node-templates:
             - /dev/sdf
             - /dev/sdg
             - /dev/sdh
+    swift-object:
+        hostname: swiftobject
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: ubuntu-14.04.5-server-ppc64el
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+            mac-eth11: eth11
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is cabled.  If a port can be broken out using breakout
+        # cables, then this would be specified as '- <port>/<sub-port>'.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
+        ports:
+            pxe:
+                rack1:
+                    - 19
+                    - 20
+                    - 21
+            ipmi:
+                rack1:
+                    - 22
+                    - 23
+                    - 24
+            eth10:
+                rack1:
+                    - 19
+                    - 20
+                    - 21
+            eth11:
+                rack1:
+                    - 22
+                    - 23
+                    - 24
+        domain-settings:
+            # These settings specify the list of devices that will be used
+            # for the rings.  The values can be disk device by path, in which
+            # case all the disks under the path will be used, or individual disks
+            # can be specified using /dev/sdb style naming.
+            account-ring-devices:
+                - /dev/disk/by-path/pci-0000:01
+            container-ring-devices:
+                - /dev/disk/by-path/pci-0000:01
+            object-ring-devices:
+                - /dev/disk/by-path/pci-0004:01
+
+        networks:
+            - pxe-dhcp
+            - external1
+            - external2
+            - openstack-mgmt
+            - openstack-stg
+            - swift-replication
 
 software-bootstrap-hosts: controllers[0]  # Select first 'controllers' node
 software-bootstrap-cmd: |
