@@ -49,7 +49,6 @@
         - python-simplejson
         - python-yaml
         - python-pycurl
-        - syslinux
         - yum-utils
         - python-django
         - dnsmasq
@@ -58,6 +57,24 @@
         - vim
       become: yes
       become_method: sudo
+
+    - name: "Install x86_64 specific software packages"
+      apt:
+        name: "{{ item }}"
+      with_items:
+        - syslinux
+      become: yes
+      become_method: sudo
+      when: ansible_architecture == "x86_64"
+
+    - name: "Install ppc64le specific software packages"
+      apt:
+        name: "{{ item }}"
+      with_items:
+        - syslinux-common
+      become: yes
+      become_method: sudo
+      when: ansible_architecture == "ppc64le"
 
     - name: "Clone Cobbler github repo"
       git:

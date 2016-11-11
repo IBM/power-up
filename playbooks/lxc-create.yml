@@ -114,7 +114,6 @@
           --user {{ user }}
           --auth-key {{ ssh_key_public }}
           --release trusty
-          --arch amd64
           --packages python,aptitude
         config: "{{ project_path_local }}/playbooks/lxc.conf"
         container_command: |
