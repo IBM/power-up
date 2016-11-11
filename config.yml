@@ -14,66 +14,125 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+
+# This file describes the configuration for a private compute cloud.
+# It features three controller nodes, compute nodes, and Ceph OSD nodes.
+
 version: 1.0
-ipaddr-mgmt-network: 192.168.3.0/24
+
+reference-architecture:
+    - private-compute-cloud
+
+ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-switch:
-    rack1: 192.168.3.5
+    rack1: 192.168.16.20
 ipaddr-data-switch:
-    rack1: 192.168.3.6
+    rack1: 192.168.16.25
 redundant-network: false
-userid-default: ibm
-password-default: yggdrasil
-userid-mgmt-switch: admin
-password-mgmt-switch: yggdrasil
-userid-data-switch: admin
-password-data-switch: yggdrasil
+userid-default: user
+password-default: passw0rd
+userid-mgmt-switch: user        # applied to all mgmt switches
+password-mgmt-switch: passw0rd  # applied to all mgmt switches
+userid-data-switch: user
+password-data-switch: passw0rd
+internal-floating-ipaddr: 172.29.236.50
+external-floating-ipaddr: 10.0.16.50
 networks:
     external1:
         description: Organization site or external network
-        addr: 9.3.89.0/24
-        broadcast: 9.3.89.255
-        gateway: 9.3.89.1
-        dns-nameservers: 9.3.1.200
-        dns-search: aus.stglabs.ibm.com
+        addr: 10.0.16.0/22
+        # Note you can uncomment the following section to provide a set of IPs
+        # on this network that will be allocated to the hosts.  The default
+        # behavior is to allocate from the full subnet.
+        # available-ips:
+            # - 10.0.16.20
+            # - 10.0.16.35
+            # - 10.0.16.106 10.0.16.110  # this is an IP range
+            # - 10.0.16.115
+        broadcast: 10.0.16.255
+        gateway: 10.0.16.1
+        dns-nameservers: 10.0.16.200
+        dns-search: mycompany.domain.com
         method: static
         eth-port: eth10
-    openstack-mgmt-network:
+        mtu: 9000
+    external2:
+        description: Interface for eth11
+        method: manual
+        eth-port: eth11
+    pxe-dhcp:
+        description: Change pxe port(eth15) to dhcp
+        method: dhcp
+        eth-port: eth15
+    openstack-mgmt:
+        description: OpenStack Management Network
+        bridge: br-mgmt
+        method: static
+        tcp_segmentation_offload: off
+        addr: 172.29.236.0/22
         vlan: 10
         eth-port: eth10
-    openstack-stg-network:
+    openstack-stg:
+        description: OpenStack Storage Network
+        bridge: br-storage
+        method: static
+        tcp_segmentation_offload: off
+        addr: 172.29.244.0/22
         vlan: 20
         eth-port: eth10
-    openstack-tenant-network:
+    openstack-tenant-vxlan:
+        description: OpenStack Tenant vxlan Network
+        bridge: br-vxlan
+        method: static
+        addr: 172.29.240.0/22
         vlan: 30
-        eth-port: eth10
+        eth-port: eth11
+    openstack-tenant-vlan:
+        description: OpenStack Tenant vlan Network
+        bridge: br-vlan
+        method: static
+        addr: 0.0.0.0/1  # Nodes do not get IPs assigned in this network
+        eth-port: eth11
+        bridge-port: veth12
+    ceph-replication:
+        description: Ceph Replication Network
+        addr: 172.29.248.0/22
+        bridge: br-replication
+        method: static
+        vlan: 40
+        eth-port: eth11
+racks:
+    - rack-id: rack1
+      data-center: dataeast
+      room: room33
+      row: row1
 node-templates:
-    controller1:
+    controllers:
         hostname: controller
-        userid-ipmi: ADMIN
-        password-ipmi: ADMIN
-        cobbler-profile: ubuntu-14.04.4-server-amd64.sm
-        os-disk: /dev/sda
-        users:
-            - name: user1
-              groups: sudo
-            - name: testuser1
-              groups: testgroup
-        groups:
-            - name: testgroup
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: controllerx86
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10
+            mac-eth11: eth11
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is cabled.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
         ports:
-            ipmi:
+            pxe:
                 rack1:
                     - 1
                     - 2
                     - 3
-            pxe:
+            ipmi:
                 rack1:
-                    - 19
-                    - 20
-                    - 21
+                    - 4
+                    - 5
+                    - 6
             eth10:
                 rack1:
                     - 1
@@ -81,35 +140,129 @@ node-templates:
                     - 3
             eth11:
                 rack1:
-                    - 19
-                    - 20
-                    - 21
+                    - 4
+                    - 5
+                    - 6
         networks:
-            - openstack-mgmt-network
-            - openstack-stg-network
+            - openstack-mgmt
+            - openstack-stg
+            - openstack-tenant-vlan
+            - openstack-tenant-vxlan
             - external1
-    controller2:
-        hostname: power
-        userid-ipmi: ADMIN
-        password-ipmi: admin
-        cobbler-profile: ubuntu-14.04.4-server-ppc64el
-        os-disk: /dev/sdj
+            - external2
+            - pxe-dhcp
+    compute:
+        hostname: compute
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: computeppc64le
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10
+            mac-eth11: eth11
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is cabled.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
         ports:
-            ipmi:
-                rack1:
-                    - 6
             pxe:
                 rack1:
-                    - 24
+                    - 7
+                    - 8
+                    - 9
+            ipmi:
+                rack1:
+                    - 10
+                    - 11
+                    - 12
             eth10:
                 rack1:
-                    - 6
+                    - 7
+                    - 8
+                    - 9
             eth11:
                 rack1:
-                    - 24
+                    - 10
+                    - 11
+                    - 12
         networks:
-            - openstack-tenant-network
+            - openstack-mgmt
+            - openstack-stg
+            - openstack-tenant-vlan
+            - openstack-tenant-vxlan
             - external1
+            - external2
+            - pxe-dhcp
+    ceph-osd:
+        hostname: cephosd
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: cephppc64le
+        name-interfaces:
+            mac-pxe: eth15
+            mac-eth10: eth10
+            mac-eth11: eth11
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is cabled.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
+        ports:
+            pxe:
+                rack1:
+                    - 13
+                    - 14
+                    - 15
+            ipmi:
+                rack1:
+                    - 16
+                    - 17
+                    - 18
+            eth10:
+                rack1:
+                    - 13
+                    - 14
+                    - 15
+            eth11:
+                rack1:
+                    - 16
+                    - 17
+                    - 18
+        networks:
+            - external1
+            - external2
+            - openstack-mgmt
+            - openstack-stg
+            - ceph-replication
+            - pxe-dhcp
+        journal-devices:
+            - /dev/sdc
+            - /dev/sdd
+        osd-devices:
+            - /dev/sde
+            - /dev/sdf
+            - /dev/sdg
+            - /dev/sdh
+
+software-bootstrap-hosts: controllers[0]  # Select first 'controllers' node
+software-bootstrap-cmd: |
+    set -o pipefail
+    type git >/dev/null 2>&1
+    if [ $? != 0 ]; then
+        apt-get install -qq -y git
+    fi
+    if [ ! -d os-services ]; then
+        git clone git://github.com/open-power-ref-design/os-services.git
+    fi
+    cd os-services
+    git checkout v1.0.0
+    export DEPLOY_CEPH=yes
+    export DEPLOY_OPSMGR=yes
+    # export ANSIBLE_HOST_KEY_CHECKING=False
+    ./scripts/bootstrap-cluster.sh | tee -a ../bootstrap-cluster.out
+    rc=$?
+    if [ $rc != 0 ]; then
+        echo "./scripts/bootstrap-cluster.sh failed, rc=$rc"
+        exit $rc
+    fi
