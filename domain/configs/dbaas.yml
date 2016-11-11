@@ -117,14 +117,15 @@ node-templates:
         hostname: controller
         userid-ipmi: userid
         password-ipmi: password
-        cobbler-profile: controllerx86
+        cobbler-profile: ubuntu-14.04.5-server-amd64.sm
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10
             mac-eth11: eth11
         # Each host has one network interface for each of these ports and
         # these port numbers represent the switch port number to which the host
-        # interface is cabled.
+        # interface is cabled.  If a port can be broken out using breakout
+        # cables, then this would be specified as '- <port>/<sub-port>'.
         # To add or remove hosts for this node-template you add or remove
         # switch port numbers to these ports.
         ports:
@@ -160,14 +161,15 @@ node-templates:
         hostname: compute
         userid-ipmi: userid
         password-ipmi: password
-        cobbler-profile: computeppc64le
+        cobbler-profile: ubuntu-14.04.5-server-ppc64el
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10
             mac-eth11: eth11
         # Each host has one network interface for each of these ports and
         # these port numbers represent the switch port number to which the host
-        # interface is cabled.
+        # interface is cabled.  If a port can be broken out using breakout
+        # cables, then this would be specified as '- <port>/<sub-port>'.
         # To add or remove hosts for this node-template you add or remove
         # switch port numbers to these ports.
         ports:
@@ -203,14 +205,15 @@ node-templates:
         hostname: cephosd
         userid-ipmi: userid
         password-ipmi: password
-        cobbler-profile: cephppc64le
+        cobbler-profile: ubuntu-14.04.5-server-ppc64el
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10
             mac-eth11: eth11
         # Each host has one network interface for each of these ports and
         # these port numbers represent the switch port number to which the host
-        # interface is cabled.
+        # interface is cabled.  If a port can be broken out using breakout
+        # cables, then this would be specified as '- <port>/<sub-port>'.
         # To add or remove hosts for this node-template you add or remove
         # switch port numbers to these ports.
         ports:
