@@ -63,10 +63,15 @@ d-i grub-installer/with_other_os boolean false
 d-i preseed/late_command string \
 in-target /usr/bin/wget http://$http_server/ubuntu-14.04.5-server-ppc64el/sources.list -O /etc/apt/sources.list; \
 in-target mkdir /root/.ssh; \
+in-target /bin/chmod 700 /root/.ssh; \
 in-target /usr/bin/wget http://$http_server/authorized_keys -O /root/.ssh/authorized_keys; \
+in-target /bin/chmod 600 /root/.ssh/authorized_keys; \
 in-target mkdir /home/defaultuser/.ssh; \
+in-target /bin/chown defaultuser:defaultuser /home/defaultuser/.ssh; \
+in-target /bin/chmod 700 /home/defaultuser/.ssh; \
 in-target /usr/bin/wget http://$http_server/authorized_keys -O /home/defaultuser/.ssh/authorized_keys; \
 in-target /bin/chown defaultuser:defaultuser /home/defaultuser/.ssh/authorized_keys; \
+in-target /bin/chmod 600 /home/defaultuser/.ssh/authorized_keys; \
 echo -e 'defaultuser\tALL=NOPASSWD: ALL' > /target/etc/sudoers.d/defaultuser; \
 in-target chmod 440 /etc/sudoers.d/defaultuser; \
 $SNIPPET('kickstart_done')
