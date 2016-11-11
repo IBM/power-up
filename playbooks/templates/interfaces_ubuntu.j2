@@ -119,10 +119,12 @@ iface {{ networks[network]['bridge'] }} inet {{ networks[network]['method'] }}
     bridge_stp off
     bridge_waitport 0
     bridge_fd 0
+{% if 'bridge-port' not in networks[network] %}
 {% if 'vlan' in networks[network] %}
     bridge_ports {{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }}
 {% else %}
     bridge_ports {{ networks[network]['eth-port'] }}
+{% endif %}
 {% endif %}
     address {{ host_networks[network]['addr'] }}
 {% if 'netmask' in networks[network] %}
@@ -136,15 +138,18 @@ iface {{ networks[network]['bridge'] }} inet {{ networks[network]['method'] }}
 {% endif %}
 
 {% if 'bridge-port' in networks[network] %}
-   # Create veth pair, don't bomb if already exists
-   pre-up ip link add {{ networks[network]['bridge'] }}-veth type veth peer name {{ networks[network]['bridge-port'] }} || true
-   # Set both ends UP
-   pre-up ip link set {{ networks[network]['bridge'] }}-veth up
-   pre-up ip link set {{ networks[network]['bridge-port'] }} up
-   # Delete veth pair on DOWN
-   post-down ip link del {{ networks[network]['bridge'] }}-veth || true
-   # Add bond1 trunk and one veth end to bridge
-   bridge_ports {{ networks[network]['eth-port'] }} {{ networks[network]['bridge'] }}-veth
+    # Create veth pair, don't bomb if already exists
+    pre-up ip link add {{ networks[network]['bridge'] }}-veth type veth peer name {{ networks[network]['bridge-port'] }} || true
+    # Set both ends UP
+    pre-up ip link set {{ networks[network]['bridge'] }}-veth up
+    pre-up ip link set {{ networks[network]['bridge-port'] }} up
+    # Delete veth pair on DOWN
+    post-down ip link del {{ networks[network]['bridge'] }}-veth || true
+{% if 'vlan' in networks[network] %}
+    bridge_ports {{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }} {{ networks[network]['bridge'] }}-veth
+{% else %}
+    bridge_ports {{ networks[network]['eth-port'] }} {{ networks[network]['bridge'] }}-veth
+{% endif %}
 {% endif %}
 {% endif %}
 {% endfor %}
