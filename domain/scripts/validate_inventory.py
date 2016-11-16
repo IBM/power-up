@@ -36,6 +36,7 @@ def validate(file_path):
         validate_reference_architecture(inventory)
         validate_swift(inventory)
         validate_ceph(inventory)
+        validate_ops_mgr(inventory)
     except Exception as ex:
         print ex
         sys.exit(1)
@@ -152,6 +153,25 @@ def validate_ceph(inventory):
     # ceph-mon when private cloud
     # existence of proper networks for private-cloud and ceph
     pass
+
+
+def validate_ops_mgr(inventory):
+    # Require that every node-template be connected to the openstack-mgmt
+    # network
+    required_net = 'openstack-mgmt'
+    if required_net not in inventory['networks']:
+        msg = ('The required openstack-mgmt network %s is '
+               'missing.' % required_net)
+        raise UnsupportedConfig(msg)
+
+    # validate that the controllers and ceph-osd node templates
+    # have the network
+    for template_name, template in inventory.get('node-templates').iteritems():
+        nets = template['networks']
+        if required_net not in nets:
+            msg = 'The node template %(template)s is missing network %(net)s'
+            raise UnsupportedConfig(msg % {'template': template_name,
+                                           'net': required_net})
 
 
 def _load_yml(name):

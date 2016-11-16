@@ -219,14 +219,39 @@ class TestValidateInventory(unittest.TestCase):
         node_tmpl['swift-metadata'] = {'domain-settings': meta_ds}
         self.assertFalse(test_mod._has_separate_metadata_object(inv))
 
+    def test_validate_ops_mgr(self):
+        # Test valid case
+        net = 'openstack-mgmt'
+        inventory = {'networks': {net: {}},
+                     'node-templates': {'a': {'networks': [net]},
+                                        'b': {'networks': [net]}}}
+        test_mod.validate_ops_mgr(inventory)
+
+        # Test missing network
+        inventory['networks'].pop(net)
+        self.assertRaisesRegexp(test_mod.UnsupportedConfig,
+                                'required openstack-mgmt network',
+                                test_mod.validate_ops_mgr,
+                                inventory)
+        # Test one template missing the network
+        inventory['networks'][net] = {}
+        inventory['node-templates']['a']['networks'].pop(0)
+        expected_msg = 'The node template a is missing network openstack-mgmt'
+        self.assertRaisesRegexp(test_mod.UnsupportedConfig,
+                                expected_msg,
+                                test_mod.validate_ops_mgr,
+                                inventory)
+
+    @mock.patch.object(test_mod, 'validate_ops_mgr')
     @mock.patch.object(test_mod, 'validate_ceph')
     @mock.patch.object(test_mod, 'validate_swift')
     @mock.patch.object(test_mod, 'validate_reference_architecture')
     @mock.patch.object(test_mod, '_load_yml')
-    def test_validate(self, load, ra, swift, ceph):
+    def test_validate(self, load, ra, swift, ceph, opsmgr):
         file_path = 'path'
         test_mod.validate(file_path)
         load.assert_called_once_with(file_path)
         ra.assert_called_once_with(load.return_value)
         swift.assert_called_once_with(load.return_value)
         ceph.assert_called_once_with(load.return_value)
+        opsmgr.assert_called_once_with(load.return_value)
