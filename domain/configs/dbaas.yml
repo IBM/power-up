@@ -71,7 +71,7 @@ networks:
         description: OpenStack Management Network
         bridge: br-mgmt
         method: static
-        tcp_segmentation_offload: off
+        tcp_segmentation_offload: 'off'
         addr: 172.29.236.0/22
         vlan: 10
         eth-port: eth10
@@ -82,7 +82,7 @@ networks:
         description: OpenStack Storage Network
         bridge: br-storage
         method: static
-        tcp_segmentation_offload: off
+        tcp_segmentation_offload: 'off'
         addr: 172.29.244.0/22
         vlan: 20
         eth-port: eth10
