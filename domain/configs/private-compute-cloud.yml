@@ -251,6 +251,7 @@ node-templates:
 software-bootstrap-hosts: controllers[0]  # Select first 'controllers' node
 software-bootstrap-cmd: |
     set -o pipefail
+    apt-get -y update >/dev/null 2>&1
     type git >/dev/null 2>&1
     if [ $? != 0 ]; then
         apt-get install -qq -y git
@@ -269,3 +270,11 @@ software-bootstrap-cmd: |
         echo "./scripts/bootstrap-cluster.sh failed, rc=$rc"
         exit $rc
     fi
+    HOST=`hostname -A`
+    echo ""
+    echo "The deployment should now be continued on the first controller node"
+    echo "Please log into $HOST and complete the installation"
+    echo ""
+    echo "ssh ubuntu@$HOST"
+    echo "sudo su"
+    echo "cd ~/os-services"
