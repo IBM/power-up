@@ -14,44 +14,133 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# This sample configuration file documents all of the supported key values
+# supported by the genesis software.  It can be used as the basis for creating
+# your own config.yml file.  Note that keywords with a leading underscore
+# can be changed by the end user as appropriate for your application. (e.g.
+# "_rack1" could be changed to "base-rack")
+
 version: 1.0
-ipaddr-mgmt-network: 192.168.3.0/24
+
+ipaddr-mgmt-network: 192.168.16.0/20
+# NOTE: The "_rack:" keywords must match the the corresponding rack keyword
+# under the keyword;
+# node-templates:
+#     _node name:
+#         ports:
 ipaddr-mgmt-switch:
-    rack1: 192.168.3.5
+    _rack1: 192.168.16.20
 ipaddr-data-switch:
-    rack1: 192.168.3.6
+    _rack1: 192.168.16.25
 redundant-network: false
-userid-default: ibm
-password-default: yggdrasil
-userid-mgmt-switch: admin
-password-mgmt-switch: yggdrasil
-userid-data-switch: admin
-password-data-switch: yggdrasil
+userid-default: user
+password-default: passw0rd
+userid-mgmt-switch: user        # applied to all mgmt switches
+password-mgmt-switch: passw0rd  # applied to all mgmt switches
+userid-data-switch: user
+password-data-switch: passw0rd
+# Rack information is optional (not required to be present)
+racks:
+    - rack-id: rack1
+      data-center: dataeast
+      room: room33
+      row: row1
 networks:
-    external1:
+    _external1:
         description: Organization site or external network
         addr: 9.3.89.0/24
+        available-ips:
+            - 9.3.89.14            # single address
+            - 9.3.89.18 9.3.89.22  # address range
+            - 9.3.89.111 9.3.89.112
+            - 9.3.89.120
         broadcast: 9.3.89.255
         gateway: 9.3.89.1
         dns-nameservers: 9.3.1.200
-        dns-search: aus.stglabs.ibm.com
+        dns-search: your.dns.com
         method: static
         eth-port: eth10
-    openstack-mgmt-network:
+        mtu: 9000
+    _external2:
+        description: Interface for eth11
+        method: manual
+        eth-port: eth11
+    _pxe-dhcp:
+        description: Change pxe port(eth15) to dhcp
+        method: dhcp
+        eth-port: eth15
+    _standalone-bond0:
+        description: Multilink bond
+        bond: mybond0
+        addr: 10.0.16.0/22
+        available-ips:
+            - 10.0.16.150              # single address
+            - 10.0.16.175 10.0.16.215  # address range
+        broadcast: 10.0.16.255
+        gateway: 10.0.16.1
+        dns-nameservers: 10.0.16.200
+        dns-search: mycompany.domain.com
+        method: static
+        # name of physical interfaces to bond together.
+        bond-interfaces:
+            - eth0
+            - eth1
+        # if necessary not all bond modes support a primary slave
+        bond-primary: eth10
+        # bond-mode, needs to be one of 7 types
+        # either name or number can be used.
+        # 0 balance-rr
+        # 1 active-backup
+        # 2 balance-xor
+        # 3 broadcast
+        # 4 802.3ad
+        # 5 balance-tlb
+        # 6 balance-alb
+        # bond-mode: active-backup
+        bond-mode: 1
+        # there is a long list of optional bond arguments.
+        # Specify them here and they will be added to end of bond definition
+        optional-bond-arguments:
+            bond-miimon: 100
+            bond-lacp-rate: 1
+    _manual-bond1:
+        description: bond network to be used by future bridges
+        bond: bond1
+        method: manual
+        bond-mode: balance-rr
+        bond-interfaces:
+            - eth10
+            - eth11
+    _cluster-mgmt:
+        description: Cluster Management Network
+        bridge: br-mgmt
+        method: static
+        tcp_segmentation_offload: "off"  # on/off values need to be enclosed in quotes
+        addr: 172.29.236.0/22
         vlan: 10
         eth-port: eth10
-    openstack-stg-network:
-        vlan: 20
-        eth-port: eth10
-    openstack-tenant-network:
+        bridge-port: veth-infra  # add a veth pair to the bridge
+    _vm-vxlan-network:
+        description: vm vxlan Network
+        bridge: br-vxlan
+        method: static
+        addr: 172.29.240.0/22
         vlan: 30
-        eth-port: eth10
+        eth-port: eth11
+    _vm-vlan-network:
+        description: vm vlan Network
+        bridge: br-vlan
+        method: static
+        addr: 0.0.0.0/1  # Host nodes do not get IPs assigned in this network
+        eth-port: eth11  # No specified vlan.  Allows use with untagged vlan
+        bridge-port: veth12
 node-templates:
-    controller1:
+    _node-name:
         hostname: controller
-        userid-ipmi: ADMIN
-        password-ipmi: ADMIN
-        cobbler-profile: ubuntu-14.04.4-server-amd64.sm
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: ubuntu-14.04.4-server-amd64
         os-disk: /dev/sda
         users:
             - name: user1
@@ -61,55 +150,94 @@ node-templates:
         groups:
             - name: testgroup
         name-interfaces:
-            mac-pxe: eth15
-            mac-eth10: eth10
+            mac-pxe: eth15    # This keyword is paired to ports: pxe: keyword
+            mac-eth10: eth10  # This keyword is paired to ports: eth10: keyword
+            mac-eth11: eth11  # This keyword is paired to ports: eth11: keyword
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is physically cabled.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
         ports:
-            ipmi:
-                rack1:
+            pxe:
+                _rack1:
                     - 1
                     - 2
                     - 3
-            pxe:
-                rack1:
-                    - 19
-                    - 20
-                    - 21
+            ipmi:
+                _rack1:
+                    - 4
+                    - 5
+                    - 6
             eth10:
-                rack1:
+                _rack1:
                     - 1
                     - 2
                     - 3
             eth11:
-                rack1:
-                    - 19
-                    - 20
-                    - 21
+                _rack1:
+                    - 4
+                    - 5
+                    - 6
         networks:
-            - openstack-mgmt-network
-            - openstack-stg-network
-            - external1
-    controller2:
-        hostname: power
-        userid-ipmi: ADMIN
-        password-ipmi: admin
-        cobbler-profile: ubuntu-14.04.4-server-ppc64el
-        os-disk: /dev/sdj
+            - _cluster-mgmt
+            - _vm-vxlan-network
+            - _vm-vlan-network
+            - _external1
+            - _external2
+            - _pxe-dhcp
+            - _manual-bond1
+            - _standalone-bond0
+    _compute:
+        hostname: compute
+        userid-ipmi: userid
+        password-ipmi: password
+        cobbler-profile: ubuntu-14.04.4-server-amd64
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10
+            mac-eth11: eth11
+        # Each host has one network interface for each of these ports and
+        # these port numbers represent the switch port number to which the host
+        # interface is cabled.
+        # To add or remove hosts for this node-template you add or remove
+        # switch port numbers to these ports.
         ports:
-            ipmi:
-                rack1:
-                    - 6
             pxe:
-                rack1:
-                    - 24
+                _rack1:
+                    - 7
+                    - 8
+                    - 9
+            ipmi:
+                _rack1:
+                    - 10
+                    - 11
+                    - 12
             eth10:
-                rack1:
-                    - 6
+                _rack1:
+                    - 7
+                    - 8
+                    - 9
             eth11:
-                rack1:
-                    - 24
+                _rack1:
+                    - 10
+                    - 11
+                    - 12
         networks:
-            - openstack-tenant-network
-            - external1
+            - _cluster-mgmt
+            - _vm-vxlan-network
+            - _vm-vlan-network
+            - _external1
+            - _external2
+            - _pxe-dhcp
+            - _manual-bond1
+            - _standalone-bond0
+
+software-bootstrap-hosts: all
+software-bootstrap-cmd: |
+    apt-get update
+    apt-get upgrade -y
+
+# Additional key/value pairs are not processed by Genesis, but are copied into
+# the inventory.yml file and made available to post-Genesis scripts and/or
+# playbooks.
