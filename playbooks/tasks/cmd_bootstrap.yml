@@ -18,6 +18,8 @@
 - name: Run Bootstrap Command
   shell: "{{ software_bootstrap_cmd | \
           default('echo no software_bootstrap_cmd defined; false') }}"
+  args:
+    executable: /bin/bash
   register: output
 
 - name: Print stdout
