@@ -93,9 +93,26 @@
       become: yes
       become_method: sudo
 
-    - name: "Register management network subnet address"
-      shell: "grep ipaddr-mgmt-network {{ config_local }} | awk '{print $2}'"
+    - name: "Register management network subnet"
+      shell: "grep ipaddr-mgmt-network {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      vars:
       register: ipaddr_mgmt_network
+
+    - name: "Register management client network subnet"
+      shell: "grep ipaddr-mgmt-client-network {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: ipaddr_mgmt_client_network
+
+    - name: "Register management VLAN"
+      shell: "grep vlan-mgmt-network {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: vlan_mgmt_network
+
+    - name: "Register management client VLAN"
+      shell: "grep vlan-mgmt-client-network {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: vlan_mgmt_client_network
+
+    - name: "Register primary network port"
+      shell: "ip route | grep ^default | awk '{print $5}'"
+      register: primary_network_port
 
     - name: "Update group_vars/all container_mgmt_subnet"
       replace:
@@ -104,13 +121,64 @@
         replace: '\1 {{ ipaddr_mgmt_network.stdout }}'
       when: ipaddr_mgmt_network.stdout != ""
 
-    - name: "Update lxc.conf container mgmt ipv4 address"
-      replace:
-        dest: "{{ project_path_local }}/playbooks/lxc.conf"
-        regexp: '^(lxc.network.ipv4 =).*$'
-        replace: |
-            \1 {{ ipaddr_mgmt_network.stdout |
-            ipaddr(container_mgmt_ipv4_offset) }}
+    - name: "Create lxc.conf container with no VLAN support"
+      vars:
+        ipaddr_mgmt_cidr: "{{ ipaddr_mgmt_network.stdout | ipaddr(container_mgmt_ipv4_offset) }}"
+        bridge_mgmt: br0
+      template:
+        src: "{{ playbook_dir }}/templates/localhost/lxc-conf.j2"
+        dest: "{{ playbook_dir }}/lxc.conf"
+        mode: "0644"
+      when: ipaddr_mgmt_client_network.stdout == ""
+
+    - name: "Create lxc.conf container with VLAN support"
+      vars:
+        ipaddr_mgmt_cidr: "{{ ipaddr_mgmt_network.stdout | ipaddr(container_mgmt_ipv4_offset) }}"
+        ipaddr_mgmt_client_cidr: "{{ ipaddr_mgmt_client_network.stdout | ipaddr(container_mgmt_ipv4_offset) }}"
+        bridge_mgmt: "br{{ vlan_mgmt_network.stdout }}"
+        bridge_mgmt_client: "br{{ vlan_mgmt_client_network.stdout }}"
+      template:
+        src: "{{ playbook_dir }}/templates/localhost/lxc-conf-vlan.j2"
+        dest: "{{ playbook_dir }}/lxc.conf"
+        mode: "0644"
+      when: ipaddr_mgmt_client_network.stdout != ""
+
+    - name: "Create management bridge with VLAN support"
+      vars:
+        primary_port: "{{ primary_network_port.stdout }}"
+        ipaddr_cidr: "{{ ipaddr_mgmt_network.stdout | ipaddr(container_bridge_ipv4_offset) }}"
+        vlan: "{{ vlan_mgmt_network.stdout }}"
+        bridge: "br{{ vlan }}"
+      template:
+        src: "{{ playbook_dir }}/templates/localhost/bridge-vlan-ubuntu.j2"
+        dest: "/etc/network/interfaces.d/{{ bridge }}"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+      become: yes
+      become_method: sudo
+      when: ipaddr_mgmt_client_network.stdout != ""
+
+    - name: "Create management client bridge with VLAN support"
+      vars:
+        primary_port: "{{ primary_network_port.stdout }}"
+        ipaddr_cidr: "{{ ipaddr_mgmt_client_network.stdout | ipaddr(container_bridge_ipv4_offset) }}"
+        vlan: "{{ vlan_mgmt_client_network.stdout }}"
+        bridge: "br{{ vlan }}"
+      template:
+        src: "{{ playbook_dir }}/templates/localhost/bridge-vlan-ubuntu.j2"
+        dest: "/etc/network/interfaces.d/{{ bridge }}"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+      become: yes
+      become_method: sudo
+      when: ipaddr_mgmt_client_network.stdout != ""
+
+    - name: "Restart networking"
+      service: name=networking state=restarted
+      become: yes
+      become_method: sudo
 
     - name: "Create private/public ssh key pair"
       user:

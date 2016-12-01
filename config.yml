@@ -24,11 +24,17 @@
 version: 1.0
 
 ipaddr-mgmt-network: 192.168.16.0/20
+ipaddr-mgmt-client-network: 192.168.20.0/24
+vlan-mgmt-network: 16
+vlan-mgmt-client-network: 20
+port-mgmt-network: 1
 # NOTE: The "_rack:" keywords must match the the corresponding rack keyword
 # under the keyword;
 # node-templates:
 #     _node name:
 #         ports:
+port-mgmt-data-network:
+    _rack1: 47
 ipaddr-mgmt-switch:
     _rack1: 192.168.16.20
 ipaddr-data-switch:

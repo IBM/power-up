@@ -66,24 +66,6 @@ $ export ANSIBLE_HOST_KEY_CHECKING=False
 $ cd playbooks
 
 
-Deployer Node Network Configuration
-===================================
-Create a network bridge named "br0" with port connected to management
-network (e.g. 192.168.3.0/24).
-
-Below is an example interface defined in the local
-"/etc/network/interfaces" file. Note that "p1p1" is the name of the
-interface connected to the management network.
-
-::
-
-    auto br0
-    iface br0 inet static
-        address 192.168.3.3
-        netmask 255.255.255.0
-        bridge_ports p1p1
-
-
 Create LXC Container
 ====================
 LXC container hosts features such as provisioning scripts, cluster
@@ -96,6 +78,7 @@ $ ansible-playbook -i hosts lxc-create.yml -K
 
 Configure LXC Container and Provision Client Nodes
 ==================================================
+
 ::
 
 $ ansible-playbook -i hosts install.yml -K

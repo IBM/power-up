@@ -41,6 +41,10 @@ INV_PXE = 'pxe'
 INV_USERID_IPMI = 'userid-ipmi'
 INV_PASSWORD_IPMI = 'password-ipmi'
 INV_NETWORKS = 'networks'
+INV_VLAN_MGMT_NETWORK = 'vlan-mgmt-network'
+INV_VLAN_MGMT_CLIENT_NETWORK = 'vlan-mgmt-client-network'
+INV_PORT_MGMT_NETWORK = 'port-mgmt-network'
+INV_PORT_MGMT_DATA_NETWORK = 'port-mgmt-data-network'
 INV_VLAN = 'vlan'
 INV_MTU = 'mtu'
 INV_MANAGEMENT_PORTS = ('ipmi', 'pxe')
@@ -150,6 +154,42 @@ class Inventory():
 
         self.inv[INV_SWITCHES] = inv
         self._dump_inv_file()
+
+    def yield_mgmt_switch_ip(self):
+        for ipv4 in self.inv[INV_IPADDR_MGMT_SWITCH].values():
+            yield ipv4
+
+    def get_vlan_mgmt_network(self):
+        return self.inv[INV_VLAN_MGMT_NETWORK]
+
+    def get_vlan_mgmt_client_network(self):
+        return self.inv[INV_VLAN_MGMT_CLIENT_NETWORK]
+
+    def get_port_mgmt_network(self):
+        return self.inv[INV_PORT_MGMT_NETWORK]
+
+    def yield_port_mgmt_data_network(self):
+        for port in self.inv[INV_PORT_MGMT_DATA_NETWORK].values():
+            yield port
+
+    def get_userid_mgmt_switch(self):
+        return self.inv[INV_USERID_MGMT_SWITCH]
+
+    def get_password_mgmt_switch(self):
+        return self.inv[INV_PASSWORD_MGMT_SWITCH]
+
+    def yield_mgmt_switch_ports(self):
+        port_list = []
+        for key, value in self.inv[INV_NODES_TEMPLATES].items():
+            for _key, _value in value.items():
+                if _key == INV_PORTS:
+                    for ports_key, ports_value in _value.items():
+                        if ports_key == INV_IPMI or ports_key == INV_PXE:
+                            for rack, ports in ports_value.items():
+                                for port in ports:
+                                    port_list.append(port)
+        for port in port_list:
+            yield port
 
     def yield_data_vlans(self):
         _dict = AttrDict()

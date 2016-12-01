@@ -16,9 +16,10 @@
 # limitations under the License.
 
 - include: lxc-update.yml
+- include: container/set_mgmt_switch_config.yml
+- include: container/set_data_switch_config.yml
 - include: container/cobbler/cobbler_install.yml
 - include: pause.yml message="Please reset BMC interfaces to obtain DHCP leases"
-- include: container/set_data_switch_config.yml
 - include: container/inv_add_switches.yml
 - include: container/inv_add_ipmi_ports.yml
 - include: container/ipmi_set_bootdev.yml bootdev=network persistent=False
