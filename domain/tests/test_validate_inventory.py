@@ -74,10 +74,9 @@ class TestValidateInventory(unittest.TestCase):
 
         # test min hardware, with private cloud
         inv['reference-architecture'] = ['swift-minimum-hardware',
+                                         'swift',
                                          'private-compute-cloud']
-        self.assertRaises(test_mod.UnsupportedConfig,
-                          test_mod.validate_reference_architecture,
-                          inv)
+        test_mod.validate_reference_architecture(inv)
 
         # test ceph standalone with private cloud
         inv['reference-architecture'] = ['ceph-standalone',

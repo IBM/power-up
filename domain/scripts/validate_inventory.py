@@ -60,14 +60,6 @@ def validate_reference_architecture(inventory):
             'swift' not in reference_architecture):
         raise UnsupportedConfig('swift-minimum-hardware cannot be used alone')
 
-    if (SWIFT_MIN in reference_architecture and
-            COMPUTE in reference_architecture):
-        # This is a valid thing to do, but swift-minimum-hardware, a.k.a
-        # running Swift on the controller while doing a private compute
-        # cloud is not a reference architecture we support.
-        raise UnsupportedConfig('swift-minimum-hardware cannot be used with '
-                                'private-compute-cloud')
-
     # Validate ceph standalone is alone
     if CEPH in reference_architecture and len(reference_architecture) != 1:
         raise UnsupportedConfig('The ceph-standalone reference architecture '
