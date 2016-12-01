@@ -91,13 +91,13 @@ iface {{ networks[network]['eth-port'] }} inet {{ networks[network]['method'] }}
 {% if 'dns-nameservers' in networks[network] %}
     dns-nameservers {{ networks[network]['dns-nameservers'] }}
 {% endif -%}
+{% if 'mtu' in networks[network] %}
+    mtu {{ networks[network]['mtu'] }}
+{% endif %}
 {% for bond_net in host_networks -%}
 {% if 'bond-interfaces' in networks[bond_net] %}
 {% if networks[network]['eth-port'] in networks[bond_net]['bond-interfaces'] %}
     bond-master {{ networks[bond_net]['bond'] }}
-{% endif %}
-{% if 'mtu' in networks[network] %}
-    mtu {{ networks[network]['mtu'] }}
 {% endif %}
 {% endif %}
 {% if 'bond-primary' in networks[bond_net] %}
@@ -114,9 +114,13 @@ iface {{ networks[network]['eth-port'] }} inet {{ networks[network]['method'] }}
 {% if 'bridge' in networks[network] %}
 # {{ networks[network]['description'] }}
 {% if 'vlan' in networks[network] %}
+auto {{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }}
 iface {{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }} inet manual
     vlan-raw-device {{ networks[network]['eth-port'] }}
-
+{% if 'mtu' in networks[network] %}
+    mtu {{ networks[network]['mtu'] }}
+    post-up ip link set dev {{ networks[network]['eth-port'] }} mtu {{ networks[network]['mtu'] }}
+{% endif %}
 {% endif %}
 auto {{ networks[network]['bridge'] }}
 iface {{ networks[network]['bridge'] }} inet {{ networks[network]['method'] }}
@@ -147,6 +151,10 @@ iface {{ networks[network]['bridge'] }} inet {{ networks[network]['method'] }}
     # Set both ends UP
     pre-up ip link set {{ networks[network]['bridge'] }}-veth up
     pre-up ip link set {{ networks[network]['bridge-port'] }} up
+{% if 'mtu' in networks[network] %}
+    pre-up ip link set {{ networks[network]['bridge'] }}-veth  mtu {{ networks[network]['mtu'] }}
+    pre-up ip link set {{ networks[network]['bridge-port'] }}  mtu {{ networks[network]['mtu'] }}
+{% endif %}
     # Delete veth pair on DOWN
     post-down ip link del {{ networks[network]['bridge'] }}-veth || true
 {% if 'vlan' in networks[network] %}
