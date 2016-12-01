@@ -45,14 +45,25 @@
       command: "cp /etc/network/interfaces /etc/network/interfaces.bak"
       when: ansible_distribution == 'Ubuntu'
 
-    - name: 'Write interfaces file for ipv6 auto on all interfaces'
+    - name: Write interfaces file for ipv6 auto on all interfaces if Ubuntu
       template:
-        src: "{{ playbook_dir }}/templates/ipv6Interface.j2"
+        src: "{{ playbook_dir }}/templates/ipv6Interface_ubuntu.j2"
         dest: /etc/network/interfaces
         owner: "root"
         group: "root"
         mode: "0644"
       when: ansible_distribution == 'Ubuntu'
+
+    - name: Write ifcfg files for ipv6 on all interfaces if RHEL/CentOS
+      template:
+        src: "{{ playbook_dir }}/templates/ipv6Interface_rhel.j2"
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+      when: (ansible_distribution == 'CentOS') or
+            (ansible_distribution == 'RedHat')
+      with_items: "{{ ansible_interfaces }}"
 
     - name: Bring up all interfaces
       command: "ifup {{ item }}"
@@ -92,6 +103,18 @@
     - name: Restore interfaces file
       command: "cp /etc/network/interfaces.bak /etc/network/interfaces"
       when: ansible_distribution == 'Ubuntu'
+
+    - name: Delete RHEL/CentOS interface files
+      file:
+        path: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+        state: absent
+      when:
+        - "{{ item != 'lo' }}"
+        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - (ansible_distribution == 'CentOS') or
+          (ansible_distribution == 'RedHat')
+      with_items: "{{ ansible_interfaces }}"
 
     - name: Bring up all interfaces
       command: "ifup {{ item }}"

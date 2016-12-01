@@ -18,16 +18,18 @@
 # auto conf except the interface being used for Ansible communication.
 
 # The loopback network interface
-auto lo
-iface lo inet loopback
+{% set interface = item %}
+TYPE=ETHERNET
+NAME={{ interface }}
+DEVICE={{ interface }}
+{% if interface != 'lo' and inventory_hostname != hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') %}
+BOOTPROTO=none
+IPV6INIT=yes
+IPV6_AUTOCONFIG=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV4_FAILURE_FATAL=no
 
-{% for interface in ansible_interfaces %} 
-{% if interface != 'lo' and inventory_hostname != hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') %} 
-auto {{ interface }}
-iface {{ interface }} inet manual
-iface {{ interface }} inet6 auto
 {% elif inventory_hostname == hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') %}
-auto {{ interface }}
-iface {{ interface }} inet dhcp
+BOOTPROTO=dhcp
 {% endif %}
-{% endfor %}
