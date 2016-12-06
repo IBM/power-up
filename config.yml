@@ -224,6 +224,7 @@ node-templates:
         userid-ipmi: userid
         password-ipmi: password
         cobbler-profile: ubuntu-14.04.4-server-amd64
+        kernel-options: console=tty2 console=ttyS2,115200n8
         name-interfaces:
             mac-pxe: eth15
             mac-eth10: eth10

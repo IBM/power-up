@@ -44,6 +44,7 @@ INV_NODES_TEMPLATES = 'node-templates'
 INV_COBBLER_PROFILE = 'cobbler-profile'
 INV_OS_DISK = 'os-disk'
 INV_ARCH = 'architecture'
+INV_KOPTS = 'kernel-options'
 COBBLER_PROFILE_X86_64 = 'ubuntu-14.04.4-server-amd64'
 COBBLER_PROFILE_PPC64 = 'ubuntu-14.04.4-server-ppc64el'
 
@@ -161,6 +162,15 @@ class CobblerAddSystems(object):
                     new_system_create,
                     "ks_meta",
                     KS_META,
+                    token)
+            if INV_KOPTS in inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]:
+                kopts = (
+                    inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
+                    [INV_KOPTS])
+                cobbler_server.modify_system(
+                    new_system_create,
+                    "kernel_options",
+                    kopts,
                     token)
             comment = ""
             if INV_CHASSIS_PART_NUMBER in node:
