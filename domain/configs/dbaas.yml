@@ -101,6 +101,7 @@ networks:
         addr: 172.29.240.0/22
         vlan: 30
         eth-port: eth11
+        mtu: 9000
     openstack-tenant-vlan:
         description: OpenStack Tenant vlan Network
         bridge: br-vlan
@@ -108,6 +109,7 @@ networks:
         addr: 0.0.0.0/1  # Nodes do not get IPs assigned in this network
         eth-port: eth11
         bridge-port: veth12
+        mtu: 9000
     ceph-replication:
         description: Ceph Replication Network
         addr: 172.29.248.0/22

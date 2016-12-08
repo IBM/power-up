@@ -56,12 +56,10 @@ networks:
         dns-search: mycompany.domain.com
         method: static
         eth-port: eth10
-        mtu: 9000
     external2:
         description: Interface for eth11
         method: manual
         eth-port: eth11
-        mtu: 9000
     pxe-dhcp:
         description: Change pxe port(eth15) to dhcp
         method: dhcp
@@ -74,7 +72,6 @@ networks:
         addr: 172.29.236.0/22
         vlan: 10
         eth-port: eth10
-        mtu: 9000
     openstack-stg:
         description: OpenStack Storage Network
         bridge: br-storage
@@ -83,7 +80,6 @@ networks:
         addr: 172.29.244.0/22
         vlan: 20
         eth-port: eth10
-        mtu: 9000
     openstack-tenant-vxlan:
         description: OpenStack Tenant vxlan Network
         bridge: br-vxlan
@@ -105,7 +101,6 @@ networks:
         method: static
         vlan: 40
         eth-port: eth11
-        mtu: 9000
 racks:
     - rack-id: rack1
       data-center: dataeast
