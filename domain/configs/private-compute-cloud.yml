@@ -259,7 +259,7 @@ software-bootstrap-cmd: |
         git clone git://github.com/open-power-ref-design/os-services.git
     fi
     cd os-services
-    git checkout v1.2.0
+    git checkout mitaka
     export DEPLOY_CEPH=yes
     export DEPLOY_OPSMGR=yes
     # export ANSIBLE_HOST_KEY_CHECKING=False
