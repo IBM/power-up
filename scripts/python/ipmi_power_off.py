@@ -86,6 +86,12 @@ class IpmiPowerOff(object):
 
 
 if __name__ == '__main__':
+    """
+    Arg1: inventory file
+    Arg2: time out
+    Arg3: wait time
+    Arg4: log level
+    """
     log = Logger(__file__)
 
     ARGV_MAX = 5

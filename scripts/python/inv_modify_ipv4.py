@@ -139,14 +139,13 @@ class InventoryModifyIPv4(object):
 
 if __name__ == '__main__':
     """
-    Arg1: config file
-    Arg2: inventory file
-    Arg3: node_mgmt_ipv4_start
-    Arg4: log level
+    Arg1: inventory file
+    Arg2: node_mgmt_ipv4_start
+    Arg3: log level
     """
     log = Logger(__file__)
 
-    ARGV_MAX = 5
+    ARGV_MAX = 4
     argv_count = len(sys.argv)
     if argv_count > ARGV_MAX:
         try:

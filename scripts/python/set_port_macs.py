@@ -31,6 +31,10 @@ def main(log_level, inv_file):
         sys.exit(1)
 
 if __name__ == '__main__':
+    """
+    Arg1: inventory file
+    Arg2: log level
+    """
     log = Logger(__file__)
 
     ARGV_MAX = 3

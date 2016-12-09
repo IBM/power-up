@@ -18,7 +18,6 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 import sys
-import os.path
 
 from lib.inventory import Inventory
 from lib.logger import Logger
@@ -33,13 +32,12 @@ class InventoryAddSwitches(object):
 
 if __name__ == '__main__':
     """
-    Arg1: config file
-    Arg2: inventory file
-    Arg3: log level
+    Arg1: inventory file
+    Arg2: log level
     """
     log = Logger(__file__)
 
-    ARGV_MAX = 4
+    ARGV_MAX = 3
     argv_count = len(sys.argv)
     if argv_count > ARGV_MAX:
         try:

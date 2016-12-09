@@ -28,6 +28,10 @@ def main(log_level, inv_file):
     switch.clear_mac_address_table(inv)
 
 if __name__ == '__main__':
+    """
+    Arg1: inventory file
+    Arg2: log level
+    """
     log = Logger(__file__)
 
     ARGV_MAX = 3

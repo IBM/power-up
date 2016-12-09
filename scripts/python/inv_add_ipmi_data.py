@@ -18,7 +18,6 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 import sys
-import os.path
 from pyghmi.ipmi import command as ipmi_command
 
 from lib.inventory import Inventory
@@ -30,8 +29,6 @@ class IpmiData(object):
         self.log = Logger(__file__)
         if log_level is not None:
             self.log.set_level(log_level)
-
-        SNMP_PORT = 161
 
         IPMI_SYSTEM = b'System'
         IPMI_NODE1 = b'NODE 1'
@@ -139,9 +136,13 @@ class IpmiData(object):
             return None
 
 if __name__ == '__main__':
+    """
+    Arg1: inventory file
+    Arg2: log level
+    """
     log = Logger(__file__)
 
-    ARGV_MAX = 4
+    ARGV_MAX = 3
     argv_count = len(sys.argv)
     if argv_count > ARGV_MAX:
         try:
