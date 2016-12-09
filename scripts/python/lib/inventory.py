@@ -279,8 +279,11 @@ class Inventory():
             yield key, value
 
     def create_nodes(self, dhcp_mac_ip, mgmt_switch_config):
-        self.inv[INV_NODES] = None
-        _dict = AttrDict()
+        if INV_NODES in self.inv:
+            _dict = self.inv[INV_NODES]
+        else:
+            self.inv[INV_NODES] = None
+            _dict = AttrDict()
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             index = 0
             for rack, ipmi_ports in value[INV_PORTS][INV_IPMI].items():
@@ -317,7 +320,8 @@ class Inventory():
                                 _list.append(node_dict)
                                 _dict[key] = _list
                                 self.inv[INV_NODES] = _dict
-        self._dump_inv_file()
+        if self.inv[INV_NODES] is not None:
+            self._dump_inv_file()
 
     def add_pxe(self, dhcp_mac_ip, mgmt_switch_config):
         _dict = AttrDict()
@@ -366,6 +370,25 @@ class Inventory():
                     node[INV_IPV4_IPMI],
                     node[INV_USERID_IPMI],
                     node[INV_PASSWORD_IPMI])
+
+    def yield_template_ports(self, port_type):
+        for template, value in self.inv[INV_NODES_TEMPLATES].items():
+            if port_type in value[INV_PORTS]:
+                for rack, ports in value[INV_PORTS][port_type].items():
+                    yield (template, rack, ports)
+
+    def check_port(self, template, port_type, rack, port):
+        # Find node associated with given port number and if both mac-* and
+        # ipv4-* keys defined return tuple
+        if self.inv[INV_NODES] is not None:
+            for key, value in self.inv[INV_NODES].items():
+                for node in value:
+                    if node['port-' + port_type] == port:
+                        if (('mac-' + port_type) in node and
+                                ('ipv4-' + port_type) in node):
+                            return (node['mac-' + port_type],
+                                    node['ipv4-' + port_type])
+        return False
 
     def add_to_node(self, key, index, field, value):
         self.inv[INV_NODES][key][index][field] = value

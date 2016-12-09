@@ -126,7 +126,7 @@
         /bin/bash -c "
         source {{ venv_path }}/bin/activate &&
         pip install --ignore-installed pyaml orderedattrdict pysnmp pyghmi \
-        paramiko &&
+        paramiko tabulate &&
         deactivate"
 
     - name: "Copy config file into deployment container"

@@ -19,15 +19,13 @@
 - include: container/set_mgmt_switch_config.yml
 - include: container/set_data_switch_config.yml
 - include: container/cobbler/cobbler_install.yml
-- include: pause.yml message="Please reset BMC interfaces to obtain DHCP leases"
+- include: container/inv_add_ports.yml port_type=ipmi
 - include: container/inv_add_switches.yml
-- include: container/inv_add_ipmi_ports.yml
 - include: container/ipmi_set_bootdev.yml bootdev=network persistent=False
 - include: container/ipmi_power_off.yml
 - include: container/ipmi_power_on.yml
-- include: pause.yml minutes=20 message="Power-on Nodes"
+- include: container/inv_add_ports.yml port_type=pxe
 - include: container/inv_add_ipmi_data.yml
-- include: container/inv_add_pxe_ports.yml
 - include: container/ipmi_power_off.yml
 - include: container/inv_modify_ipv4.yml
 - include: container/cobbler/cobbler_add_distros.yml

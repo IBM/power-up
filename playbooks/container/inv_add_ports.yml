@@ -15,13 +15,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: container/inv_add_ipmi_ports.yml
+- name: container/inv_add_ports.yml
   hosts: deployer
   vars:
+    port_type: ""
     dhcp_leases_file: "/var/lib/misc/dnsmasq.leases"
+
   tasks:
-    - command: "awk '{system(\"ping -c 5 \"$3)}' {{ dhcp_leases_file }}"
-      ignore_errors: yes
-    - command: "{{ python_executable }} \
-                {{ scripts_path }}/python/inv_add_ipmi_ports.py \
-                {{ inventory }} {{ dhcp_leases_file }} {{ log_level }}"
+    - name: "Attempting to Build {{ port_type }} MAC / DHCP Lease Table"
+      command: "{{ python_executable }} \
+                {{ scripts_path }}/python/inv_add_ports.py \
+                {{ inventory }} {{ dhcp_leases_file }} {{port_type}} \
+                {{ log_level }}"
+      register: result
+      until: result.stdout.find("False") == -1
+      retries: "{{ add_ports_retries }}"
+      delay: "{{ add_ports_delay }}"
+
+    - name: "Print {{ port_type }} MAC / DHCP Lease Table"
+      debug:
+        msg: "{{ result.stdout.split('\n') }}"
