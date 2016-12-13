@@ -22,6 +22,7 @@
 - include: container/inv_add_switches.yml
 - include: container/inv_add_ipmi_ports.yml
 - include: container/ipmi_set_bootdev.yml bootdev=network persistent=False
+- include: container/ipmi_power_off.yml
 - include: container/ipmi_power_on.yml
 - include: pause.yml minutes=20 message="Power-on Nodes"
 - include: container/inv_add_ipmi_data.yml
