@@ -17,78 +17,91 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
+
 import sys
-from pyghmi.ipmi import command as ipmi_command
-from pyghmi import exceptions as pyghmi_exception
 import time
 
 from lib.inventory import Inventory
+from lib.ipmi_power import IpmiPower
 from lib.logger import Logger
-
-WAIT = True
-OFF = 'off'
-POWERSTATE = 'powerstate'
 
 
 class IpmiPowerOff(object):
-    def __init__(self, log_level, inv_file):
-        log = Logger(__file__)
+    def __init__(self, log_level, inv_file, time_out, wait):
+        self.log = Logger(__file__)
         if log_level is not None:
-            log.set_level(log_level)
+            self.log.set_level(log_level)
 
         inv = Inventory(log_level, inv_file)
-        for rack_id, ipv4, _userid, _password in inv.yield_ipmi_access_info():
-            ipmi_cmd = ipmi_command.Command(
-                bmc=ipv4,
-                userid=_userid,
-                password=_password)
+        self.ipmi_power = IpmiPower(log_level)
 
-            try:
-                rc = ipmi_cmd.get_power()
-            except pyghmi_exception.IpmiException as error:
-                log.error(
-                    'Power status failed - Rack: %s - IP: %s, %s' %
-                    (rack_id, ipv4, str(error)))
-                # sys.exit(1)
+        bmcs = []
+        for rack_id, ipv4, userid, password in inv.yield_ipmi_access_info():
+            bmc = {}
+            bmc['rack_id'] = rack_id
+            bmc['ipv4'] = ipv4
+            bmc['userid'] = userid
+            bmc['password'] = password
 
-            if rc.get(POWERSTATE) == OFF:
-                log.info(
+            _rc, _ = self.ipmi_power.is_power_off(bmc)
+            if _rc:
+                self.log.info(
                     'Already powered off - Rack: %s - IP: %s' %
                     (rack_id, ipv4))
-                continue
+            else:
+                bmcs.append(bmc)
+                self.ipmi_power.set_power_off(bmc)
 
-            try:
-                rc = ipmi_cmd.set_power(OFF, WAIT)
-            except pyghmi_exception.IpmiException as error:
-                log.error(
-                    'Power off failed - Rack: %s - IP: %s, %s' %
-                    (rack_id, ipv4, str(error)))
-                # sys.exit(1)
+        start_time = time.time()
+        attempt = 1
+        while bmcs:
+            if time.time() > start_time + time_out:
+                break
+            time.sleep(wait)
+            bmcs[:] = [
+                bmc
+                for bmc in bmcs
+                if self._is_not_power_off(bmc, attempt) is not None]
+            attempt += 1
 
-            if rc.get(POWERSTATE) != OFF:
-                log.error(
-                    'Power off did not occur - Rack: %s - IP: %s' %
-                    (rack_id, ipv4))
-                # sys.exit(1)
+        for bmc in bmcs:
+            self.log.error(
+                'Power off unsuccessful - Rack: %s - IP: %s - State: %s' %
+                (bmc['rack_id'], bmc['ipv4'], bmc['power_state']))
+        for bmc in bmcs:
+            sys.exit(1)
 
-            log.info('Power off - Rack: %s - IP: %s' % (rack_id, ipv4))
+    def _is_not_power_off(self, bmc, attempt):
+        _rc, power_state = self.ipmi_power.is_power_off(bmc)
+        if _rc:
+            self.log.info(
+                'Power off successful - Rack: %s - IP: %s' %
+                (bmc['rack_id'], bmc['ipv4']))
+            return None
+        bmc['power_state'] = power_state
+        self.log.debug(
+            'Power off pending - Rack: %s - IP: %s - State: %s - Attempt: %s' %
+            (bmc['rack_id'], bmc['ipv4'], bmc['power_state'], attempt))
+        return bmc
 
-        time.sleep(180)
 
 if __name__ == '__main__':
-    log = Logger(__file__)
-    ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    LOG = Logger(__file__)
+    ARGV_MAX = 5
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
-        except:
-            log.error('Invalid argument count')
+        except Exception:
+            LOG.error('Invalid argument count')
             exit(1)
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
+    INV_FILE = sys.argv[1]
+    TIME_OUT = int(sys.argv[2])
+    WAIT = int(sys.argv[3])
+    if ARGV_COUNT == ARGV_MAX:
+        LOG_LEVEL = sys.argv[4]
     else:
-        log_level = None
-    ipmi_data = IpmiPowerOff(log_level, inv_file)
+        LOG_LEVEL = None
+
+    IpmiPowerOff(LOG_LEVEL, INV_FILE, TIME_OUT, WAIT)

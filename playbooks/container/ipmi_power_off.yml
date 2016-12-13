@@ -19,5 +19,6 @@
   hosts: deployer
   tasks:
     - name: "Power off all nodes"
-      command: "{{ python_executable }} {{ scripts_path }}/python/ipmi_power_off.py {{ inventory }} {{ log_level }}"
-      ignore_errors: yes
+      command: "{{ python_executable }} \
+                {{ scripts_path }}/python/ipmi_power_off.py \
+                {{ inventory }} {{ power_time_out_sec }} {{ power_wait_sec }} {{ log_level }}"
