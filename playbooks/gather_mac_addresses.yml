@@ -37,6 +37,8 @@
         - "{{ inventory_hostname != \
            hostvars[inventory_hostname]['ansible_' + \
            item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')]['active'] }}"
       with_items: "{{ ansible_interfaces }}"
 
     - name: Backup interfaces file
@@ -97,5 +99,7 @@
         - "{{ item != 'lo' }}"
         - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
            item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')]['active'] }}"
         - ansible_distribution == 'Ubuntu'
       with_items: "{{ ansible_interfaces }}"
