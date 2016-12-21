@@ -1,0 +1,9 @@
+ansible~=2.1.2.0
+ansible-lint>=3.4.9
+bashate>=0.5.1
+flake8>=3.2.1
+netaddr
+orderedattrdict
+testrepository>=0.0.20  # Apache-2.0/BSD
+gitpython>=2.1.1
+PyYAML>=3.12

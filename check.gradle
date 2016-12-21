@@ -17,9 +17,7 @@
 task check (type : Exec) {
     print 'Running Check Task on cluster-genesis'
     workingDir '.'
-    executable = "ls";
-    standardOutput = new ByteArrayOutputStream()
-    ext.output = {
-       return standardOutput.toString()
-    }
+    // Run the default tox environment.
+    executable = "tox"
+    args "-r"
 }

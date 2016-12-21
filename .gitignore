@@ -9,3 +9,6 @@ deployenv
 .coverage
 *.log
 playbooks/.facts
+.tox
+*.egg*
+.testrepository/
