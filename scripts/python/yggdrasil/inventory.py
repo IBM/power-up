@@ -432,7 +432,7 @@ def populate_host_networks(inventory, inventory_source, ip_to_node):
     hostvars = inventory['_meta']['hostvars']
     for ip, node in ip_to_node.iteritems():
         for net in inventory_source['networks'].keys():
-            node_ip_addr = node.get(net+'-addr')
+            node_ip_addr = node.get(net + '-addr')
             # If the node is connected to this network
             if node_ip_addr is not None:
                 net_addr = {'addr': node_ip_addr}

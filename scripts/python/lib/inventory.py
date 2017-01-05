@@ -104,7 +104,8 @@ class Inventory():
                 indent=4,
                 default_flow_style=False)
         except:
-            self.log.error('Could not dump inventory to file: ' + self.inv_file)
+            self.log.error(
+                'Could not dump inventory to file: ' + self.inv_file)
             sys.exit(1)
 
     def add_switches(self):
@@ -119,9 +120,10 @@ class Inventory():
         else:
             password = self.inv[INV_PASSWORD_DEFAULT]
         _list = []
-        for index, (key, value) in enumerate(self.inv[INV_IPADDR_MGMT_SWITCH].items()):
+        for index, (key, value) in (
+                enumerate(self.inv[INV_IPADDR_MGMT_SWITCH].items())):
             _dict = AttrDict()
-            _dict[INV_HOSTNAME] = INV_MGMTSWITCH + str(index+1)
+            _dict[INV_HOSTNAME] = INV_MGMTSWITCH + str(index + 1)
             _dict[INV_IPV4_ADDR] = value
             _dict[INV_RACK_ID] = key
             _dict[INV_USERID] = userid
@@ -142,9 +144,10 @@ class Inventory():
         else:
             password = self.inv[INV_PASSWORD_DEFAULT]
         _list = []
-        for index, (key, value) in enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items()):
+        for index, (key, value) in (
+                enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
             _dict = AttrDict()
-            _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index+1)
+            _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index + 1)
             _dict[INV_IPV4_ADDR] = value
             _dict[INV_RACK_ID] = key
             _dict[INV_USERID] = userid
@@ -324,16 +327,12 @@ class Inventory():
             self._dump_inv_file()
 
     def add_pxe(self, dhcp_mac_ip, mgmt_switch_config):
-        _dict = AttrDict()
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
-            index = 0
             for rack, pxe_ports in value[INV_PORTS][INV_PXE].items():
-                _list = []
                 for port_index, pxe_port in enumerate(pxe_ports):
                     for mgmt_port in mgmt_switch_config[rack]:
                         if pxe_port in mgmt_port.keys():
                             if mgmt_port[pxe_port] in dhcp_mac_ip:
-                                port = self.inv[INV_NODES][key][port_index][INV_PORT_PXE]
                                 self.inv[INV_NODES][key][port_index][INV_MAC_PXE] = \
                                     mgmt_port[pxe_port]
                                 self.inv[INV_NODES][key][port_index][INV_IPV4_PXE] = \
@@ -412,15 +411,17 @@ class Inventory():
                 node_template = self.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
                 for port_name in node_template['ports'].keys():
                     if port_name not in INV_MANAGEMENT_PORTS:
-                        node_port_on_rack = str(node.get(INV_PORT_PATTERN % port_name, ''))
+                        node_port_on_rack = str(node.get(INV_PORT_PATTERN %
+                                                port_name, ''))
                         macs = switch_ports_to_MACs.get(node_port_on_rack, [])
                         if macs:
                             mac_key = INV_MAC_PATTERN % port_name
                             node[mac_key] = macs[0]
                         else:
-                            msg = ('Unable to find a MAC address for %(port_name)s'
-                                   ' of host %(host)s plugged into port %(node_port_on_rack)s'
-                                   ' of switch %(switch)s')
+                            msg = ('Unable to find a MAC address for '
+                                   '%(port_name)s of host %(host)s plugged '
+                                   'into port %(node_port_on_rack)s of switch '
+                                   '%(switch)s')
                             msg_vars = {'port_name': port_name,
                                         'host': node.get(INV_IPV4_PXE),
                                         'node_port_on_rack': node_port_on_rack,

@@ -30,6 +30,7 @@ def main(log_level, inv_file):
     if not success:
         sys.exit(1)
 
+
 if __name__ == '__main__':
     """
     Arg1: inventory file

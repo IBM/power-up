@@ -17,6 +17,7 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
+
 import sys
 
 from lib.inventory import Inventory
@@ -25,10 +26,9 @@ from lib.logger import Logger
 
 class InventoryAddSwitches(object):
     def __init__(self, log_level, inv_file):
-        log = Logger(__file__)
-
         inv = Inventory(log_level, inv_file)
         inv.add_switches()
+
 
 if __name__ == '__main__':
     """

@@ -173,5 +173,6 @@ def main():
     args = parser.parse_args()
     validate(args.file)
 
+
 if __name__ == "__main__":
     main()

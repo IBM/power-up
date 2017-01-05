@@ -40,12 +40,13 @@ class CobblerSetNetbootEnabled(object):
 
             handle = cobbler_server.get_system_handle(name, token)
             cobbler_server.modify_system(
-                    handle, "netboot_enabled", netboot_enabled_value, token)
+                handle, "netboot_enabled", netboot_enabled_value, token)
             cobbler_server.save_system(handle, token)
 
             log.info(
                 "Cobbler Modify System: name=%s netboot_enabled=%s" %
                 (name, netboot_enabled_value))
+
 
 if __name__ == '__main__':
     """

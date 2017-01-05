@@ -17,6 +17,7 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
+
 import sys
 from pyghmi.ipmi import command as ipmi_command
 
@@ -134,6 +135,7 @@ class IpmiData(object):
                 ipmi_key + '[' + ipmi_field + ']' +
                 "' not found")
             return None
+
 
 if __name__ == '__main__':
     """

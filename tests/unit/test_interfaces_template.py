@@ -20,7 +20,8 @@ import os.path
 import unittest
 
 
-TEMPLATE_FILE = 'playbooks'+os.path.sep+'templates'+os.path.sep+'interfaces.j2'
+TEMPLATE_FILE = ('playbooks' + os.path.sep + 'templates' + os.path.sep +
+                 'interfaces.j2')
 
 
 class TestInterfacesTemplate(unittest.TestCase):

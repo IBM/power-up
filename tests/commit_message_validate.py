@@ -25,6 +25,7 @@ import subprocess
 def get_head_commit_message():
     return subprocess.check_output(['git', 'log', '-1', '--pretty=%B'])
 
+
 valid_subject_tags = ['feat:', 'fix:', 'docs:', 'style:', 'refactor:',
                       ' test:', 'chore']
 no_errors = True
@@ -50,13 +51,13 @@ for i, line in enumerate(get_head_commit_message().splitlines()):
             no_errors = False
             errors.append("Line after subject should be blank")
     elif i > 1:
-        if ".  " in line:
+        if b".  " in line:
             no_errors = False
             errors.append("Body line #%d - period should be followed by "
-                          "single space" % (i+1))
+                          "single space" % (i + 1))
         if len(line) > 72:
             no_errors = False
-            errors.append("Body line #%d > 72 characters long" % (i+1))
+            errors.append("Body line #%d > 72 characters long" % (i + 1))
 
 if no_errors:
     sys.exit(0)

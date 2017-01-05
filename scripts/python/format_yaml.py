@@ -38,6 +38,7 @@ def abs_path(file):
         os.path.sep +
         os.path.basename(file))
 
+
 yaml_file = abs_path(sys.argv[1])
 
 try:

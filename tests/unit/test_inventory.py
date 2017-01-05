@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #!/usr/bin/env python
 # Copyright 2016 IBM Corp.
 #
@@ -113,11 +112,11 @@ class TestOSInterfacesInventory(unittest.TestCase):
                    'some-key1': 'some-val1',
                    'somekey2': ['someval2']},
                   {test_mod.HOST_IP_KEY: 'ip2',
-                  'some-key3': 'some-val3',
-                  'somekey4': ['someval4']}]
+                   'some-key3': 'some-val3',
+                   'somekey4': ['someval4']}]
         nodes2 = [{test_mod.HOST_IP_KEY: 'ip3',
-                  'some-key4': 'some-val5',
-                  'somekey6': ['someval6']}]
+                   'some-key4': 'some-val5',
+                   'somekey6': ['someval6']}]
         inventory_source = {
             'global1': ['1', '2'],
             'global2': 'string-2',
@@ -149,7 +148,7 @@ class TestOSInterfacesInventory(unittest.TestCase):
                                          'otherkey': 'otherval'},
                                 'net2': {'addr': '0.0.0.0/1',
                                          'otherkey': 'otherval'},
-                                'net3':  {'otherkey': 'otherval'}}}
+                                'net3': {'otherkey': 'otherval'}}}
         test_mod.populate_network_variables(inventory, inv_src)
         nets = {'net1': {'addr': '10.5.1.5/22',
                          'network': '10.5.0.0',
@@ -211,12 +210,12 @@ class TestOSInterfacesInventory(unittest.TestCase):
         test_mod.populate_host_networks(inventory, net_list, ip_to_node)
         self.assertDictEqual(inventory, {'_meta': {'hostvars': {}}})
 
-    @mock.patch(TEST_PKG_MOD+'.populate_name_interfaces')
-    @mock.patch(TEST_PKG_MOD+'.populate_host_networks')
-    @mock.patch(TEST_PKG_MOD+'.populate_network_variables')
-    @mock.patch(TEST_PKG_MOD+'.populate_hosts_and_groups')
-    @mock.patch(TEST_PKG_MOD+'.get_host_ip_to_node')
-    @mock.patch(TEST_PKG_MOD+'.load_input_file')
+    @mock.patch(TEST_PKG_MOD + '.populate_name_interfaces')
+    @mock.patch(TEST_PKG_MOD + '.populate_host_networks')
+    @mock.patch(TEST_PKG_MOD + '.populate_network_variables')
+    @mock.patch(TEST_PKG_MOD + '.populate_hosts_and_groups')
+    @mock.patch(TEST_PKG_MOD + '.get_host_ip_to_node')
+    @mock.patch(TEST_PKG_MOD + '.load_input_file')
     def test_generate_dynamic_inventory(self, load, get_host_ip_to_node,
                                         populate_hosts,
                                         populate_network_variables,
@@ -305,6 +304,7 @@ class TestOSInterfacesInventory(unittest.TestCase):
         ifs = {'eth50': 'key1val2',
                'eth60': 'key2val2'}
         self.assertEqual(hv['nodeIP2']['name_interfaces'], ifs)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -164,5 +164,6 @@ def main():
 
     allocate_ips(args.inventory_file)
 
+
 if __name__ == "__main__":
     main()

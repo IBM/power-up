@@ -179,7 +179,7 @@ class ConfigureMgmtSwitch(object):
 
     def is_port_in_trunk_mode(self, port):
         if re.search(
-                r'^\S+\s+'+str(port)+r'\s+y',
+                r'^\S+\s+' + str(port) + r'\s+y',
                 self.issue_cmd(self.SHOW_INTERFACE_TRUNK % (port)),
                 re.MULTILINE):
             return True
@@ -192,7 +192,7 @@ class ConfigureMgmtSwitch(object):
 
     def is_vlan_set(self, vlan):
         if re.search(
-                '^'+str(vlan),
+                '^' + str(vlan),
                 self.issue_cmd(self.SHOW_VLAN % (vlan)),
                 re.MULTILINE):
             return True

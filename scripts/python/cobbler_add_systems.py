@@ -197,6 +197,7 @@ class CobblerAddSystems(object):
         cobbler_server.sync(token)
         log.info("Running Cobbler sync")
 
+
 if __name__ == '__main__':
     """
     Arg1: inventory file

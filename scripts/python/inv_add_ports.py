@@ -65,8 +65,8 @@ class InventoryAddPorts(object):
                 result = inv.check_port(template, port_type, rack, port)
                 if result:
                     self.table.append(
-                            [True, template, port_type, rack, port, result[0],
-                                result[1]])
+                        [True, template, port_type, rack, port, result[0],
+                            result[1]])
                     log.info(
                         'Node Port Defined in Inventory - Template: %s '
                         'Type: %s Rack: %s Port: %02d MAC: %s IP: %s' %
@@ -77,8 +77,8 @@ class InventoryAddPorts(object):
                         if mac in dhcp_mac_ip:
                             ip = dhcp_mac_ip[mac]
                             self.table.append(
-                                    [False, template, port_type, rack, port,
-                                        mac, ip])
+                                [False, template, port_type, rack, port, mac,
+                                    ip])
                             log.warning(
                                 'Node Port MAC/IP NOT Defined in Inventory - '
                                 'Template: %s Type: %s Rack: %s Port: %02d '
@@ -86,8 +86,8 @@ class InventoryAddPorts(object):
                                 (template, port_type, rack, port, mac, ip))
                         else:
                             self.table.append(
-                                    [False, template, port_type, rack, port,
-                                        mac, '-'])
+                                [False, template, port_type, rack, port, mac,
+                                    '-'])
                             log.warning(
                                 'No DHCP Lease Found for Port MAC Address - '
                                 'Template: %s Type: %s Rack: %s Port: %02d '
@@ -95,7 +95,7 @@ class InventoryAddPorts(object):
                                 (template, port_type, rack, port, mac))
                 else:
                     self.table.append(
-                            [False, template, port_type, rack, port, '-', '-'])
+                        [False, template, port_type, rack, port, '-', '-'])
                     log.warning(
                         'No Entries Found in MGMT Switch MAC Address Table - '
                         'Template: %s Type: %s Rack: %s Port: %02d' %

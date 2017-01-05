@@ -137,6 +137,7 @@ class InventoryModifyIPv4(object):
                     'BMC at Standby - Rack: %s - IP: %s' %
                     (rack_id, ipv4))
 
+
 if __name__ == '__main__':
     """
     Arg1: inventory file

@@ -15,10 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import sys
 import re
-import yaml
-from orderedattrdict.yamlutils import AttrDictYAMLLoader
 from orderedattrdict import AttrDict
 from pysnmp.hlapi import *
 
@@ -57,7 +58,7 @@ class GetMgmtSwitchConfig(object):
             elif errorStatus:
                 self.log.error('%s at %s' % (
                     errorStatus.prettyPrint(),
-                    errorIndex and varBinds[int(errorIndex)-1][0] or '?'))
+                    errorIndex and varBinds[int(errorIndex) - 1][0] or '?'))
                 sys.exit(1)
             else:
                 _dict = AttrDict()

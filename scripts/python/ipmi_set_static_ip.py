@@ -27,13 +27,11 @@ from lib.logger import Logger
 
 STATIC = 'Static'
 DHCP_ERR_MSG = 'IPMI IP is already \'%s\' - Rack: %s - IP: %s - MAC: %s'
-IPV4_ERR_MSG = (
-                   'IPMI and inventory file IP differ'
-                   ' - Rack: %s - IP(IPMI/INV): %s/%s - MAC: %s')
+IPV4_ERR_MSG = ('IPMI and inventory file IP differ'
+                ' - Rack: %s - IP(IPMI/INV): %s/%s - MAC: %s')
 IPMI_GET_ERR_MSG = 'IPMI LAN query failed - Rack: %s - IP: %s - Error: %s'
-IPMI_SET_ERR_MSG = (
-                       'IPMI IP change to \'%s\' failed'
-                       ' - Rack: %s - IP: %s - MAC: %s - Error: %s')
+IPMI_SET_ERR_MSG = ('IPMI IP change to \'%s\' failed'
+                    ' - Rack: %s - IP: %s - MAC: %s - Error: %s')
 IPMI_SET_MSG = 'IPMI IP changed to \'%s\' - Rack: %s - IP: %s - MAC: %s'
 
 

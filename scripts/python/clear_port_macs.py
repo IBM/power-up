@@ -27,6 +27,7 @@ def main(log_level, inv_file):
     switch = mellanox_switch.MellanoxSwitch(log_level)
     switch.clear_mac_address_table(inv)
 
+
 if __name__ == '__main__':
     """
     Arg1: inventory file

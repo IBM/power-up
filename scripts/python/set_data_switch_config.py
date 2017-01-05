@@ -108,6 +108,7 @@ class ConfigureDataSwitch(object):
         # print(stdout.read())
         s.close()
 
+
 if __name__ == '__main__':
     """
     Arg1: inventory file
