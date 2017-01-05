@@ -18,6 +18,8 @@
 - name: container/cobbler/cobbler_add_systems.yml
   hosts: deployer
   tasks:
-    - command: "{{ python_executable }} \
+    - name: Add client nodes to Cobbler
+      command: "{{ python_executable }} \
                 {{ scripts_path }}/python/cobbler_add_systems.py \
-                {{ inventory }} {{ log_level }}"
+                {{ inventory }} \
+                {{ log_level }}"

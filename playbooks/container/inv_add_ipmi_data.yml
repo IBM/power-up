@@ -18,6 +18,8 @@
 - name: container/inv_add_ipmi_data.yml
   hosts: deployer
   tasks:
-    - command: "{{ python_executable }} \
+    - name: Add client node IPMI data to inventory
+      command: "{{ python_executable }} \
                 {{ scripts_path }}/python/inv_add_ipmi_data.py \
-                {{ inventory }} {{ log_level }}"
+                {{ inventory }} \
+                {{ log_level }}"

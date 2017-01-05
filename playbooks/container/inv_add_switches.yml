@@ -18,6 +18,8 @@
 - name: container/inv_add_switches.yml
   hosts: deployer
   tasks:
-    - command: "{{ python_executable }} \
+    - name: Add switches to inventory
+      command: "{{ python_executable }} \
                 {{ scripts_path }}/python/inv_add_switches.py \
-                {{ inventory }} {{ log_level }}"
+                {{ inventory }} \
+                {{ log_level }}"

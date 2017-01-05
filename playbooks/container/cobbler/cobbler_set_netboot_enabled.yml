@@ -20,6 +20,8 @@
   vars:
     netboot_enabled_value: True
   tasks:
-    - command: "{{ python_executable }} \
+    - name: Set Cobbler netboot_enabled flag for all client nodes
+      command: "{{ python_executable }} \
                 {{ scripts_path }}/python/cobbler_set_netboot_enabled.py \
-                {{ netboot_enabled_value }} {{ log_level }}"
+                {{ netboot_enabled_value }} \
+                {{ log_level }}"

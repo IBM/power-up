@@ -18,8 +18,11 @@
 - name: container/inv_modify_ipv4.yml
   hosts: deployer
   tasks:
-    - command: "{{ python_executable }} \
+    - name: Modify IP addresses of IPMI and PXE client node interfaces
+      command: "{{ python_executable }} \
                 {{ scripts_path }}/python/inv_modify_ipv4.py \
-                {{ inventory }} {{ node_mgmt_ipv4_start }} {{ log_level }}"
+                {{ inventory }} \
+                {{ node_mgmt_ipv4_start }} \
+                {{ log_level }}"
       become: yes
       become_method: sudo
