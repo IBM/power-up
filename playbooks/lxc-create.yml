@@ -118,7 +118,7 @@
       replace:
         dest: "{{ project_path_local }}/playbooks/group_vars/all"
         regexp: '^(container_mgmt_subnet:).*$'
-        replace: '\1 {{ ipaddr_mgmt_network.stdout }}'
+        replace: '\1 {{ ipaddr_mgmt_client_network.stdout }}'
       when: ipaddr_mgmt_network.stdout != ""
 
     - name: "Create lxc.conf container with no VLAN support"
