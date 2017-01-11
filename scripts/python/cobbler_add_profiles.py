@@ -104,6 +104,8 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
+    log.clear()
+
     distro = sys.argv[1]
     name = sys.argv[2]
     kopts = sys.argv[3]

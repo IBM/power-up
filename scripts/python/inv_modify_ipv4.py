@@ -155,6 +155,8 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
+    log.clear()
+
     inv_file = sys.argv[1]
     node_mgmt_ipv4_start = sys.argv[2]
     if argv_count == ARGV_MAX:

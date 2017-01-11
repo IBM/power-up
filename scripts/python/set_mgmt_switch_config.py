@@ -238,7 +238,7 @@ class ConfigureMgmtSwitch(object):
 
 
 if __name__ == '__main__':
-    LOG = Logger(__file__)
+    log = Logger(__file__)
 
     ARGV_MAX = 3
     ARGV_COUNT = len(sys.argv)
@@ -246,8 +246,10 @@ if __name__ == '__main__':
         try:
             raise Exception()
         except Exception:
-            LOG.error('Invalid argument count')
+            log.error('Invalid argument count')
             exit(1)
+
+    log.clear()
 
     INV_FILE = sys.argv[1]
     if ARGV_COUNT == ARGV_MAX:

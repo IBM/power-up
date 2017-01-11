@@ -57,6 +57,9 @@ class Logger():
         self.logger.setLevel(log_level)
         self.handler.setLevel(log_level)
 
+    def clear(self):
+        self.logger.removeHandler(self.handler)
+
     def debug(self, msg):
         self.logger.debug(msg)
 

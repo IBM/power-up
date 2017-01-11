@@ -93,6 +93,7 @@ class IpmiSetBootdev(object):
 
 if __name__ == '__main__':
     log = Logger(__file__)
+
     ARGV_MAX = 5
     argv_count = len(sys.argv)
     if argv_count > ARGV_MAX:
@@ -101,6 +102,8 @@ if __name__ == '__main__':
         except:
             log.error('Invalid argument count')
             exit(1)
+
+    log.clear()
 
     inv_file = sys.argv[1]
     bootdev = sys.argv[2]

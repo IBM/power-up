@@ -86,15 +86,18 @@ class IpmiPowerOff(object):
 
 
 if __name__ == '__main__':
-    LOG = Logger(__file__)
+    log = Logger(__file__)
+
     ARGV_MAX = 5
     ARGV_COUNT = len(sys.argv)
     if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except Exception:
-            LOG.error('Invalid argument count')
+            log.error('Invalid argument count')
             exit(1)
+
+    log.clear()
 
     INV_FILE = sys.argv[1]
     TIME_OUT = int(sys.argv[2])

@@ -135,6 +135,8 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             sys.exit(1)
 
+    log.clear()
+
     inv_file = sys.argv[1]
     dhcp_leases_file = sys.argv[2]
     port_type = sys.argv[3]

@@ -63,6 +63,8 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
+    log.clear()
+
     netboot_enabled_value = sys.argv[1]
     if argv_count == ARGV_MAX:
         log_level = sys.argv[2]
