@@ -30,5 +30,5 @@ fi
 sudo -H pip install virtualenv
 virtualenv --no-wheel --system-site-packages deployenv
 source deployenv/bin/activate
-pip install --ignore-installed 'ansible~=2.1.2.0' orderedattrdict
+pip install ansible orderedattrdict
 deactivate
