@@ -17,6 +17,12 @@
 
 - name: lxc-create.yml
   hosts: localhost
+  handlers:
+    - name: "Restart networking"
+      service: name=networking state=restarted
+      listen: "restart networking"
+      become: yes
+      become_method: sudo
   tasks:
     - name: "Print local project path"
       debug:
@@ -114,12 +120,19 @@
       shell: "ip route | grep ^default | awk '{print $5}'"
       register: primary_network_port
 
-    - name: "Update group_vars/all container_mgmt_subnet"
+    - name: "Update group_vars/all container_mgmt_subnet with no VLAN support"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/group_vars/all"
+        regexp: '^(container_mgmt_subnet:).*$'
+        replace: '\1 {{ ipaddr_mgmt_network.stdout }}'
+      when: ipaddr_mgmt_client_network.stdout == ""
+
+    - name: "Update group_vars/all container_mgmt_subnet with VLAN support"
       replace:
         dest: "{{ project_path_local }}/playbooks/group_vars/all"
         regexp: '^(container_mgmt_subnet:).*$'
         replace: '\1 {{ ipaddr_mgmt_client_network.stdout }}'
-      when: ipaddr_mgmt_network.stdout != ""
+      when: ipaddr_mgmt_client_network.stdout != ""
 
     - name: "Create lxc.conf container with no VLAN support"
       vars:
@@ -155,6 +168,7 @@
         owner: "root"
         group: "root"
         mode: "0644"
+      notify: "restart networking"
       become: yes
       become_method: sudo
       when: ipaddr_mgmt_client_network.stdout != ""
@@ -171,14 +185,13 @@
         owner: "root"
         group: "root"
         mode: "0644"
+      notify: "restart networking"
       become: yes
       become_method: sudo
       when: ipaddr_mgmt_client_network.stdout != ""
 
-    - name: "Restart networking"
-      service: name=networking state=restarted
-      become: yes
-      become_method: sudo
+    - name: "Flush handlers"
+      meta: flush_handlers
 
     - name: "Create private/public ssh key pair"
       user:
