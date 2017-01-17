@@ -257,3 +257,27 @@
             ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
       become: yes
       become_method: sudo
+
+    - name: Create known_hosts file
+      file:
+        path: "{{ known_hosts }}"
+        state: touch
+
+    - name: Use ssh-keyscan to add container hostkey to known_hosts file
+      shell: |
+        ssh-keyscan -H {{ ipaddr_mgmt_network.stdout |
+        ipaddr(container_mgmt_ipv4_offset) |
+        ipaddr("address") }} >> {{ known_hosts }}
+
+    - name: Register generated known_hosts content
+      command: "cat {{ known_hosts }}"
+      register: known_hosts_content
+
+    - name: Append generated known_hosts contect to ~/.ssh/known_hosts
+      lineinfile:
+        line: "{{ item }}"
+        dest: ~/.ssh/known_hosts
+        state: present
+        create: "yes"
+        mode: 0600
+      with_items: "{{ known_hosts_content.stdout_lines }}"

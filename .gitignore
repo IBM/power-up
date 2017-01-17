@@ -12,3 +12,5 @@ playbooks/.facts
 .tox
 *.egg*
 .testrepository/
+config-backup.yml
+playbooks/known_hosts
