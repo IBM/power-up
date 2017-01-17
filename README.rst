@@ -95,9 +95,9 @@ on the client nodes as defined in the config.yml file.
 
 ::
 
-$ ansible-playbook -i ../scripts/python/yggdrasil/inventory.py ssh_keyscan.yml -u root --private-key=~/.ssh/id_rsa_ansible-generated
-$ ansible-playbook -i ../scripts/python/yggdrasil/inventory.py gather_mac_addresses.yml -u root --private-key=~/.ssh/id_rsa_ansible-generated
-$ ansible-playbook -i ../scripts/python/yggdrasil/inventory.py configure_operating_systems.yml -u root --private-key=~/.ssh/id_rsa_ansible-generated
+$ ansible-playbook -i ./inventory.py ssh_keyscan.yml
+$ ansible-playbook -i ./inventory.py gather_mac_addresses.yml
+$ ansible-playbook -i ./inventory.py configure_operating_systems.yml
 
 
 Authors

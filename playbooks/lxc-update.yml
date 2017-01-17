@@ -134,6 +134,21 @@
         src: "{{ config_local }}"
         dest: "{{ inventory }}"
 
+    - name: "Add default Ansible user to inventory.yml"
+      lineinfile:
+        line: "ansible_user: root"
+        dest: "{{ inventory }}"
+        state: present
+        insertafter: '^password-default*'
+
+    - name: "Add SSH private key location to inventory.yml"
+      lineinfile:
+        line: "ansible_ssh_private_key_file: \
+               {{ hostvars['localhost']['ssh_key_private'] }}"
+        dest: "{{ inventory }}"
+        state: present
+        insertafter: '^ansible_user:*'
+
     - name: "Copy scripts into deployment container"
       copy:
         src: "{{ scripts_path_local }}"

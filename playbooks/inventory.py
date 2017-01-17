@@ -1,0 +1,1 @@
+../scripts/python/yggdrasil/inventory.py
