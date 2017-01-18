@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -26,23 +26,24 @@ from lib.logger import Logger
 COBBLER_USER = 'cobbler'
 COBBLER_PASS = 'cobbler'
 
-YAML_HOSTNAME = 'hostname'
-YAML_IPV4_IPMI = 'ipv4-ipmi'
-YAML_USERID_IPMI = 'userid-ipmi'
-YAML_PASSWORD_IPMI = 'password-ipmi'
-YAML_IPV4_PXE = 'ipv4-pxe'
-YAML_MAC_PXE = 'mac-pxe'
-YAML_CHASSIS_PART_NUMBER = 'chassis-part-number'
-YAML_CHASSIS_SERIAL_NUMBER = 'chassis-serial-number'
-YAML_MODEL = 'model'
-YAML_SERIAL_NUMBER = 'serial-number'
+INV_HOSTNAME = 'hostname'
+INV_IPV4_IPMI = 'ipv4-ipmi'
+INV_USERID_IPMI = 'userid-ipmi'
+INV_PASSWORD_IPMI = 'password-ipmi'
+INV_PASSWORD_DEFAULT = 'password-default'
+INV_PASSWORD_DEFAULT_CRYPTED = 'password-default-crypted'
+INV_IPV4_PXE = 'ipv4-pxe'
+INV_MAC_PXE = 'mac-pxe'
+INV_CHASSIS_PART_NUMBER = 'chassis-part-number'
+INV_CHASSIS_SERIAL_NUMBER = 'chassis-serial-number'
+INV_MODEL = 'model'
+INV_SERIAL_NUMBER = 'serial-number'
 INV_TEMPLATE = 'template'
 
 INV_NODES_TEMPLATES = 'node-templates'
 INV_COBBLER_PROFILE = 'cobbler-profile'
-YAML_COBBLER_PROFILE = 'cobbler-profile'
 INV_OS_DISK = 'os-disk'
-YAML_ARCH = 'architecture'
+INV_ARCH = 'architecture'
 COBBLER_PROFILE_X86_64 = 'ubuntu-14.04.4-server-amd64'
 COBBLER_PROFILE_PPC64 = 'ubuntu-14.04.4-server-ppc64el'
 
@@ -59,26 +60,26 @@ class CobblerAddSystems(object):
         inv = Inventory(log_level, inv_file)
 
         for node_inv, INV_NODES, key, index, node in inv.yield_nodes():
-            hostname = node[YAML_HOSTNAME]
-            ipv4_ipmi = node[YAML_IPV4_IPMI]
-            userid_ipmi = node[YAML_USERID_IPMI]
-            password_ipmi = node[YAML_PASSWORD_IPMI]
-            ipv4_pxe = node[YAML_IPV4_PXE]
-            mac_pxe = node[YAML_MAC_PXE]
+            hostname = node[INV_HOSTNAME]
+            ipv4_ipmi = node[INV_IPV4_IPMI]
+            userid_ipmi = node[INV_USERID_IPMI]
+            password_ipmi = node[INV_PASSWORD_IPMI]
+            ipv4_pxe = node[INV_IPV4_PXE]
+            mac_pxe = node[INV_MAC_PXE]
 
-            if YAML_COBBLER_PROFILE in node:
+            if INV_COBBLER_PROFILE in node:
                 COBBLER_PROFILE = \
-                    node[YAML_COBBLER_PROFILE]
+                    node[INV_COBBLER_PROFILE]
             elif (INV_COBBLER_PROFILE in
                     inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]):
                 COBBLER_PROFILE = \
                     (inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
                             [INV_COBBLER_PROFILE])
-            elif (YAML_ARCH in node and
-                    node[YAML_ARCH] is not None):
-                if node[YAML_ARCH].lower() == 'x86_64':
+            elif (INV_ARCH in node and
+                    node[INV_ARCH] is not None):
+                if node[INV_ARCH].lower() == 'x86_64':
                     COBBLER_PROFILE = COBBLER_PROFILE_X86_64
-                elif node[YAML_ARCH].lower() == 'ppc64':
+                elif node[INV_ARCH].lower() == 'ppc64':
                     COBBLER_PROFILE = COBBLER_PROFILE_PPC64
                 else:
                     log.log_error(
@@ -132,15 +133,16 @@ class CobblerAddSystems(object):
                     "ipaddress-eth0": ipv4_pxe,
                     "dnsname-eth0": hostname},
                 token)
+            KS_META = ""
             if INV_OS_DISK in inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]:
                 disks = (
                     inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
                     [INV_OS_DISK])
                 if isinstance(disks, basestring):
-                    KS_META = 'install_disk=%s' % disks
+                    KS_META += 'install_disk=%s ' % disks
                 elif isinstance(disks, list) and len(disks) == 2:
-                    KS_META = (
-                        'install_disk=%s install_disk_2=%s' %
+                    KS_META += (
+                        'install_disk=%s install_disk_2=%s ' %
                         (disks[0], disks[1]))
                 else:
                     log.error(
@@ -148,29 +150,38 @@ class CobblerAddSystems(object):
                         'Must be string or two item list.' %
                         (INV_NODES_TEMPLATES, node[INV_TEMPLATE],
                             INV_OS_DISK))
+            if INV_PASSWORD_DEFAULT in inv.inv[INV_NODES_TEMPLATES]:
+                passwd = (
+                    inv.inv[INV_NODES_TEMPLATES][INV_PASSWORD_DEFAULT])
+                KS_META += 'passwd=%s passwdcrypted=false ' % passwd
+            if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv[INV_NODES_TEMPLATES]:
+                passwd = (
+                    inv.inv[INV_NODES_TEMPLATES][INV_PASSWORD_DEFAULT_CRYPTED])
+                KS_META += 'passwd=%s passwdcrypted=true ' % passwd
+            if KS_META != "":
                 cobbler_server.modify_system(
                     new_system_create,
                     "ks_meta",
                     KS_META,
                     token)
             comment = ""
-            if YAML_CHASSIS_PART_NUMBER in node:
+            if INV_CHASSIS_PART_NUMBER in node:
                 comment += (
                     '%s: %s\n' %
-                    (YAML_CHASSIS_PART_NUMBER, node[YAML_CHASSIS_PART_NUMBER]))
-            if YAML_CHASSIS_SERIAL_NUMBER in node:
+                    (INV_CHASSIS_PART_NUMBER, node[INV_CHASSIS_PART_NUMBER]))
+            if INV_CHASSIS_SERIAL_NUMBER in node:
                 comment += (
                     '%s: %s\n' %
-                    (YAML_CHASSIS_SERIAL_NUMBER,
-                        node[YAML_CHASSIS_SERIAL_NUMBER]))
-            if YAML_MODEL in node:
+                    (INV_CHASSIS_SERIAL_NUMBER,
+                        node[INV_CHASSIS_SERIAL_NUMBER]))
+            if INV_MODEL in node:
                 comment += (
                     '%s: %s\n' %
-                    (YAML_MODEL, node[YAML_MODEL]))
-            if YAML_SERIAL_NUMBER in node:
+                    (INV_MODEL, node[INV_MODEL]))
+            if INV_SERIAL_NUMBER in node:
                 comment += (
                     '%s: %s\n' %
-                    (YAML_SERIAL_NUMBER, node[YAML_SERIAL_NUMBER]))
+                    (INV_SERIAL_NUMBER, node[INV_SERIAL_NUMBER]))
             cobbler_server.modify_system(
                 new_system_create,
                 "comment",

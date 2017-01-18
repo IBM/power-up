@@ -41,6 +41,8 @@ ipaddr-data-switch:
 redundant-network: false
 userid-default: user
 password-default: passw0rd
+# An encrypted password hash can also be provided using the following format:
+# password-default-crypted: $6$STFB8U/AyA$sVhg5a/2RvDiXof9EhADVcUm/7Tq8T4m0dcdHLFZkOr.pCjJr2eH8RS56W7ZUWw6Zsm2sKrkcS4Xc8910JMOw.
 userid-mgmt-switch: user        # applied to all mgmt switches
 password-mgmt-switch: passw0rd  # applied to all mgmt switches
 userid-data-switch: user

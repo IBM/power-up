@@ -61,6 +61,12 @@
         patterns: "*.ks"
       register: ks_files
 
+    - name: "Register list of snippets"
+      find:
+        paths: "{{ project_path }}/os_images/config/snippets"
+        patterns: "*"
+      register: snippets
+
     - name: "Mount Distro installer images"
       mount:
         name: "/mnt/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}"
@@ -104,22 +110,6 @@
       become: yes
       become_method: sudo
 
-    - name: "Register default password"
-      shell: "grep password-default {{ inventory }} | awk '{print $2}'"
-      register: password_default
-
-    - name: "Update preseed configurations with default user password"
-      replace:
-        dest: "{{ item.path }}"
-        regexp: "passw0rd"
-        replace: "{{ password_default.stdout }}"
-      with_items:
-        - "{{ ks_files.files }}"
-        - "{{ seed_files.files }}"
-      when: password_default.stdout != ""
-      become: yes
-      become_method: sudo
-
     - name: "Copy preseed & kickstart configurations to cobbler kickstart directory"
       copy:
         src: "{{ item.path }}"
@@ -128,6 +118,16 @@
       with_items:
         - "{{ ks_files.files }}"
         - "{{ seed_files.files }}"
+      become: yes
+      become_method: sudo
+
+    - name: "Copy custom snippets to cobbler snippets directory"
+      copy:
+        src: "{{ item.path }}"
+        remote_src: True
+        dest: /var/lib/cobbler/snippets/
+      with_items:
+        - "{{ snippets.files }}"
       become: yes
       become_method: sudo
 

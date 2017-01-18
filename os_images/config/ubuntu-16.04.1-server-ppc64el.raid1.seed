@@ -88,8 +88,7 @@ d-i partman/confirm_nooverwrite boolean true
 d-i partman-auto/confirm boolean true
 d-i passwd/user-fullname string Default User
 d-i passwd/username string defaultuser
-d-i passwd/user-password password passw0rd
-d-i passwd/user-password-again password passw0rd
+$SNIPPET('password')
 d-i user-setup/allow-password-weak boolean true
 d-i user-setup/encrypt-home boolean false
 tasksel tasksel/first multiselect standard
