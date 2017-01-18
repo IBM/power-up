@@ -17,7 +17,10 @@
 
 - name: Check for interface name collisions
   debug:
-    msg: "Host already has interface {{ item }} which has the MAC address {{ hostvars[inventory_hostname]['ansible_' + item]['macaddress'] }}. Renaming the interface with MAC address {{ name_interfaces.get(item) }} to {{ item }} will force rename of first interface."
+    msg: "Host already has interface {{ item }} which has the MAC address \
+    {{ hostvars[inventory_hostname]['ansible_' + item]['macaddress'] }}. \
+    Renaming the interface with MAC address {{ name_interfaces.get(item) }} \
+    to {{ item }} will force rename of first interface."
   when:
     - name_interfaces is defined
     - "{{ item in name_interfaces }}"
@@ -31,7 +34,7 @@
     owner: "root"
     group: "root"
     mode: "0644"
-  register: wrote_netrules
+  notify: Reboot
 
 - name: Generate Ubuntu interfaces file
   template:
@@ -42,7 +45,7 @@
     mode: "0644"
     backup: yes
   when: (ansible_distribution == 'Ubuntu')
-  register: wrote_interfaces
+  notify: Reboot
 
 - name: Generate RHEL/CentOS interfaces files
   template:
@@ -57,7 +60,7 @@
     - networks[item].bond is not defined
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
-  register: wrote_interfaces
+  notify: Reboot
 
 - name: Generate RHEL/CentOS vlan files
   template:
@@ -71,7 +74,7 @@
     - networks[item].vlan is defined
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
-  register: wrote_interfaces
+  notify: Reboot
 
 - name: Generate RHEL/CentOS bridge files
   template:
@@ -86,6 +89,7 @@
     - networks[item].bridge is defined
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
+  notify: Reboot
 
 - name: Generate RHEL/CentOS bond files
   template:
@@ -100,20 +104,6 @@
     - networks[item].bond is defined
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
-
-- name: Reboot
-  command: shutdown -r +1 "Ansible is issuing a reboot!"
-  async: 90
-  poll: 0
-  when: wrote_netrules.changed or wrote_interfaces.changed
-
-- name: Wait for system to come back up
-  local_action: wait_for state=started
-                delay="{{ reboot_delay_time }}"
-                port=22
-                search_regex=OpenSSH
-                timeout="{{ reboot_wait_interval }}"
-                host="{{ inventory_hostname }}"
-  when: wrote_netrules.changed or wrote_interfaces.changed
+  notify: Reboot
 
 ...
