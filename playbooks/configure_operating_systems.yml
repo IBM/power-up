@@ -38,7 +38,6 @@
     - include: tasks/transfer_inventory.yml
 
 - name: Cluster Software Bootstrap
-  hosts: "{{ hostvars['localhost']['software_bootstrap_hosts'] | \
-          default('none') }}"
+  hosts: all
   tasks:
     - include: tasks/cmd_bootstrap.yml

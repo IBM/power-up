@@ -239,10 +239,11 @@ node-templates:
             - _manual-bond1
             - _standalone-bond0
 
-software-bootstrap-hosts: all
-software-bootstrap-cmd: |
-    apt-get update
-    apt-get upgrade -y
+software-bootstrap:
+    all: apt-get update
+    compute[0]: |
+        apt-get update
+        apt-get upgrade -y
 
 # Additional key/value pairs are not processed by Genesis, but are copied into
 # the inventory.yml file and made available to post-Genesis scripts and/or

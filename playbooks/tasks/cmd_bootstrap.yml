@@ -16,12 +16,14 @@
 # limitations under the License.
 
 - name: Run Bootstrap Command
-  shell: "{{ software_bootstrap_cmd | \
-          default('echo no software_bootstrap_cmd defined; false') }}"
-  register: output
+  shell: "{{ software_bootstrap[item] }}"
+  when: "groups.{{ item }} is defined and inventory_hostname in groups.{{ item }}"
+  with_items: "{{ software_bootstrap.keys() }}"
+  register: command_result
 
 - name: Print stdout
   debug:
-    var: output.stdout_lines
+    var: item.stdout_lines
+  with_items: "{{ command_result.results }}"
 
 ...
