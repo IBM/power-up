@@ -14,3 +14,4 @@ playbooks/.facts
 .testrepository/
 config-backup.yml
 playbooks/known_hosts
+debug_data/
