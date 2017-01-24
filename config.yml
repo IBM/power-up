@@ -21,7 +21,7 @@
 # can be changed by the end user as appropriate for your application. (e.g.
 # "_rack1" could be changed to "base-rack")
 
-version: 1.0
+version: 1.1
 
 ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-client-network: 192.168.20.0/24

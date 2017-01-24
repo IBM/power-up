@@ -22,7 +22,7 @@
 # Its purpose is to act as the authoritative source on key names,
 # structure, and representative values.
 
-version: 1.0
+version: 1.1
 
 reference-architecture:
     - private-compute-cloud
@@ -496,38 +496,11 @@ node-templates:
                 # be distributed equally among zones 0 to 'zone-count'-1.
                 # Defaults to 3 if not specified.
 
-software-bootstrap-hosts: controllers[0]  # Select first 'controllers' node
-software-bootstrap-cmd: |
-    set -o pipefail
-    type git >/dev/null 2>&1
-    if [ $? != 0 ]; then
-        apt-get install -qq -y git
-    fi
-    if [ ! -d os-services ]; then
-        git clone git://github.com/open-power-ref-design/os-services.git
-    fi
-    cd os-services
-    git checkout v1.0.0    # Leverages openstack-ansible mitaka 13.1.0
-    export DEPLOY_CEPH=yes
-    export DEPLOY_OPSMGR=yes
-    # export ANSIBLE_HOST_KEY_CHECKING=False
-    export ADMIN_PASSWORD=passw0rd
-    export KIBANA_PASSWORD=passw0rd
-    ./scripts/bootstrap-cluster.sh | tee -a ../bootstrap-cluster.out
-    rc=$?
-    if [ $rc != 0 ]; then
-        echo "./scripts/bootstrap-cluster.sh failed, rc=$rc"
-        exit $rc
-    fi
-    # Ignore signal SIGHUP as create-cluster takes hours to run...
-    # Session may be disconnected due to inactivity
-    trap '' SIGHUP
-    ./scripts/create-cluster.sh | tee -a ../create-cluster.out
-    rc=$?
-    if [ $rc != 0 ]; then
-        echo "./scripts/cluster-cluster.sh failed, rc=$rc"
-        exit $rc
-    fi
+software-bootstrap:
+    all: apt-get update
+    compute[0]: |
+        apt-get update
+        apt-get upgrade -y
 
 nodes:
     controllers:     # OpenStack controller nodes
