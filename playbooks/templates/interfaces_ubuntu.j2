@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -21,7 +21,8 @@
 auto lo
 iface lo inet loopback
 
-{% for network in host_networks -%}
+{# Define bonding first #}
+{% for network in host_networks|sort -%}
 {% if 'bond' in networks[network] %}
 # {{ networks[network]['description'] }}
 #We define bond-master in the necessary interfaces
@@ -61,11 +62,11 @@ iface {{ networks[network]['bond'] }} inet {{ networks[network]['method'] }}
     {{ argument }} {{ networks[network]['optional-bond-arguments'][argument] }}
 {% endfor %}
 {% endif %}
+
 {% endif %}
 {% endfor %}
-
-
-{% for network in host_networks %}
+{# Interfaces without bridges #}
+{% for network in host_networks|sort %}
 {% if 'bridge' not in networks[network] and 'bond' not in networks[network] %}
 # {{ networks[network]['description'] }}
 auto {{ networks[network]['eth-port'] }}
@@ -106,11 +107,11 @@ iface {{ networks[network]['eth-port'] }} inet {{ networks[network]['method'] }}
 {% endif %}
 {% endif %}
 {%- endfor %}
+
 {% endif %}
 {% endfor %}
-
-
-{% for network in host_networks %}
+{# General Network Interfaces #}
+{% for network in host_networks|sort %}
 {% if 'bridge' in networks[network] %}
 # {{ networks[network]['description'] }}
 {% if 'vlan' in networks[network] %}

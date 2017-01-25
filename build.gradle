@@ -1,4 +1,4 @@
-// # Copyright 2016 IBM Corp.
+// # Copyright 2017 IBM Corp.
 // #
 // # All Rights Reserved.
 // #
@@ -15,9 +15,9 @@
 // # limitations under the License.
 
 task build (type : Exec) {
-     print 'Building cluster-genesis'
-     //TODO: Project team need to implement build task
-     //executable = "Command_Or_Script_To_Run"; args = ["Arguments_To_Command_Or_Script"]
+    print 'Building cluster-genesis'
+    //TODO: Project team need to implement build task
+    //executable = "Command_Or_Script_To_Run"; args = ["Arguments_To_Command_Or_Script"]
     commandLine 'ls'
     standardOutput = new ByteArrayOutputStream()
     ext.output = {

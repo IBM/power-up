@@ -11,6 +11,7 @@ deployenv
 playbooks/.facts
 .tox
 *.egg*
+*.DS_Store
 .testrepository/
 config-backup.yml
 playbooks/known_hosts

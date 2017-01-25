@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -20,8 +20,9 @@ import os.path
 import unittest
 
 
-TEMPLATE_FILE = ('playbooks' + os.path.sep + 'templates' + os.path.sep +
-                 'interfaces.j2')
+TEMPLATE_FILE = (
+    'playbooks' + os.path.sep + 'templates' + os.path.sep +
+    'interfaces_ubuntu.j2')
 
 
 class TestInterfacesTemplate(unittest.TestCase):
@@ -43,6 +44,11 @@ class TestInterfacesTemplate(unittest.TestCase):
             "external2": {}
         }
         networks = {
+            "mgmt-pxe": {
+                "description": "OS pxe network description",
+                "method": "dhcp",
+                "eth-port": "eth15"
+            },
             "stg-net": {
                 "description": "OS storage network description",
                 "bridge": "br-storage",
@@ -113,15 +119,28 @@ class TestInterfacesTemplate(unittest.TestCase):
 
 
 expected_output_1 = """\
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # This file describes the network interfaces available on your system
 # and how to activate them. For more information, see interfaces(5).
 
 # The loopback network interface
 auto lo
 iface lo inet loopback
-
-auto eth15
-iface eth15 inet dhcp
 
 # Site network description
 auto eth10
@@ -138,27 +157,19 @@ iface eth10 inet static
 auto eth11
 iface eth11 inet manual
 
-
-
-
-# OS storage network description
-iface eth10.30 inet manual
-    vlan-raw-device eth10
-
-auto br-storage
-iface br-storage inet static
+# OS vxlan network description
+auto br-vlan
+iface br-vlan inet static
     bridge_stp off
     bridge_waitport 0
     bridge_fd 0
-    bridge_ports eth10.30
-    address 172.270.200.10
-    netmask 255.255.255.252
-    offload-sg off
+    bridge_ports eth11
+    address 0.0.0.0
 
 # OS mgmt network description
+auto eth10.10
 iface eth10.10 inet manual
     vlan-raw-device eth10
-
 auto br-mgmt
 iface br-mgmt inet static
     bridge_stp off
@@ -169,14 +180,19 @@ iface br-mgmt inet static
     netmask 255.255.255.252
     offload-sg off
 
-# OS vxlan network description
-auto br-vlan
-iface br-vlan inet static
+# OS storage network description
+auto eth10.30
+iface eth10.30 inet manual
+    vlan-raw-device eth10
+auto br-storage
+iface br-storage inet static
     bridge_stp off
     bridge_waitport 0
     bridge_fd 0
-    bridge_ports eth11
-    address 0.0.0.0
+    bridge_ports eth10.30
+    address 172.270.200.10
+    netmask 255.255.255.252
+    offload-sg off
 
 """
 

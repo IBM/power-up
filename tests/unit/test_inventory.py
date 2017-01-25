@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -78,7 +78,9 @@ class TestOSInterfacesInventory(unittest.TestCase):
                 nodes.append({test_mod.HOST_IP_KEY: node_ip})
             return {name: nodes}
 
-        inventory_source = {'nodes': {}}
+        inventory_source = {'nodes': {},
+                            'ansible_user': 'root',
+                            'ansible_ssh_private_key_file': '~/.ssh/id_rsa'}
         inventory_source['nodes'].update(gen_group(3))
         inventory_source['nodes'].update(gen_group(5))
         inventory_source['nodes'].update(gen_group(1))
@@ -86,15 +88,19 @@ class TestOSInterfacesInventory(unittest.TestCase):
         test_mod.populate_hosts_and_groups(inventory, inventory_source)
         children = inventory['all'].pop('children')
         self.assertItemsEqual(['g1', 'g3', 'g5'], children)
-        expected = {'all': {'vars': {}
-                            },
-                    'g3': ['ng30', 'ng31', 'ng32'],
-                    'g5': ['ng50', 'ng51', 'ng52', 'ng53', 'ng54'],
-                    'g1': ['ng10'],
-                    '_meta': {'hostvars': {'ng30': {}, 'ng31': {}, 'ng32': {},
-                                           'ng50': {}, 'ng51': {}, 'ng53': {},
-                                           'ng54': {}, 'ng10': {}, 'ng52': {}}}
-                    }
+        expected = {
+            'all': {
+                'vars': {
+                    'ansible_user': 'root',
+                    'ansible_ssh_private_key_file': '~/.ssh/id_rsa'}},
+            'g3': ['ng30', 'ng31', 'ng32'],
+            'g5': ['ng50', 'ng51', 'ng52', 'ng53', 'ng54'],
+            'g1': ['ng10'],
+            '_meta': {
+                'hostvars': {
+                    'ng30': {}, 'ng31': {}, 'ng32': {},
+                    'ng50': {}, 'ng51': {}, 'ng53': {},
+                    'ng54': {}, 'ng10': {}, 'ng52': {}}}}
         self.assertDictEqual(inventory, expected)
 
     def test_sanitize_variable_name(self):
@@ -163,7 +169,20 @@ class TestOSInterfacesInventory(unittest.TestCase):
     def test_populate_host_networks(self):
         # Set up test input
         inventory = {'_meta': {'hostvars': {}}}
-        net_list = ['net1', 'net2', 'net3', 'net4']
+        # net_list = ['net1', 'net2', 'net3', 'net4']
+        nets = {'net1': {'addr': '1.1.1.0/24',
+                         'network': '1.1.1.0',
+                         'netmask': '255.255.255.0',
+                         'method': 'static',
+                         'otherkey': 'otherval'},
+                'net2': {'addr': '0.0.0.0/1',
+                         'method': 'manual',
+                         'otherkey': 'otherval'},
+                'net3': {'method': 'manual',
+                         'otherkey': 'otherval'},
+                'net4': {'method': 'manual',
+                         'otherkey': 'otherval'}}
+        inventory_source = {'networks': nets}
         ihv = inventory['_meta']['hostvars']
         for x in range(5):
             ihv['nodeIP%s' % x] = {}
@@ -195,7 +214,8 @@ class TestOSInterfacesInventory(unittest.TestCase):
                                           'net4': {'addr': '4.4.4.4'}}
         hv['nodeIP4']['host_networks'] = {'net2': {'addr': '2.2.2.5'},
                                           'net3': {'addr': '3.3.3.5'}}
-        test_mod.populate_host_networks(inventory, net_list, ip_to_node)
+        test_mod.populate_host_networks(
+            inventory, inventory_source, ip_to_node)
         if DEBUG_TEST_CASES:
             import json
             print 'Output %s' % json.dumps(inventory, indent=4)
@@ -207,7 +227,8 @@ class TestOSInterfacesInventory(unittest.TestCase):
         ip_to_node = {'nodeIP0': {},
                       'nodeIP1': {},
                       'nodeIP2': {}}
-        test_mod.populate_host_networks(inventory, net_list, ip_to_node)
+        test_mod.populate_host_networks(
+            inventory, inventory_source, ip_to_node)
         self.assertDictEqual(inventory, {'_meta': {'hostvars': {}}})
 
     @mock.patch(TEST_PKG_MOD + '.populate_name_interfaces')

@@ -7,7 +7,7 @@ Welcome to Cluster Genesis User's Guide documentation!
 ======================================================
 
 :Version: 1.0
-:Date: 2017-02-04
+:Date: 2017-02-07
 :Document Owner:
     OpenPOWER Cluster Genesis Team
 :Authors:
@@ -30,6 +30,7 @@ Welcome to Cluster Genesis User's Guide documentation!
    OPCG_intro_setup
    OPCG_config.yml_create
    OPCG_running_OPCG
+   OPCG_dev_guide
    Appendix-A
    Appendix-B
    Appendix-C

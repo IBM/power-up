@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{% for interface, mac in name_interfaces.iteritems() %}
+{% for interface, mac in name_interfaces.iteritems()|sort %}
 # Rule "{{ interface }}"
 SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="{{ mac }}", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="[ep]*", NAME="{{ interface }}"
 
