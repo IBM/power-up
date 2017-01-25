@@ -25,5 +25,6 @@
   debug:
     var: item.stdout_lines
   with_items: "{{ command_result.results }}"
+  when: command_result.results is defined
 
 ...

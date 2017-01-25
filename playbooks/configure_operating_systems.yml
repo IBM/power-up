@@ -41,3 +41,4 @@
   hosts: all
   tasks:
     - include: tasks/cmd_bootstrap.yml
+      when: hostvars['localhost']['software_bootstrap_hosts'] is defined
