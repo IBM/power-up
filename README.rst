@@ -51,7 +51,7 @@ Project Resources
 
 For additional instructions and developer resources:
 
-* Wiki: https://github.com/open-power-ref-design/cluster-genesis/wiki
+* `/docs <docs>`_ directory.
 * IRC:  #cluster-genesis channel on freenode.net
 
 
