@@ -258,10 +258,16 @@
       become: yes
       become_method: sudo
 
+    - name: Remove any existing known_hosts file
+      file:
+        path: "{{ known_hosts }}"
+        state: absent
+
     - name: Create known_hosts file
       file:
         path: "{{ known_hosts }}"
         state: touch
+        mode: 0600
 
     - name: Use ssh-keyscan to add container hostkey to known_hosts file
       shell: |
