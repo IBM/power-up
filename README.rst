@@ -51,6 +51,7 @@ Project Resources
 
 For additional instructions and developer resources:
 
+* `User's Guide on Read the Docs <http://cluster-genesis.readthedocs.io>`_
 * `/docs <docs>`_ directory.
 * IRC:  #cluster-genesis channel on freenode.net
 

@@ -214,24 +214,33 @@ Hardware initialization
    -  admin password. This must match the password specified in the
       config.yml file (keyword: password-mgmt-switch:). Note that all
       management switches in the cluster must have the same userid and
-      password.
+      password.  The following command is interactive::
+	  
+        access user administrator-password	  
+	  
    -  disable spanning tree (for Lenovo switches *enable, configure
-      terminal, spanning-tree mode disable*)
-   -  enable SSH login. *(ssh enable)*
+      terminal, spanning-tree mode disable*)::
+	  
+        spanning-tree mode disable  
+		
+   -  enable secure https and SSH login::
+   
+        en ssh
+        ssh generate-host-key	
+        access https enable		
 	
    -  Put the port used to connect to the deployer node (the node running 
       Cluster Genesis) into trunk mode and add the above created vlan to that trunk::
 	  
-	    interface port 46  (example port #)
-		switchport mode trunk
-		trunk allowed vlan 1,16
-		exit
+        interface port 46  (example port #)
+        switchport trunk allowed vlan 1,16
+        exit
 		
 	  
    -  Save the config (For Lenovo switches, enter config mode 
-      then; *copy running-config startup-config or write.*  
-      For additional information, consult vendor documentation)
-
+      For additional information, consult vendor documentation)::
+    
+        copy running-config startup-config	
 
 Setting up the Deployer Node
 ----------------------------
@@ -262,8 +271,8 @@ future release of Cluster gensesis.
 
 
 
-**Note**: the port used to access the management switch (ie eth0) must
-also be defined in /etc/network/interfaces (Ubuntu) or the ifcfg-eth0
+**Note**: Genesis uses the port associated with the default route to access the management
+switch (ie eth0).  This must be defined in /etc/network/interfaces (Ubuntu) or the ifcfg-eth0
 file (Red Hat).
 
 ie::
