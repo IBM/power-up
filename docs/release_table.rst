@@ -1,3 +1,6 @@
+Release Table
+=============
+
 .. csv-table::
    :header: "Release", "Code Name", "Release Date", "End of Life Date"
 
