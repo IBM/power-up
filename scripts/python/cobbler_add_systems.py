@@ -150,13 +150,11 @@ class CobblerAddSystems(object):
                         'Must be string or two item list.' %
                         (INV_NODES_TEMPLATES, node[INV_TEMPLATE],
                             INV_OS_DISK))
-            if INV_PASSWORD_DEFAULT in inv.inv[INV_NODES_TEMPLATES]:
-                passwd = (
-                    inv.inv[INV_NODES_TEMPLATES][INV_PASSWORD_DEFAULT])
+            if INV_PASSWORD_DEFAULT in inv.inv:
+                passwd = inv.inv[INV_PASSWORD_DEFAULT]
                 KS_META += 'passwd=%s passwdcrypted=false ' % passwd
-            if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv[INV_NODES_TEMPLATES]:
-                passwd = (
-                    inv.inv[INV_NODES_TEMPLATES][INV_PASSWORD_DEFAULT_CRYPTED])
+            if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv:
+                passwd = inv.inv[INV_PASSWORD_DEFAULT_CRYPTED]
                 KS_META += 'passwd=%s passwdcrypted=true ' % passwd
             if KS_META != "":
                 cobbler_server.modify_system(

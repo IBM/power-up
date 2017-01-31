@@ -10,8 +10,7 @@ lang en_US.UTF-8
 timezone America/Chicago
 
 auth --enableshadow --enablemd5
-user --name=defaultuser --groups=wheel --password=passw0rd
-rootpw passw0rd
+user --name=defaultuser --groups=wheel $SNIPPET('password')
 
 clearpart --all --initlabel
 ignoredisk --only-use=$getVar('install_disk', '/dev/sda')
