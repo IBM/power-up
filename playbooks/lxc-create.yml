@@ -18,23 +18,15 @@
 - name: lxc-create.yml
   hosts: localhost
   handlers:
-    - name: "Restart networking"
-      service: name=networking state=restarted
-      listen: "restart networking"
-      become: yes
-      become_method: sudo
+    - include: handlers/restart_networking.yml
   tasks:
     - name: "Print local project path"
       debug:
-        msg: "{{ item }}"
-      with_items:
-        - "Project name: {{ project_path_local }}"
+        msg: "Project name: {{ project_path_local }}"
 
     - name: "Print back-up config file path"
       debug:
-        msg: "{{ item }}"
-      with_items:
-        - "Config file backup: {{ config_local_backup }}"
+        msg: "Config file backup: {{ config_local_backup }}"
 
     - name: "Back-up config file"
       copy:
@@ -42,66 +34,8 @@
         dest: "{{ config_local_backup }}"
         mode: 0444
 
-    - name: "Install aptitude"
-      apt:
-        name: aptitude
-        update_cache: yes
-      become: yes
-      become_method: sudo
-
-    - name: "Update apt cache and upgrade (safe)"
-      apt:
-        update_cache: yes
-        upgrade: safe
-      become: yes
-      become_method: sudo
-
-    - name: "Install LXC"
-      apt:
-        name: lxc
-      become: yes
-      become_method: sudo
-
-    - name: "Install liblxc1"
-      apt:
-        name: liblxc1
-      become: yes
-      become_method: sudo
-      when: ansible_distribution_version == "14.04"
-
-    - name: "Install python-lxc"
-      apt:
-        name: python-lxc
-      become: yes
-      become_method: sudo
-      when: ansible_distribution_version == "16.04"
-
-    - name: "Update ~/.config/lxc/default.conf"
-      lineinfile:
-        dest: ~/.config/lxc/default.conf
-        line: "{{ item }}"
-        create: yes
-      with_items:
-        - lxc.id_map = u 0 100000 65536
-        - lxc.id_map = g 0 100000 65536
-
-    - name: "Make backup of /etc/lxc/lxc-usernet"
-      copy:
-        src: /etc/lxc/lxc-usernet
-        dest: /etc/lxc/lxc-usernet.orig
-      become: yes
-      become_method: sudo
-
-    - name: "Update /etc/lxc/lxc-usernet"
-      lineinfile:
-        dest: /etc/lxc/lxc-usernet
-        line: "{{ user }} veth lxcbr0 2"
-      become: yes
-      become_method: sudo
-
     - name: "Register management network subnet"
       shell: "grep ipaddr-mgmt-network {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
-      vars:
       register: ipaddr_mgmt_network
 
     - name: "Register management client network subnet"
@@ -134,61 +68,77 @@
         replace: '\1 {{ ipaddr_mgmt_client_network.stdout }}'
       when: ipaddr_mgmt_client_network.stdout != ""
 
-    - name: "Create lxc.conf container with no VLAN support"
-      vars:
-        ipaddr_mgmt_cidr: "{{ ipaddr_mgmt_network.stdout | ipaddr(container_mgmt_ipv4_offset) }}"
-        bridge_mgmt: br0
-      template:
-        src: "{{ playbook_dir }}/templates/localhost/lxc-conf.j2"
-        dest: "{{ playbook_dir }}/lxc.conf"
-        mode: "0644"
-      when: ipaddr_mgmt_client_network.stdout == ""
-
-    - name: "Create lxc.conf container with VLAN support"
+    - name: "Create lxc.conf"
       vars:
         ipaddr_mgmt_cidr: "{{ ipaddr_mgmt_network.stdout | ipaddr(container_mgmt_ipv4_offset) }}"
         ipaddr_mgmt_client_cidr: "{{ ipaddr_mgmt_client_network.stdout | ipaddr(container_mgmt_ipv4_offset) }}"
         bridge_mgmt: "br{{ vlan_mgmt_network.stdout }}"
         bridge_mgmt_client: "br{{ vlan_mgmt_client_network.stdout }}"
       template:
-        src: "{{ playbook_dir }}/templates/localhost/lxc-conf-vlan.j2"
+        src: "{{ playbook_dir }}/templates/localhost/lxc-conf.j2"
         dest: "{{ playbook_dir }}/lxc.conf"
         mode: "0644"
-      when: ipaddr_mgmt_client_network.stdout != ""
 
-    - name: "Create management bridge with VLAN support"
+    - name: "Ubuntu: Create bridge interfaces for VLAN Support"
       vars:
         primary_port: "{{ primary_network_port.stdout }}"
-        ipaddr_cidr: "{{ ipaddr_mgmt_network.stdout | ipaddr(container_bridge_ipv4_offset) }}"
-        vlan: "{{ vlan_mgmt_network.stdout }}"
-        bridge: "br{{ vlan }}"
+        ipaddr_cidr: "{{ item.network | ipaddr(container_bridge_ipv4_offset) }}"
+        vlan: "{{ item.vlan }}"
+        bridge: "br{{ item.vlan }}"
       template:
         src: "{{ playbook_dir }}/templates/localhost/bridge-vlan-ubuntu.j2"
         dest: "/etc/network/interfaces.d/{{ bridge }}"
         owner: "root"
         group: "root"
         mode: "0644"
+      with_items:
+        - { network: "{{ ipaddr_mgmt_network.stdout }}",
+            vlan: "{{ vlan_mgmt_network.stdout }}"}
+        - { network: "{{ ipaddr_mgmt_client_network.stdout }}",
+            vlan: "{{ vlan_mgmt_client_network.stdout }}"}
       notify: "restart networking"
       become: yes
       become_method: sudo
-      when: ipaddr_mgmt_client_network.stdout != ""
+      when:
+        - ipaddr_mgmt_client_network.stdout != ""
+        - ansible_distribution == 'Ubuntu'
 
-    - name: "Create management client bridge with VLAN support"
+    - name: "RHEL/CentOS: Enable IP Forwarding"
+      lineinfile:
+        dest: /etc/sysctl.conf
+        regexp: '^net.ipv4.ip_forward'
+        line: 'net.ipv4.ip_forward = 1'
+      become: yes
+      become_method: sudo
+      when: ansible_distribution in ['RedHat','CentOS']
+
+    - name: "RHEL/CentOS: Create bridge interfaces for VLAN Support"
       vars:
         primary_port: "{{ primary_network_port.stdout }}"
-        ipaddr_cidr: "{{ ipaddr_mgmt_client_network.stdout | ipaddr(container_bridge_ipv4_offset) }}"
-        vlan: "{{ vlan_mgmt_client_network.stdout }}"
-        bridge: "br{{ vlan }}"
+        ipaddr_cidr: "{{ item[0].network | ipaddr(container_bridge_ipv4_offset) }}"
+        vlan: "{{ item[0].vlan }}"
+        bridge: "br{{ item[0].vlan }}"
       template:
-        src: "{{ playbook_dir }}/templates/localhost/bridge-vlan-ubuntu.j2"
-        dest: "/etc/network/interfaces.d/{{ bridge }}"
+        src: "{{ item[1].temp }}"
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item[1].name }}{{ item[0].vlan }}"
         owner: "root"
         group: "root"
         mode: "0644"
+      with_nested:
+        -   - { network: "{{ ipaddr_mgmt_network.stdout }}",
+                vlan: "{{ vlan_mgmt_network.stdout }}"}
+            - { network: "{{ ipaddr_mgmt_client_network.stdout }}",
+                vlan: "{{ vlan_mgmt_client_network.stdout }}"}
+        -   - { temp: "{{ playbook_dir }}/templates/localhost/vlan-rhel.j2",
+                name: "{{ primary_network_port.stdout }}."}
+            - { temp: "{{ playbook_dir }}/templates/localhost/bridge-rhel.j2",
+                name: "br"}
       notify: "restart networking"
       become: yes
       become_method: sudo
-      when: ipaddr_mgmt_client_network.stdout != ""
+      when:
+        - ipaddr_mgmt_client_network.stdout != ""
+        - ansible_distribution in ['RedHat','CentOS']
 
     - name: "Flush handlers"
       meta: flush_handlers
@@ -212,7 +162,6 @@
         container_command: |
           cp -p /etc/sudoers /etc/sudoers.orig
           echo -e "{{ user }}\tALL=NOPASSWD: ALL" >> /etc/sudoers
-      register: container_info
       become: yes
       become_method: sudo
 
@@ -221,42 +170,25 @@
         seconds: 5
 
     - name: "Register container internal ip address"
-      command: lxc-info -n {{ container_name }} -iH
-      register: container_ip
+      command: lxc-info -n {{ container_name }}
+      register: container_info
       become: yes
       become_method: sudo
 
-    - name: "Print container IP information"
+    - name: "Print container information"
       debug:
-        msg: "{{ item }}"
-      with_items:
-        - |
-            Deployment container internal IP:
-            {{ container_ip.stdout_lines | first }}
-        - |
-            Deployment container management network IP:
-            {{ ipaddr_mgmt_network.stdout | ipaddr(container_mgmt_ipv4_offset) |
-            ipaddr("address") }}'
+        msg: "{{ container_info.stdout.split('\n') }}"
 
-    - name: "Update \"deployer\" host with ssh private key."
-      replace:
+    - name: "Create Ansible host for \"deployer\""
+      lineinfile:
         dest: "{{ project_path_local }}/playbooks/hosts"
-        regexp: '^(deployer .+?ansible_ssh_private_key_file=).+?[ ]'
-        replace: '\1{{ ssh_key_private }} '
-      become: yes
-      become_method: sudo
-
-    - name: |
-        Update "deployer" host with container management network IP
-        address.
-      replace:
-        dest: "{{ project_path_local }}/playbooks/hosts"
-        regexp: '^(deployer .+?)=\d+\.\d+\.\d+\.\d+$'
-        replace: |
-            \1={{ ipaddr_mgmt_network.stdout |
-            ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
-      become: yes
-      become_method: sudo
+        insertafter: '^\[deployers\]'
+        regexp: '^deployer'
+        line: >
+          deployer ansible_user={{ user }}
+          ansible_ssh_private_key_file={{ ssh_key_private }}
+          ansible_host={{ ipaddr_mgmt_network.stdout |
+          ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
 
     - name: Remove any existing known_hosts file
       file:
@@ -269,21 +201,24 @@
         state: touch
         mode: 0600
 
-    - name: Use ssh-keyscan to add container hostkey to known_hosts file
-      shell: |
-        ssh-keyscan -H {{ ipaddr_mgmt_network.stdout |
-        ipaddr(container_mgmt_ipv4_offset) |
-        ipaddr("address") }} >> {{ known_hosts }}
+    - name: |
+        Use ssh-keyscan to collect container host keys (retry until ssh is up)
+      command: |
+        /usr/bin/ssh-keyscan -H {{ ipaddr_mgmt_network.stdout |
+        ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
+      register: ssh_keyscan_output
+      until: ssh_keyscan_output.stdout != ''
+      retries: 6
+      delay: 10
 
-    - name: Register generated known_hosts content
-      command: "cat {{ known_hosts }}"
-      register: known_hosts_content
-
-    - name: Append generated known_hosts contect to ~/.ssh/known_hosts
+    - name: Append keys to playbooks/known_hosts and ~/.ssh/known_hosts
       lineinfile:
-        line: "{{ item }}"
-        dest: ~/.ssh/known_hosts
+        line: "{{ item[0] }}"
+        dest: "{{ item[1] }}"
         state: present
         create: "yes"
         mode: 0600
-      with_items: "{{ known_hosts_content.stdout_lines }}"
+      with_nested:
+        - "{{ ssh_keyscan_output.stdout_lines }}"
+        -   - "{{ known_hosts }}"
+            - "~/.ssh/known_hosts"

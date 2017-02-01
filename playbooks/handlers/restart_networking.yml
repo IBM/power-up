@@ -1,4 +1,5 @@
-# Copyright 2016 IBM Corp.
+---
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,22 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-lxc.network.type = veth
-lxc.network.link = lxcbr0
-lxc.network.flags = up
-lxc.network.hwaddr = 00:16:3e:xx:xx:xx
+- name: Restart networking
+  vars:
+    service_name:
+      Ubuntu: networking
+      RedHat: network
+      CentOS: network
+  service:
+    name: "{{ service_name[ansible_distribution] }}"
+    state: restarted
+  listen: "restart networking"
+  become: yes
+  become_method: sudo
 
-lxc.network.type = veth
-lxc.network.ipv4 = {{ ipaddr_mgmt_cidr }}
-lxc.network.link = {{ bridge_mgmt }}
-lxc.network.flags = up
-lxc.network.hwaddr = 00:16:3e:xx:xx:xx
-
-lxc.network.type = veth
-lxc.network.ipv4 = {{ ipaddr_mgmt_client_cidr }}
-lxc.network.link = {{ bridge_mgmt_client }}
-lxc.network.flags = up
-lxc.network.hwaddr = 00:16:3e:xx:xx:xx
-
-lxc.aa_profile=unconfined
-lxc.cgroup.devices.allow=a *:* rmw
+...

@@ -61,7 +61,6 @@ Deployer Node Installation
 
 ::
 
-$ sudo apt update; sudo apt install git
 $ git clone https://github.com/open-power-ref-design/cluster-genesis.git
 $ cd cluster-genesis
 $ ./scripts/install.sh

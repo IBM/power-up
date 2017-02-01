@@ -288,21 +288,32 @@ future release of Cluster gensesis.
 
 **Set up the Deployer Node** (to be automated in the future)
 
--  Install Ununtu 14.04LTS or 16.04LTS to the deployer node. Insure
-   SSH login is enabled.
+-  Deployer OS Requirements:
+    - Ubuntu
+        - Release 14.04LTS or 16.04LTS
+        - SSH login enabled
+        - sudo priviledges
+    - RHEL
+        - Release 7.x
+        - Extra Packages for Enterprise Linux (EPEL) repository enabled
+          (https://fedoraproject.org/wiki/EPEL)
+        - SSH login enabled
+        - sudo priviledges
 -  Optionally, assign a static, public ip address to the BMC port to
    allow external control of the deployer node.
--  login into the deployer and install the vim, vlan and bridge-utils
-   packages::
+-  login into the deployer and install the vim, vlan and bridge-utils packages
+    - Ubuntu::
 
-     $ sudo apt-get update
-     $ sudo apt-get install vim vlan bridge-utils
+        $ sudo apt-get update
+        $ sudo apt-get install vim vlan bridge-utils
 
+    - RHEL::
 
+        $ sudo yum install vim vlan bridge-utils
 
 **Note**: Genesis uses the port associated with the default route to access the management
 switch (ie eth0).  This must be defined in /etc/network/interfaces (Ubuntu) or the ifcfg-eth0
-file (Red Hat).
+file (RedHat).
 
 ie::
 

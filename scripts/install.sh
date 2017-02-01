@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -16,16 +16,36 @@
 # limitations under the License.
 
 set -e
-DISTRIB_RELEASE=$(lsb_release -sr)
-sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
-    python-netaddr ipmitool
-if [[ $DISTRIB_RELEASE == "14.04" ]]; then
-    sudo apt-get -y install lxc-dev
+source /etc/os-release
+
+if [[ $ID == "ubuntu" ]]; then
+
+    sudo apt-get update
+    sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
+        python-netaddr ipmitool aptitude lxc vim vlan bridge-utils
+
+    if [[ $VERSION_ID == "14.04" ]]; then
+        sudo apt-get -y install lxc-dev liblxc1
+    elif [[ $VERSION_ID == "16.04" ]]; then
+        sudo apt-get -y install python-lxc
+    fi
+
+elif [[ $ID == "rhel" ]]; then
+    sudo yum -y install python-pip python-devel libffi-devel openssl-devel \
+        python-netaddr ipmitool lxc lxc-devel lxc-extra lxc-templates libvirt \
+        debootstrap gcc vim vlan bridge-utils
+    sudo systemctl start lxc.service
+    sudo systemctl start libvirtd
+
+else
+    echo "Unsupported OS"
+    exit 1
 fi
+
 sudo -H pip install --upgrade pip
 sudo -H pip install --upgrade setuptools
 sudo -H pip install --upgrade wheel
-if [[ $DISTRIB_RELEASE == "14.04" ]]; then
+if [[ $VERSION_ID == "14.04" || $ID == "rhel" ]]; then
     sudo -H pip install lxc-python2
 fi
 sudo -H pip install virtualenv

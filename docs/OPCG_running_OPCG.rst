@@ -22,9 +22,15 @@ Installing and Running the Genesis code. Step by Step Instructions
        again and password deleted when genesis completes. 
        ie sudo passwd -dl root)
 
-#.  Install git::
+#.  Install git
 
-      $ sudo apt-get install git
+    - Ubuntu::
+
+        $ sudo apt-get install git
+
+    - RHEL::
+
+        $ sudo yum install git
     
 #.  From your home directory, clone Cluster Genesis::
 

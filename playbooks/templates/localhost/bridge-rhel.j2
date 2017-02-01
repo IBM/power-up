@@ -15,15 +15,9 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 #}
-auto {{ primary_port }}.{{ vlan }}
-iface {{ primary_port }}.{{ vlan }} inet manual
-    vlan-raw-device {{ primary_port }}
-
-auto {{ bridge }}
-iface {{ bridge }} inet static
-    address {{ ipaddr_cidr | ipaddr('address') }}
-    netmask {{ ipaddr_cidr | ipaddr('netmask') }}
-    broadcast {{ ipaddr_cidr | ipaddr('broadcast') }}
-    network {{ ipaddr_cidr | ipaddr('network') }}
-    bridge_ports {{ primary_port }}.{{ vlan }}
-    bridge_fd 0
+TYPE=Bridge
+BOOTPROTO=none
+DEVICE={{ bridge }}
+ONBOOT=yes
+IPADDR={{ ipaddr_cidr | ipaddr('address') }}
+NETMASK={{ ipaddr_cidr | ipaddr('netmask') }}

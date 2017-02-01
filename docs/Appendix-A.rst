@@ -5,13 +5,17 @@ Appendix - A Cheat Sheet
 
 **Setting up the Deployer Node**
 
--  Install Ununtu 14.04LTS or 16.04LTS to the deployer node. Insure SSH
-   login is enabled.
--  Install the vim, vlan and bridge-utils packages::
-
-    $ apt-get update
-    $ apt-get install vim vlan bridge-utils
-	
+-  Deployer OS Requirements:
+    - Ubuntu
+        - Release 14.04LTS or 16.04LTS
+        - SSH login enabled
+        - sudo priviledges
+    - RHEL
+        - Release 7.x
+        - Extra Packages for Enterprise Linux (EPEL) repository enabled
+          (https://fedoraproject.org/wiki/EPEL)
+        - SSH login enabled
+        - sudo priviledges
 
 **Installing the OpenPOWER Cluster Genesis Software**::
 
@@ -26,9 +30,17 @@ Appendix - A Cheat Sheet
     $ sudo passwd root (then enter passw0rd twice)
     $ sudo -u root  (to unlock the root passwd) (to lock again after running genesis: sudo passwd -l root)
 
--  Install git::
+- Install git
+    - Ubuntu::
 
-    $ sudo apt-get install git
+        $ sudo apt-get install git
+
+    - RHEL::
+
+        $ sudo yum install git
+
+- From your home directory, clone Cluster Genesis::
+
     $ git clone https://github.com/open-power-ref-design/cluster-genesis
 
 **Running the OpenPOWER Cluster Genesis Software**::
