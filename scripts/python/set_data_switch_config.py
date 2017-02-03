@@ -44,7 +44,7 @@ class ConfigureDataSwitch(object):
         self.log = Logger(__file__)
         self.log_level = log_level
         if log_level is not None:
-            log.set_level(log_level)
+            self.log.set_level(log_level)
 
         inv = Inventory(log_level, inv_file)
 
