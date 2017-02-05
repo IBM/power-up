@@ -26,7 +26,7 @@ addresses
 ipaddr-mgmt-switch:
 
  -rack1: 192.168.16.2 #ipv4 address of the management switch in the
-first rack or cell.
+  first rack or cell.
 
  -rack2: 192.168.16.3
 
@@ -47,7 +47,7 @@ password-default will be used.
 ipaddr-data-switch:
 
  -rack1: 192.168.16.20 # if redundant-network is set to 1, genesis will
-look for an additional switch at the next sequential address.
+  look for an additional switch at the next sequential address.
 
  -rack2: 192.168.16.25
 
@@ -122,7 +122,7 @@ hostname-ctrlr:
 name-10G-ports-ctrlr:
 
  -ifc1: [ifcname1, ifcname2] # 2\ :sup:`nd` ifcname is optional.
-Multiple ports are bonded.
+  Multiple ports are bonded.
 
  -ifc2: [ifcname1, ifcname2]
 
@@ -143,7 +143,7 @@ hostname-compute:
 name-10G-ports-compute:
 
  -ifc1: [ifcname1, ifcname2] # 2\ :sup:`nd` ifcname is optional.
-Multiple ports are bonded.
+  Multiple ports are bonded.
 
  -ifc2: [ifcname1, ifcname2]
 
@@ -170,7 +170,7 @@ hostname-ceph-osd:
 name-10G-ports-ceph-osd:
 
  -ifc1: [ifcname1, ifcname2] # 2\ :sup:`nd` ifcname is optional.
-Multiple ports are bonded.
+  Multiple ports are bonded.
 
  -ifc2: [ifcname1, ifcname2]
 
@@ -197,7 +197,7 @@ hostname-swift-stg:
 name-10G-ports-swift-stg:
 
  -ifc1: [ifcname1, ifcname2] # 2\ :sup:`nd` ifcname is optional.
-Multiple ports are bonded.
+  Multiple ports are bonded.
 
  -ifc2: [ifcname1, ifcname2]
 

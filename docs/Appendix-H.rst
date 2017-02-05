@@ -54,7 +54,7 @@ continue"
 After rebooting the BMCs and before pressing <enter>, you can execute
 from a second shell;
 
-*deployer@ubuntu-14-04-deployer:~$ cat /var/lib/misc/dnsmasq.leases *
+*deployer@ubuntu-14-04-deployer:~$ cat /var/lib/misc/dnsmasq.leases*
 
 *1471870835 a0:42:3f:30:61:cc 192.168.3.173 \* 01:a0:42:3f:30:61:cc*
 
@@ -66,8 +66,7 @@ from a second shell;
 
 **To follow the progress you can execute;**
 
-*deployer@ubuntu-14-04-deployer:~$ tail -f /var/lib/misc/dnsmasq.leases
-*
+*deployer@ubuntu-14-04-deployer:~$ tail -f /var/lib/misc/dnsmasq.leases*
 
 **You can also check what switch ports these mac addresses are connected
 to by logging into the management switch and executing;**
@@ -113,8 +112,6 @@ files and then create an empty inventory.yml file.**
 
 ****
 
-****
-
 **Once all the BMC mac addresses have been given leases, press return in
 the genesis execution window.**
 
@@ -136,14 +133,14 @@ the current BMC IP address is. **
 
 **To determine which systems have failed to boot, go through the
 following bullets in this section (starting with "Verify port
-lists..."). **
+lists...")**
 
 ****
 
 **To determine what the corresponding BMC addresss is view the
 inventory.yml file. At this point the BMC ipv4 and mac address will
 already be populated in the inventory.yml within the container. To find
-out: **
+out:**
 
 *ubuntu@bloom-deployer:~/cluster-genesis/playbooks$ grep "^deployer"
 hosts*
@@ -152,12 +149,10 @@ hosts*
 ansible\_ssh\_private\_key\_file=/home/ubuntu/.ssh/id\_rsa\_ansible-generated
 ansible\_host=192.168.16.2*
 
-**
 
 *ubuntu@bloom-deployer:~/cluster-genesis/playbooks$ ssh -i
 /home/ubuntu/.ssh/id\_rsa\_ansible-generated deployer@192.168.16.2*
 
-**
 
 *Welcome to Ubuntu 14.04.4 LTS (GNU/Linux 4.2.0-42-generic x86\_64)*
 
@@ -165,10 +160,9 @@ ansible\_host=192.168.16.2*
 
 *Last login: Mon Aug 22 12:14:17 2016 from 192.168.16.3*
 
-**
 
 *deployer@ubuntu-14-04-deployer:~$ grep -e hostname -e ipmi
-cluster-genesis/inventory.yml *
+cluster-genesis/inventory.yml*
 
 * - hostname: mgmtswitch1*
 
@@ -200,15 +194,14 @@ cluster-genesis/inventory.yml *
 
 *~snip~*
 
-**
 
-***Verify port lists within cluster-genesis/config.yml are correct:** *
+**Verify port lists within cluster-genesis/config.yml are correct:**
 
 *~snip~*
 
-* node-templates:*
+*node-templates:*
 
-* controller1:*
+*controller1:*
 
 *~snip~*
 
@@ -264,7 +257,7 @@ cluster-genesis/inventory.yml *
 mac address for the corresponding BMC port. Use ipmitool to reboot the
 nodes which have not pxe booted succesfully.*
 
-**
+
 
 *Stopping and resuming progress*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -301,7 +294,7 @@ obtain DHCP leases. Press <enter> to continue"*
 * 9 - include: container/inv\_add\_ipmi\_ports.yml log\_level=info*
 
 * 10 - include: container/ipmi\_set\_bootdev.yml log\_level=info
-bootdev=network persistent=False*
+       bootdev=network persistent=False*
 
 * 11 - include: container/ipmi\_power\_on.yml log\_level=info*
 
@@ -328,17 +321,17 @@ bootdev=network persistent=False*
 * 22 - include: container/get\_inv\_file.yml dest=/var/oprc*
 
 * 23 - include: container/ipmi\_set\_bootdev.yml log\_level=info
-bootdev=network persistent=False*
+       bootdev=network persistent=False*
 
 * 24 - include: container/ipmi\_power\_on.yml log\_level=info*
 
 * 25 - include: pause.yml minutes=5 message="Power-on Nodes"*
 
 * 26 - include: container/ipmi\_set\_bootdev.yml log\_level=info
-bootdev=default persistent=True*
+       bootdev=default persistent=True*
 
-**Recovering from Wrong IPMI userid and /or password **
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Recovering from Wrong IPMI userid and /or password
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **If the userid or password for the ipmi ports are wrong, genesis will
 fail. To fix this, first correct the userid and or password in the
@@ -455,7 +448,7 @@ code. Step by Step Instructions <#anchor-7>`__**
 **NOTE: if you have exited the shell session from which you previously
 created the container, be sure to execute the following setup scripts;**
 
-***\ source ~/cluster-genesis/scripts/setup-env*
+*\ source ~/cluster-genesis/scripts/setup-env*
 
 *export ANSIBLE\_HOST\_KEY\_CHECKING=False*
 

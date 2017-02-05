@@ -63,12 +63,26 @@ config.yml YAML File format:
     # can be changed by the end user as appropriate for your application.(e.g.
     # "_rack1" could be changed to "base-rack")
 
-    version: 1.0
+    # This sample configuration file documents all of the supported key values
+    # supported by the genesis software.  It can be used as the basis for creating
+    # your own config.yml file.  Note that keywords with a leading underscore
+    # can be changed by the end user as appropriate for your application. (e.g.
+    # "_rack1" could be changed to "base-rack")
+
+    version: 1.1
+
     ipaddr-mgmt-network: 192.168.16.0/20
-    # NOTE: The "_rack:" keywords must match the the corresponding rack keyword under the keyword:
+    ipaddr-mgmt-client-network: 192.168.20.0/24
+    vlan-mgmt-network: 16
+    vlan-mgmt-client-network: 20
+    port-mgmt-network: 1
+    # NOTE: The "_rack:" keywords must match the the corresponding rack keyword
+    # under the keyword;
     # node-templates:
-    #      _node name:
-    #        ports:
+    #     _node name:
+    #         ports:
+    port-mgmt-data-network:
+        _rack1: 47
     ipaddr-mgmt-switch:
         _rack1: 192.168.16.20
     ipaddr-data-switch:
@@ -76,16 +90,18 @@ config.yml YAML File format:
     redundant-network: false
     userid-default: user
     password-default: passw0rd
-    userid-mgmt-switch: user # applied to all mgmt switches
-    password-mgmt-switch: passw0rd # applied to all mgmt switches
+    # An encrypted password hash can also be provided using the following format:
+    # password-default-crypted: $6$STFB8U/AyA$sVhg5a/2RvDiXof9EhADVcUm/7Tq8T4m0dcdHLFZkOr.pCjJr2eH8RS56W7ZUWw6Zsm2sKrkcS4Xc8910JMOw.
+    userid-mgmt-switch: user        # applied to all mgmt switches
+    password-mgmt-switch: passw0rd  # applied to all mgmt switches
     userid-data-switch: user
     password-data-switch: passw0rd
     # Rack information is optional (not required to be present)
     racks:
         - rack-id: rack1
-    data-center: dataeast
-        room: room33
-        row: row1
+          data-center: dataeast
+          room: room33
+          row: row1
     networks:
         _external1:
             description: Organization site or external network
@@ -115,8 +131,8 @@ config.yml YAML File format:
             bond: mybond0
             addr: 10.0.16.0/22
             available-ips:
-                - 10.0.16.150 # single address
-                - 10.0.16.175 10.0.16.215 # address range
+                - 10.0.16.150              # single address
+                - 10.0.16.175 10.0.16.215  # address range
             broadcast: 10.0.16.255
             gateway: 10.0.16.1
             dns-nameservers: 10.0.16.200
@@ -156,11 +172,11 @@ config.yml YAML File format:
             description: Cluster Management Network
             bridge: br-mgmt
             method: static
-            tcp_segmentation_offload: "off" # on/off values need to be enclosed in quotes
+            tcp_segmentation_offload: "off"  # on/off values need to be enclosed in quotes
             addr: 172.29.236.0/22
             vlan: 10
             eth-port: eth10
-            bridge-port: veth-infra # add a veth pair to the bridge
+            bridge-port: veth-infra  # add a veth pair to the bridge
         _vm-vxlan-network:
             description: vm vxlan Network
             bridge: br-vxlan
@@ -172,8 +188,8 @@ config.yml YAML File format:
             description: vm vlan Network
             bridge: br-vlan
             method: static
-            addr: 0.0.0.0/1 # Host nodes do not get IPs assigned in this network
-            eth-port: eth11 # No specified vlan. Allows use with untagged vlan
+            addr: 0.0.0.0/1  # Host nodes do not get IPs assigned in this network
+            eth-port: eth11  # No specified vlan.  Allows use with untagged vlan
             bridge-port: veth12
     node-templates:
         _node-name:
@@ -184,20 +200,20 @@ config.yml YAML File format:
             os-disk: /dev/sda
             users:
                 - name: user1
-                groups: sudo
+                  groups: sudo
                 - name: testuser1
-                groups: testgroup
+                  groups: testgroup
             groups:
                 - name: testgroup
             name-interfaces:
-                mac-pxe: eth15 # This keyword is paired to ports: pxe: keyword
-                mac-eth10: eth10 # This keyword is paired to ports: eth10: keyword
-                mac-eth11: eth11 # This keyword is paired to ports: eth11: keyword
-   # Each host has one network interface for each of these ports and
-   # these port numbers represent the switch port number to which the host
-   # interface is physically cabled.
-   # To add or remove hosts for this node-template you add or remove
-   # switch port numbers to these ports.
+                mac-pxe: eth15    # This keyword is paired to ports: pxe: keyword
+                mac-eth10: eth10  # This keyword is paired to ports: eth10: keyword
+                mac-eth11: eth11  # This keyword is paired to ports: eth11: keyword
+            # Each host has one network interface for each of these ports and
+            # these port numbers represent the switch port number to which the host
+            # interface is physically cabled.
+            # To add or remove hosts for this node-template you add or remove
+            # switch port numbers to these ports.
             ports:
                 pxe:
                     _rack1:
@@ -272,10 +288,12 @@ config.yml YAML File format:
                 - _pxe-dhcp
                 - _manual-bond1
                 - _standalone-bond0
-    software-bootstrap-hosts: all
-    software-bootstrap-cmd: |
-        apt-get update
-        apt-get upgrade -y
+
+    software-bootstrap:
+        all: apt-get update
+        compute[0]: |
+            apt-get update
+            apt-get upgrade -y
     # Additional key/value pairs are not processed by Genesis, but are copied into
     # the inventory.yml file and made available to post-Genesis scripts and/or
     # playbooks.

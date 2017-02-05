@@ -1,4 +1,4 @@
-.. highlight:: none 
+.. highlight:: none
 
 Creating the config.yml File
 ============================
@@ -31,14 +31,14 @@ Notes:
    spaces at the start of lines. Incorrect spacing can result in failure
    to load messages during genesis.
 
-Cluster definition 
+Cluster definition
 -------------------
 
 The top part of the config.yml file contains a group of key value pairs
 that define the overall cluster layout. Each rack in a cluster is
 assumed to have a management switch and one or two data switches.
-Note that keywords with a leading underscore can be changed by the end 
-user as appropriate for your application. (e.g. "_rack1" could be changed to "base-rack")  
+Note that keywords with a leading underscore can be changed by the end
+user as appropriate for your application. (e.g. "_rack1" could be changed to "base-rack")
 The *ipaddr-mgmt-switch* and
 the *ipaddr-data-switch* nested dictionaries define the number of racks
 and the names of the racks. For example, a cluster with 3 racks might be
@@ -68,7 +68,7 @@ The following keys must be included in the cluster definition section::
     ipaddr-mgmt-switch:
         rackname: a.b.c.d
     ipaddr-data-switch:
-        rackname: a.b.c.d 
+        rackname: a.b.c.d
     redundant-network: false #  "true" for redundant network (future release)
     userid-default: joeuser
     password-default: passw0rd
@@ -80,10 +80,10 @@ The following keys must be included in the cluster definition section::
 Notes:
 
 -  OpenPOWER Cluster Genesis creates two VLANs on the management switch(es) in your cluster.
-   These are used to isolate access of the management interfaces on the cluster switches from the 
+   These are used to isolate access of the management interfaces on the cluster switches from the
    BMC and PXE ports of the cluster nodes.  The VLAN in which the switch management interfaces reside
-   is defined by the vlan-mgmt-network: keyword.  The VLAN in which the cluster BMC and PXE ports 
-   reside in is defined by the vlan-mgmt-client-network: keyword.  
+   is defined by the vlan-mgmt-network: keyword.  The VLAN in which the cluster BMC and PXE ports
+   reside in is defined by the vlan-mgmt-client-network: keyword.
 -  The ipaddr-mgmt-network: keyword defines the subnet that the PXE and BMC ports for
    your cluster nodes will reside in. addresses a.b.c.1 and a.b.c.2 are reserved for
    use by the linux container on the deployer node. Cluster node address assignements
@@ -93,7 +93,7 @@ Notes:
 -  The management ip addresses for the management switch and the data
    switch must not reside in the same subnet as the nodes management
    network.
--     
+-
 -  It is permitted to include addititonal application specific key value
    pairs at the end of the cluster definition section. Additional keys
    will be copied to the inventory.yml file which can be read by
@@ -270,12 +270,12 @@ Post Genesis Activities
 -----------------------
 
 The section of the config.yml file allows you to execute additional commands on your
-cluster nodes after Genesis completes.  These can perform various additional configuration 
-activities or bootstrap additional software package installation.  Commands can be specified 
+cluster nodes after Genesis completes.  These can perform various additional configuration
+activities or bootstrap additional software package installation.  Commands can be specified
 to run on all cluster nodes or only specific nodes specified by the compute template name.
 
 The following config.yml file entries run the "apt-get update" command on all cluster
-nodes and then runs the "apt-get upgrade -y" command on the first compute node and runs 
+nodes and then runs the "apt-get upgrade -y" command on the first compute node and runs
 "apt-get install vlan" on all controller nodes::
 
     software-bootstrap:
@@ -284,5 +284,15 @@ nodes and then runs the "apt-get upgrade -y" command on the first compute node a
             apt-get update
             apt-get upgrade -y
         controllers:
-            apt-get install vlan	
-			
+            apt-get install vlan
+
+OpenPOWER reference design recipes
+==================================
+
+Many OpenPOWER reference design recipes are available on github.  These recipes
+include bill of materials, system diagrams and config.yml files;
+
+- openstack-recipes
+- acclerated-db
+
+`OpenPOWER reference designs <https://github.com/open-power-ref-design>`_

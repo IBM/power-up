@@ -1,4 +1,4 @@
-.. highlight:: none  
+.. highlight:: none
 
 Introduction
 ============
@@ -33,7 +33,7 @@ finished. The process is as follows;
    - initialize switches with static ip address, userid and password.
    - insure that all cluster compute nodes are set to obtain a DHCP
      address on their BMC ports.
-	 
+
 #. Install the OpenPOWER Cluster Genesis software on the deployer node.
 #. Edit an existing config.yml file.
 #. Run the OPCG software
@@ -46,9 +46,9 @@ configuration files needed for installing a solution software stack.
 Hardware and Architecture Overview
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The OpenPOWER Cluster Genesis software supports clusters of servers 
+The OpenPOWER Cluster Genesis software supports clusters of servers
 interconnected with Ethernet. The
-servers must support IPMI and PXE boot. Currently single rack 
+servers must support IPMI and PXE boot. Currently single rack
 non-redundant networking (single data switch) is supported. Support for
 redundant networks and multiple racks is being added. Multiple racks can
 be interconnected with traditional two tier access-aggregation
@@ -59,12 +59,12 @@ Networking
 ~~~~~~~~~~
 
 The data network is implemented using the Mellanox SX1410 10 Gb switch.
-OPCG will support any number of data interfaces on the compute nodes. 
-(Currently OPCG supports one or two ethernet interfaces.  These interfaces 
-can be bonded.)  The first release of OPCG implements non-redundant data network. A 
+OPCG will support any number of data interfaces on the compute nodes.
+(Currently OPCG supports one or two ethernet interfaces.  These interfaces
+can be bonded.)  The first release of OPCG implements non-redundant data network. A
 follow on release will support redundant switches and expansion to multiple racks.
 
-Templates can definge multiple network configurations in the config.yml file. 
+Templates can definge multiple network configurations in the config.yml file.
 These can be physical ports, bonded ports, Linux bridges or vLANS. Physical ports can be
 renamed to ease installation of additional software stack elements.
 
@@ -75,7 +75,7 @@ OPCG supports clusters of heterogeneous compute nodes. Users can define any numb
 node types by creating templates in a config file. Node templates can
 include any network templates defined in the network templates section.
 
-Supported Hardware 
+Supported Hardware
 ~~~~~~~~~~~~~~~~~~~
 
 OpenPOWER Compute Nodes;
@@ -103,8 +103,8 @@ Management Switches;
 -  Lenovo G7028
 -  Lenovo G7052
 
-Prerequisites;
-==============
+Prerequisite hardware setup
+============================
 
 Hardware initialization
 -----------------------
@@ -172,75 +172,104 @@ Hardware initialization
       Mellanox switches *copy running-config startup-config* for Lenovo
       switches (*write* works for G8052, G70XX). Consult vendor
       documentation.)::
-	  
+
         Note that the management ports for the data and management switches
-        in your cluster must all be in the same subnet. It is recommended 
-        that the subnet used for switch management be a private subnet 
-        which exists on the cluster management switches. If an external 
-        network is used to access the management interfaces of your cluster 
-        switches, insure that you have a route from the deployment 
-        container to the switch management interfaces.  Generally this is 
+        in your cluster must all be in the same subnet. It is recommended
+        that the subnet used for switch management be a private subnet
+        which exists on the cluster management switches. If an external
+        network is used to access the management interfaces of your cluster
+        switches, insure that you have a route from the deployment
+        container to the switch management interfaces.  Generally this is
         handled automatically when Linux creates the deployer container.
 
 -  Configure Management switch(es) (for out of box installation, it is
    usually necessary to configure the switch using a serial connection.
    See the switch installation guide. For additional info on Lenovo G8052 specific
-   commands, see Appendix G.)
+   commands, see Appendix G. and the *Lenovo RackSwitch G8052 Installation guide*)
 
-   -  assign hostname
-   -  create a vlan for use in accessing the management interfaces of your
-      switches.  This must match the vlan specified by the "vlan-mgmt-network:" 
+
+   -  Enter config mode and create a vlan for use in accessing the management interfaces of your
+      switches.  This must match the vlan specified by the "vlan-mgmt-network:"
       key in your cluster configuration (config.yml) file::
-	    
-        en
-        conf t
-        vlan 16   (example vlan.)
-		
-   -  assign a static ip address, netmask and gateway address to a management interface. 
+
+        RS 8052> enable
+        RS 8052# configure terminal
+        RS 8052 (config)# vlan 16
+        RS G8052(config-vlan)# enable
+        RS G8052(config-vlan)# exit
+
+   -  Enable IP interface mode for the management interface::
+
+        RS 8052 (config)# interface ip 1
+
+   -  assign a static ip address, netmask and gateway address to the management interface.
       This must match the address specified in
       the config.yml file (keyname: ipaddr-mgmt-switch:) and be in a
       *different* subnet than your cluster management subnet. Place this
       interface in the above created vlan::
-  
-        interface ip 1
-        ip address 192.168.16.5    (example ip address)
-        ip netmask 255.255.255.0   (example netmask)
-        vlan 16
-        enable
-        exit
+
+        RS 8052 (config-ip-if)# ip address 192.168.16.20 (example IP address)
+        RS 8052 (config-ip-if)# ip netmask 255.255.255.0
+        RS 8052 (config-ip-if)# vlan 16
+        RS 8052 (config-ip-if)# enable
+        RS 8052 (config-ip-if)# exit
+
+   -  Configure the default gateway and enable the gateway::
+
         ip gateway 1 address 192.168.16.1  (example ip address)
         ip gateway 1 enable
-		
+
+   -  Put the port used to connect to the deployer node (the node running
+      Cluster Genesis) into trunk mode and add the above created vlan to that trunk::
+
+        interface port 46  (example port #)
+        switchport trunk allowed vlan 1,16
+        exit
+
+   -  Verify the management interface setup::
+
+        RS G8052(config)#show interface ip
+
+      A typical good setup would look like::
+
+        Interface information:
+        1:      IP4 192.168.16.20    255.255.255.0   192.168.16.255,  vlan 16, up
+
+   -  Verify the vlan setup::
+
+        RS G8052(config)#show vlan
+
+      A typical good result would look something like::
+
+        VLAN                Name                Status            Ports
+        ----  --------------------------------  ------  -------------------------
+        1     Default VLAN                      ena     1-3 5 7 9 11 13-23 25 27 29 31
+                                                        33-46 48-XGE4
+        16    VLAN 16                           ena     46
+
    -  admin password. This must match the password specified in the
       config.yml file (keyword: password-mgmt-switch:). Note that all
       management switches in the cluster must have the same userid and
       password.  The following command is interactive::
-	  
-        access user administrator-password	  
-	  
+
+        access user administrator-password
+
    -  disable spanning tree (for Lenovo switches *enable, configure
       terminal, spanning-tree mode disable*)::
-	  
-        spanning-tree mode disable  
-		
+
+        spanning-tree mode disable
+
    -  enable secure https and SSH login::
-   
-        en ssh
-        ssh generate-host-key	
-        access https enable		
-	
-   -  Put the port used to connect to the deployer node (the node running 
-      Cluster Genesis) into trunk mode and add the above created vlan to that trunk::
-	  
-        interface port 46  (example port #)
-        switchport trunk allowed vlan 1,16
-        exit
-		
-	  
-   -  Save the config (For Lenovo switches, enter config mode 
+
+        ssh enable
+        ssh generate-host-key
+        access https enable
+
+
+   -  Save the config (For Lenovo switches, enter config mode
       For additional information, consult vendor documentation)::
-    
-        copy running-config startup-config	
+
+        copy running-config startup-config
 
 Setting up the Deployer Node
 ----------------------------
