@@ -47,6 +47,16 @@
   when: (ansible_distribution == 'Ubuntu')
   notify: Reboot
 
+- name: Ubuntu requires bonding kernel module if bonds are defined
+  lineinfile:
+    dest: "/etc/modules"
+    line: "bonding"
+  when:
+    - networks[item].bond is defined
+    - (ansible_distribution == 'Ubuntu')
+  with_items: "{{ host_networks.keys() }}"
+  notify: Reboot
+
 - name: Generate RHEL/CentOS interfaces files
   template:
     src: "{{ playbook_dir }}/templates/interfaces_rhel.j2"

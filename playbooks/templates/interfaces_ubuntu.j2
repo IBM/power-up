@@ -29,6 +29,11 @@ iface lo inet loopback
 #bond-slaves can be none here.
 auto {{ networks[network]['bond'] }}
 iface {{ networks[network]['bond'] }} inet {{ networks[network]['method'] }}
+{% if 'bond-primary' in networks[network] %}
+    hwaddress {{ name_interfaces[networks[network]['bond-primary']] }}
+{% else %}
+    hwaddress {{ name_interfaces[networks[network]['bond-interfaces'][0]] }}
+{% endif %}
 {% if 'addr' in host_networks[network] %}
     address {{ host_networks[network]['addr'] }}
 {% endif %}
@@ -100,10 +105,10 @@ iface {{ networks[network]['eth-port'] }} inet {{ networks[network]['method'] }}
 {% if networks[network]['eth-port'] in networks[bond_net]['bond-interfaces'] %}
     bond-master {{ networks[bond_net]['bond'] }}
 {% endif %}
-{% endif %}
 {% if 'bond-primary' in networks[bond_net] %}
 {% if networks[network]['eth-port'] in networks[bond_net]['bond-primary'] %}
     bond-primary {{ networks[network]['eth-port'] }}
+{% endif %}
 {% endif %}
 {% endif %}
 {%- endfor %}
@@ -118,6 +123,19 @@ iface {{ networks[network]['eth-port'] }} inet {{ networks[network]['method'] }}
 auto {{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }}
 iface {{ networks[network]['eth-port'] }}.{{ networks[network]['vlan'] }} inet manual
     vlan-raw-device {{ networks[network]['eth-port'] }}
+{% if networks[network]['eth-port'] not in name_interfaces -%}
+  {% for bond_net in host_networks -%}
+    {% if 'bond' in networks[bond_net] -%}
+      {% if networks[network]['eth-port'] == networks[bond_net]['bond'] -%}
+        {% if 'bond-primary' in networks[bond_net] %}
+    hw-mac-address {{ name_interfaces[networks[bond_net]['bond-primary']] }}
+{% else %}
+    hw-mac-address {{ name_interfaces[networks[bond_net]['bond-interfaces'][0]] }}
+{% endif %}
+      {%- endif %}
+    {%- endif %}
+  {%- endfor %}
+{% endif %}
 {% if 'mtu' in networks[network] %}
     mtu {{ networks[network]['mtu'] }}
     post-up ip link set dev {{ networks[network]['eth-port'] }} mtu {{ networks[network]['mtu'] }}
