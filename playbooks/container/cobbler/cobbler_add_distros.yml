@@ -156,7 +156,7 @@
         name: "/mnt/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}"
         src: "{{ item }}"
         fstype: iso9660
-        state: unmounted
+        state: absent
       with_items:
         - "{{ iso_files.files }}"
         - "{{ mini_iso_files.files }}"
