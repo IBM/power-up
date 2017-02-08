@@ -19,5 +19,3 @@ scripts_path: "{{ project_path }}/scripts"
 inventory: "{{ project_path }}/inventory.yml"
 power_time_out_sec: 60
 power_wait_sec: 5
-add_ports_retries: 60
-add_ports_delay: 30

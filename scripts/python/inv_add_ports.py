@@ -60,10 +60,14 @@ class InventoryAddPorts(object):
 
         self.table = []
 
+        ports_total = 0
+        ports_found = 0
         for template, rack, ports in inv.yield_template_ports(port_type):
             for port in ports:
+                ports_total += 1
                 result = inv.check_port(template, port_type, rack, port)
                 if result:
+                    ports_found += 1
                     self.table.append(
                         [True, template, port_type, rack, port, result[0],
                             result[1]])
@@ -100,6 +104,15 @@ class InventoryAddPorts(object):
                         'No Entries Found in MGMT Switch MAC Address Table - '
                         'Template: %s Type: %s Rack: %s Port: %02d' %
                         (template, port_type, rack, port))
+
+        self.table.append(['----------------'])
+        if ports_found == ports_total:
+            self.table.append(['Complete!'])
+            log.info('Found: %d/%d nodes' % (ports_found, ports_total))
+        else:
+            self.table.append(['INCOMPLETE!'])
+            log.warning('Found: %d/%d nodes' % (ports_found, ports_total))
+        self.table.append(['Found: %d/%d nodes' % (ports_found, ports_total)])
 
     def get_table(self):
         return self.table
