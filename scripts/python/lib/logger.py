@@ -19,43 +19,57 @@ import os.path
 import logging
 
 
-class Logger():
-    def __init__(self, file):
-        DEFAULT_LOG_LEVEL = getattr(logging, 'WARNING')
-        LOG_FILE = 'log.txt'
-        LOGGER_PATH = os.path.abspath(
-            os.path.dirname(os.path.abspath(__file__)) +
-            os.path.sep +
-            '..' +
-            os.path.sep +
-            '..' +
-            os.path.sep +
-            '..' +
-            os.path.sep +
-            LOG_FILE)
+class Logger(object):
+    LOG_FILE = 'log.txt'
 
-        self.logger = logging.getLogger(os.path.basename(file))
-        self.logger.setLevel(DEFAULT_LOG_LEVEL)
-        self.handler = logging.FileHandler(LOGGER_PATH)
-        self.handler.setLevel(DEFAULT_LOG_LEVEL)
+    DEBUG = 'DEBUG'
+    INFO = 'INFO'
+    WARNING = 'WARNING'
+    ERROR = 'ERROR'
+    CRITICAL = 'CRITICAL'
+
+    DEFAULT_LOG_LEVEL = getattr(logging, 'WARNING')
+    LOGGER_PATH = os.path.abspath(
+        os.path.dirname(os.path.abspath(__file__)) +
+        os.path.sep +
+        '..' +
+        os.path.sep +
+        '..' +
+        os.path.sep +
+        '..' +
+        os.path.sep +
+        LOG_FILE)
+
+    def __init__(self, file_):
+        self.logger = logging.getLogger(os.path.basename(file_))
+        self.logger.setLevel(self.DEFAULT_LOG_LEVEL)
+        self.handler = logging.FileHandler(self.LOGGER_PATH)
+        self.handler.setLevel(self.DEFAULT_LOG_LEVEL)
         self.handler.setFormatter(
             logging.Formatter(
                 '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(self.handler)
 
     def set_level(self, log_level_str):
-        log_levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
-        log_level_str = log_level_str.upper()
-        if log_level_str not in log_levels:
+        log_levels = (
+            self.DEBUG, self.INFO, self.WARNING, self.ERROR, self.CRITICAL)
+        self.log_level_str = log_level_str.upper()
+        if self.log_level_str not in log_levels:
             try:
                 raise Exception()
             except:
-                self.logger.error('Invalid log level: ' + log_level_str)
+                self.logger.error('Invalid log level: ' + self.log_level_str)
                 sys.exit(1)
 
-        log_level = getattr(logging, log_level_str)
+        log_level = getattr(logging, self.log_level_str)
         self.logger.setLevel(log_level)
         self.handler.setLevel(log_level)
+
+    def get_level(self):
+        return self.log_level_str
+
+    def clear(self):
+        self.logger.removeHandler(self.handler)
 
     def debug(self, msg):
         self.logger.debug(msg)

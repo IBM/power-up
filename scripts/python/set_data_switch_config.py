@@ -17,33 +17,29 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
+
 import sys
 import os.path
-import paramiko
 
 from lib.inventory import Inventory
 from lib.logger import Logger
+from lib.ssh import SSH
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 class ConfigureDataSwitch(object):
+    ENABLE_REMOTE_CONFIG = 'cli enable "configure terminal" %s'
+    SET_VLAN = '"vlan %d"'
+    SET_MTU = '"mtu %d"'
+    INTERFACE_ETHERNET = '"interface ethernet 1/%s"'
+    SWITCHPORT_MODE_HYBRID = '"switchport mode hybrid"'
+    SWITCHPORT_HYBRID_ALLOWED_VLAN = \
+        '"switchport hybrid allowed-vlan add %d"'
+    SHUTDOWN = '"shutdown"'
+    NO_SHUTDOWN = '"no shutdown"'
+
     def __init__(self, log_level, inv_file):
-        self.SWITCH_PORT = 22
-
-        self.DEBUG = b'DEBUG'
-        self.INFO = b'INFO'
-        self.SSH_LOG = 'data-switch-ssh.log'
-
-        self.ENABLE_REMOTE_CONFIG = 'cli enable \"configure terminal\" %s'
-        SET_VLAN = '\"vlan %d\"'
-        SET_MTU = '\"mtu %d\"'
-        INTERFACE_ETHERNET = '\"interface ethernet 1/%s\"'
-        SWITCHPORT_MODE_HYBRID = '\"switchport mode hybrid\"'
-        SWITCHPORT_HYBRID_ALLOWED_VLAN = \
-            '\"switchport hybrid allowed-vlan add %d\"'
-        SHUTDOWN = '"shutdown"'
-        NO_SHUTDOWN = '"no shutdown"'
 
         self.log = Logger(__file__)
         self.log_level = log_level
@@ -55,75 +51,117 @@ class ConfigureDataSwitch(object):
         for self.ipv4, self.userid, self.password, vlans \
                 in inv.yield_data_vlans():
             for vlan in vlans:
-                self.log.info('Create vlan %s' % (vlan))
-                self.issue_cmd(SET_VLAN % (vlan))
+                status_ok, msg = self.send_cmd(self.SET_VLAN % vlan)
+                if status_ok:
+                    self.log.info('Create vlan %s' % vlan)
+                else:
+                    self.log.error(
+                        'Failed to create vlan %s' % vlan +
+                        ' - Error: ' + msg)
+                    exit(1)
 
         for self.ipv4, self.userid, self.password, port_vlans, port_mtu \
                 in inv.yield_data_switch_ports():
             for port, vlans in port_vlans.items():
-                self.log.info(
-                    'Enable hybrid mode for port %s' % (port))
-                self.issue_cmd(
-                    INTERFACE_ETHERNET % (port) +
+                status_ok, msg = self.send_cmd(
+                    self.INTERFACE_ETHERNET % port +
                     ' ' +
-                    SWITCHPORT_MODE_HYBRID)
-                for vlan in vlans:
+                    self.SWITCHPORT_MODE_HYBRID)
+                if status_ok:
                     self.log.info(
-                        'In hybrid mode add vlan %s to port %s' %
-                        (vlan, port))
-                    self.issue_cmd(
-                        INTERFACE_ETHERNET % (port) +
+                        'Enable hybrid mode for port %s' % port)
+                else:
+                    self.log.error(
+                        'Failed to enable hybrid mode for port %s' % port +
+                        ' - Error: ' + msg)
+                    exit(1)
+                for vlan in vlans:
+                    status_ok, msg = self.send_cmd(
+                        self.INTERFACE_ETHERNET % port +
                         ' ' +
-                        SWITCHPORT_HYBRID_ALLOWED_VLAN % (vlan))
+                        self.SWITCHPORT_HYBRID_ALLOWED_VLAN % vlan)
+                    if status_ok:
+                        self.log.info(
+                            'Add vlan %s to port %s in hybrid mode' %
+                            (vlan, port))
+                    else:
+                        self.log.error(
+                            'Failed to add vlan %s to port %s in hybrid mode' %
+                            (vlan, port) + ' - Error: ' + msg)
+                        exit(1)
             for port, mtu in port_mtu.items():
-                self.log.info(
-                    'Port %s mtu set to %s' %
-                    (port, mtu))
-                self.issue_cmd(
-                    INTERFACE_ETHERNET % (port) +
+                status_ok, msg = self.send_cmd(
+                    self.INTERFACE_ETHERNET % port +
                     ' ' +
-                    SHUTDOWN)
-                self.issue_cmd(
-                    INTERFACE_ETHERNET % (port) +
-                    ' ' +
-                    SET_MTU % (mtu))
-                self.issue_cmd(
-                    INTERFACE_ETHERNET % (port) +
-                    ' ' +
-                    NO_SHUTDOWN)
+                    self.SHUTDOWN)
+                if status_ok:
+                    self.log.info('Shut down port %s' % port)
+                else:
+                    self.log.error(
+                        'Failed to shut down port %s' % port +
+                        ' - Error: ' + msg)
+                    exit(1)
 
-    def issue_cmd(self, cmd):
-        if self.log_level == self.DEBUG or self.log_level == self.INFO:
-            paramiko.util.log_to_file(self.SSH_LOG)
-        s = paramiko.SSHClient()
-        s.load_system_host_keys()
-        s.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        s.connect(
+                status_ok, msg = self.send_cmd(
+                    self.INTERFACE_ETHERNET % port +
+                    ' ' +
+                    self.SET_MTU % mtu)
+                if status_ok:
+                    self.log.info(
+                        'Port %s mtu set to %s' % (port, mtu))
+                else:
+                    self.log.error(
+                        'Failed to set port %s mtu to %s' %
+                        (port, mtu) + ' - Error: ' + msg)
+                    exit(1)
+
+                status_ok, msg = self.send_cmd(
+                    self.INTERFACE_ETHERNET % port +
+                    ' ' +
+                    self.NO_SHUTDOWN)
+                if status_ok:
+                    self.log.info(
+                        'Bring up port %s' % port)
+                else:
+                    self.log.error(
+                        'Failed to bring up port %s' % port +
+                        ' - Error: ' + msg)
+                    exit(1)
+
+    def send_cmd(self, cmd):
+        ssh = SSH(self.log)
+        status, stdout_, _ = ssh.exec_cmd(
             self.ipv4,
-            self.SWITCH_PORT,
             self.userid,
-            self.password)
-        stdin, stdout, stderr = s.exec_command(
-            self.ENABLE_REMOTE_CONFIG % (cmd))
-        # print(stdout.read())
-        s.close()
+            self.password,
+            self.ENABLE_REMOTE_CONFIG % cmd)
+        stdout_ = stdout_.replace('\n', ' ').replace('\r', '')
+        if status:
+            return False, stdout_
+        return True, stdout_
 
 if __name__ == '__main__':
-    log = Logger(__file__)
+    """
+    Arg1: inventory file
+    Arg2: log level
+    """
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             exit(1)
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
-    else:
-        log_level = None
+    LOG.clear()
 
-    ipmi_data = ConfigureDataSwitch(log_level, inv_file)
+    INV_FILE = sys.argv[1]
+    if ARGV_COUNT == ARGV_MAX:
+        LOG_LEVEL = sys.argv[2]
+    else:
+        LOG_LEVEL = None
+
+    ConfigureDataSwitch(LOG_LEVEL, INV_FILE)
