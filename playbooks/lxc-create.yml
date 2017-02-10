@@ -17,6 +17,8 @@
 
 - name: lxc-create.yml
   hosts: localhost
+  vars:
+    networks_only: False
   handlers:
     - include: handlers/restart_networking.yml
   tasks:
@@ -78,6 +80,7 @@
         src: "{{ playbook_dir }}/templates/localhost/lxc-conf.j2"
         dest: "{{ playbook_dir }}/lxc.conf"
         mode: "0644"
+      when: not networks_only
 
     - name: "Ubuntu: Create bridge interfaces for VLAN Support"
       vars:
@@ -148,6 +151,7 @@
         name: "{{ ansible_env.USER }}"
         generate_ssh_key: yes
         ssh_key_file: "{{ ssh_key_private }}"
+      when: not networks_only
 
     - name: "Create LXC deployment container"
       lxc_container:
@@ -162,22 +166,26 @@
         container_command: |
           cp -p /etc/sudoers /etc/sudoers.orig
           echo -e "{{ user }}\tALL=NOPASSWD: ALL" >> /etc/sudoers
+      when: not networks_only
       become: yes
       become_method: sudo
 
     - name: "Pause 5 seconds"
       pause:
         seconds: 5
+      when: not networks_only
 
     - name: "Register container internal ip address"
       command: lxc-info -n {{ container_name }}
       register: container_info
+      when: not networks_only
       become: yes
       become_method: sudo
 
     - name: "Print container information"
       debug:
         msg: "{{ container_info.stdout.split('\n') }}"
+      when: not networks_only
 
     - name: "Create Ansible host for \"deployer\""
       lineinfile:
@@ -194,12 +202,14 @@
       file:
         path: "{{ known_hosts }}"
         state: absent
+      when: not networks_only
 
     - name: Create known_hosts file
       file:
         path: "{{ known_hosts }}"
         state: touch
         mode: 0600
+      when: not networks_only
 
     - name: |
         Use ssh-keyscan to collect container host keys (retry until ssh is up)
@@ -210,6 +220,7 @@
       until: ssh_keyscan_output.stdout != ''
       retries: 6
       delay: 10
+      when: not networks_only
 
     - name: Append keys to playbooks/known_hosts and ~/.ssh/known_hosts
       lineinfile:
@@ -222,3 +233,4 @@
         - "{{ ssh_keyscan_output.stdout_lines }}"
         -   - "{{ known_hosts }}"
             - "~/.ssh/known_hosts"
+      when: not networks_only
