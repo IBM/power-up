@@ -22,8 +22,14 @@ from orderedattrdict import AttrDict
 
 from lib.logger import Logger
 
+INV_IPADDR_MGMT_NETWORK = 'ipaddr-mgmt-network'
 INV_IPADDR_MGMT_SWITCH = 'ipaddr-mgmt-switch'
 INV_IPADDR_DATA_SWITCH = 'ipaddr-data-switch'
+INV_IPADDR_MLAG_VIP = 'ipaddr-mlag-vip'
+INV_CIDR_MLAG_IPL = 'cidr-mlag-ipl'
+INV_MLAG_VLAN = 'mlag-vlan'
+INV_MLAG_PORT_CHANNEL = 'mlag-port-channel'
+INV_MLAG_IPL_PORTS = 'mlag-ipl-ports'
 INV_IPV4_ADDR = 'ipv4-addr'
 INV_USERID_DEFAULT = 'userid-default'
 INV_PASSWORD_DEFAULT = 'password-default'
@@ -33,6 +39,9 @@ INV_USERID_DATA_SWITCH = 'userid-data-switch'
 INV_PASSWORD_DATA_SWITCH = 'password-data-switch'
 INV_NODES_TEMPLATES = 'node-templates'
 INV_ETH_PORT = 'eth-port'
+INV_BOND_INTS = 'bond-interfaces'
+INV_BOND = 'bond'
+INV_BOND_PRIMARY = 'bond-primary'
 INV_PORTS = 'ports'
 INV_ETH10 = 'eth10'
 INV_ETH11 = 'eth11'
@@ -148,7 +157,10 @@ class Inventory():
                 enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
             _dict = AttrDict()
             _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index + 1)
-            _dict[INV_IPV4_ADDR] = value
+            if value == list:
+                _dict[INV_IPV4_ADDR] = value.copy()
+            else:
+                _dict[INV_IPV4_ADDR] = value
             _dict[INV_RACK_ID] = key
             _dict[INV_USERID] = userid
             _dict[INV_PASSWORD] = password
@@ -171,9 +183,13 @@ class Inventory():
     def get_port_mgmt_network(self):
         return self.inv[INV_PORT_MGMT_NETWORK]
 
-    def yield_port_mgmt_data_network(self):
-        for port in self.inv[INV_PORT_MGMT_DATA_NETWORK].values():
-            yield port
+    def yield_ports_mgmt_data_network(self):
+        for ports in self.inv[INV_PORT_MGMT_DATA_NETWORK].values():
+            if type(ports) is list:
+                for port in ports:
+                    yield port
+            else:
+                yield ports
 
     def get_userid_mgmt_switch(self):
         return self.inv[INV_USERID_MGMT_SWITCH]
@@ -197,23 +213,37 @@ class Inventory():
     def yield_data_vlans(self):
         _dict = AttrDict()
         __dict = AttrDict()
-        _list = []
+        vlan_list = []
+        vlan_dict = AttrDict()
         userid = self.inv[INV_USERID_DATA_SWITCH]
         password = self.inv[INV_PASSWORD_DATA_SWITCH]
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for _key, _value in value.items():
                 if _key == INV_PORTS:
+                    switch_index = 0
                     for ports_key, ports_value in _value.items():
                         if ports_key != INV_IPMI and ports_key != INV_PXE:
                             for rack in ports_value:
+                                vlan_dict[switch_index] = []
                                 for network in value[INV_NETWORKS]:
                                     if INV_VLAN in self.inv[INV_NETWORKS][network]:
                                         _dict[INV_USERID_DATA_SWITCH] = userid
                                         _dict[INV_PASSWORD_DATA_SWITCH] = password
-                                        if self.inv[INV_NETWORKS][network][INV_VLAN] not in _list:
-                                            _list.append(self.inv[INV_NETWORKS][network][INV_VLAN])
-                                            _dict['vlan'] = _list
-                                            __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = _dict
+                                        if (type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list and
+                                                len(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == 2):
+                                            if self.inv[INV_NETWORKS][network][INV_VLAN] not in vlan_dict[switch_index]:
+                                                vlan_dict[switch_index].append(self.inv[INV_NETWORKS][network][INV_VLAN])
+                                                _dict['vlan'] = vlan_dict[switch_index]
+                                                __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][switch_index]] = _dict
+                                        else:
+                                            if self.inv[INV_NETWORKS][network][INV_VLAN] not in vlan_list:
+                                                vlan_list.append(self.inv[INV_NETWORKS][network][INV_VLAN])
+                                                _dict['vlan'] = vlan_list
+                                                if type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list:
+                                                    __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][0]] = _dict
+                                                else:
+                                                    __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = _dict
+                            switch_index += 1
         for key, value in __dict.items():
             yield (
                 key,
@@ -225,17 +255,20 @@ class Inventory():
         _dict = AttrDict()
         __dict = AttrDict()
         ___dict = AttrDict()
-        _dict['vlan'] = {}
-        _dict['mtu'] = {}
+        _dict['vlan'] = AttrDict()
+        _dict['mtu'] = AttrDict()
+        _dict['bonds'] = AttrDict()
         mtu = None
         userid = self.inv[INV_USERID_DATA_SWITCH]
         password = self.inv[INV_PASSWORD_DATA_SWITCH]
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for _key, _value in value.items():
                 if _key == INV_PORTS:
+                    switch_index = 0
                     for ports_key, ports_value in _value.items():
                         if ports_key != INV_IPMI and ports_key != INV_PXE:
                             for rack, ports in ports_value.items():
+                                port_index = 0
                                 for port in ports:
                                     _list = []
                                     mtu = None
@@ -253,18 +286,110 @@ class Inventory():
                                                         if mtu < self.inv[INV_NETWORKS][network][INV_MTU]:
                                                             mtu = self.inv[INV_NETWORKS][network][INV_MTU]
                                                     _dict['mtu'][port] = mtu
+                                        elif INV_BOND_INTS in self.inv[INV_NETWORKS][network].keys():
+                                            bond_interfaces = self.inv[INV_NETWORKS][network][INV_BOND_INTS]
+                                            bond_name = self.inv[INV_NETWORKS][network][INV_BOND]
+                                            if ports_key in bond_interfaces:
+                                                if INV_BOND_PRIMARY in self.inv[INV_NETWORKS][network].keys():
+                                                    if self.inv[INV_NETWORKS][network][INV_BOND_PRIMARY] == ports_key:
+                                                        _dict['bonds'][port] = []
+                                                        for int_port in bond_interfaces:
+                                                            _dict['bonds'][port].append(_value[int_port][rack][port_index])
+                                                elif bond_interfaces[0] == ports_key:
+                                                    _dict['bonds'][port] = []
+                                                    for int_port in bond_interfaces:
+                                                        _dict['bonds'][port].append(_value[int_port][rack][port_index])
+                                                if INV_VLAN in self.inv[INV_NETWORKS][network]:
+                                                    vlan = self.inv[INV_NETWORKS][network][INV_VLAN]
+                                                    _list.append(vlan)
+                                                    _dict['vlan'][port] = _list
+                                                if INV_MTU in self.inv[INV_NETWORKS][network]:
+                                                    if mtu is None:
+                                                        mtu = self.inv[INV_NETWORKS][network][INV_MTU]
+                                                    else:
+                                                        if mtu < self.inv[INV_NETWORKS][network][INV_MTU]:
+                                                            mtu = self.inv[INV_NETWORKS][network][INV_MTU]
+                                                    _dict['mtu'][port] = mtu
+                                                for network in value[INV_NETWORKS]:
+                                                    if INV_ETH_PORT in self.inv[INV_NETWORKS][network].keys():
+                                                        if self.inv[INV_NETWORKS][network][INV_ETH_PORT] == bond_name:
+                                                            if INV_VLAN in self.inv[INV_NETWORKS][network]:
+                                                                vlan = self.inv[INV_NETWORKS][network][INV_VLAN]
+                                                                _list.append(vlan)
+                                                                _dict['vlan'][port] = _list
+                                                            if INV_MTU in self.inv[INV_NETWORKS][network]:
+                                                                if mtu is None:
+                                                                    mtu = self.inv[INV_NETWORKS][network][INV_MTU]
+                                                                else:
+                                                                    if mtu < self.inv[INV_NETWORKS][network][INV_MTU]:
+                                                                        mtu = self.inv[INV_NETWORKS][network][INV_MTU]
+                                                                _dict['mtu'][port] = mtu
+                                    port_index += 1
                                 __dict[INV_USERID_DATA_SWITCH] = userid
                                 __dict[INV_PASSWORD_DATA_SWITCH] = password
                                 __dict['port_vlan'] = _dict['vlan']
                                 __dict['port_mtu'] = _dict['mtu']
-                                ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = __dict
+                                __dict['port_bonds'] = _dict['bonds']
+                                if (type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list and
+                                        len(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == 2):
+                                    ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][switch_index]] = __dict.copy()
+                                else:
+                                    if type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list:
+                                        ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][0]] = __dict
+                                    else:
+                                        ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = __dict
+                            switch_index += 1
         for key, value in ___dict.items():
             yield (
                 key,
                 value[INV_USERID_DATA_SWITCH],
                 value[INV_PASSWORD_DATA_SWITCH],
                 value['port_vlan'],
-                value['port_mtu'])
+                value['port_mtu'],
+                value['port_bonds'])
+
+    def is_mlag(self):
+        for value in self.inv[INV_IPADDR_DATA_SWITCH].values():
+            if type(value) == list and len(value) == 2:
+                return True
+        return False
+
+    def get_mlag_vlan(self):
+        for value in self.inv[INV_MLAG_VLAN].values():
+            pass
+        return value
+
+    def get_mlag_port_channel(self):
+        for value in self.inv[INV_MLAG_PORT_CHANNEL].values():
+            pass
+        return value
+
+    def get_cidr_mlag_ipl(self, switch_index):
+        for value in self.inv[INV_CIDR_MLAG_IPL].values():
+            pass
+        return value[switch_index].replace('/', ' /')
+
+    def get_ipaddr_mlag_ipl_peer(self, switch_index):
+        for value in self.inv[INV_CIDR_MLAG_IPL].values():
+            pass
+        if switch_index:
+            index = 0
+        else:
+            index = 1
+        return value[index].split('/')[0]
+
+    def get_ipaddr_mlag_vip(self):
+        for value in self.inv[INV_IPADDR_MLAG_VIP].values():
+            pass
+        return (
+            value +
+            ' /' +
+            self.inv[INV_IPADDR_MGMT_NETWORK].split('/')[1])
+
+    def yield_mlag_ports(self, switch_index):
+        for value in self.inv[INV_MLAG_IPL_PORTS].values():
+            for port in value[switch_index]:
+                yield port
 
     def get_data_switches(self):
         # This methods a dict of switch IP to a dict with user
@@ -273,8 +398,15 @@ class Inventory():
         password = self.inv[INV_PASSWORD_DATA_SWITCH]
         return_value = {}
         for rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].values():
-            return_value[rack_ip] = {'user': userid,
-                                     'password': password}
+            if type(rack_ip) == list:
+                for ip in rack_ip:
+                    return_value[ip] = {
+                        'user': userid,
+                        'password': password}
+            else:
+                return_value[rack_ip] = {
+                    'user': userid,
+                    'password': password}
         return return_value
 
     def yield_mgmt_rack_ipv4(self):
@@ -397,12 +529,17 @@ class Inventory():
         # Get map of rack IP to rack ID.
         ip_to_rack_id = {}
         for rack_id, rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].iteritems():
-            ip_to_rack_id[rack_ip] = rack_id
+            if type(rack_ip) == list:
+                for ip in rack_ip:
+                    ip_to_rack_id[ip] = rack_id
+            else:
+                ip_to_rack_id[rack_ip] = rack_id
 
         # Get list of all nodes
         nodes = [node for sublist in self.inv['nodes'].values() for node
                  in sublist]
         success = True
+        index = 0
         for ip, switch_ports_to_MACs in switch_to_port_to_macs.iteritems():
             rack_id = ip_to_rack_id[ip]
             for node in nodes:
@@ -411,22 +548,26 @@ class Inventory():
                 node_template = self.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
                 for port_name in node_template['ports'].keys():
                     if port_name not in INV_MANAGEMENT_PORTS:
-                        node_port_on_rack = str(node.get(INV_PORT_PATTERN %
-                                                port_name, ''))
-                        macs = switch_ports_to_MACs.get(node_port_on_rack, [])
-                        if macs:
-                            mac_key = INV_MAC_PATTERN % port_name
-                            node[mac_key] = macs[0]
-                        else:
-                            msg = ('Unable to find a MAC address for '
-                                   '%(port_name)s of host %(host)s plugged '
-                                   'into port %(node_port_on_rack)s of switch '
-                                   '%(switch)s')
-                            msg_vars = {'port_name': port_name,
-                                        'host': node.get(INV_IPV4_PXE),
-                                        'node_port_on_rack': node_port_on_rack,
-                                        'switch': ip}
-                            print msg % msg_vars
-                            success = False
+                        if (not self.is_mlag() or
+                                (self.is_mlag() and index == 0 and port_name == INV_ETH10) or
+                                (self.is_mlag() and index == 1 and port_name == INV_ETH11)):
+                            node_port_on_rack = str(node.get(INV_PORT_PATTERN %
+                                                    port_name, ''))
+                            macs = switch_ports_to_MACs.get(node_port_on_rack, [])
+                            if macs:
+                                mac_key = INV_MAC_PATTERN % port_name
+                                node[mac_key] = macs[0]
+                            else:
+                                msg = ('Unable to find a MAC address for '
+                                       '%(port_name)s of host %(host)s plugged '
+                                       'into port %(node_port_on_rack)s of switch '
+                                       '%(switch)s')
+                                msg_vars = {'port_name': port_name,
+                                            'host': node.get(INV_IPV4_PXE),
+                                            'node_port_on_rack': node_port_on_rack,
+                                            'switch': ip}
+                                print msg % msg_vars
+                                success = False
+            index += 1
         self._dump_inv_file()
         return success

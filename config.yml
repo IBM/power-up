@@ -37,8 +37,32 @@ port-mgmt-data-network:
     _rack1: 47
 ipaddr-mgmt-switch:
     _rack1: 192.168.16.20
-ipaddr-data-switch:
+ipaddr-data-switch: # Without MLAG, can be string or list with a single element
     _rack1: 192.168.16.25
+    _rack2:
+        - 192.168.16.26
+ipaddr-data-switch: # With MLAG, must be list with two elements
+    _rack1:
+        - 192.168.16.25
+        - 192.168.16.26
+ipaddr-mlag-vip:
+    _rack1: 192.168.16.254
+cidr-mlag-ipl:
+    _rack1:
+        - 10.0.0.1/24
+        - 10.0.0.2/24
+mlag-vlan:
+    _rack1: 4000
+mlag-port-channel:
+    _rack1: 6
+mlag-ipl-ports:
+    _rack1:
+        -
+            - 7
+            - 8
+        -
+            - 7
+            - 8
 redundant-network: false
 userid-default: user
 password-default: passw0rd

@@ -64,8 +64,6 @@ class ConfigureMgmtSwitch(object):
         self.vlan_mgmt = inv.get_vlan_mgmt_network()
         self.vlan_mgmt_client = inv.get_vlan_mgmt_client_network()
         self.mgmt_port = inv.get_port_mgmt_network()
-        for self.mgmt_data_port in inv.yield_port_mgmt_data_network():
-            pass
         self.userid = inv.get_userid_mgmt_switch()
         self.password = inv.get_password_mgmt_switch()
 
@@ -89,24 +87,25 @@ class ConfigureMgmtSwitch(object):
             sys.exit(1)
 
         # Add management data port to management VLAN
-        if self.is_vlan_set_for_port(self.vlan_mgmt, self.mgmt_data_port):
-            self.log.info(
-                'Management VLAN %s is already added to access port %s' %
-                (self.vlan_mgmt, self.mgmt_data_port))
-        else:
-            self.issue_cmd(
-                self.ENABLE_REMOTE_CONFIG %
-                (self.ADD_VLAN_TO_ACCESS_PORT %
-                 (self.mgmt_data_port, self.vlan_mgmt)))
-            if self.is_vlan_set_for_port(self.vlan_mgmt, self.mgmt_data_port):
+        for mgmt_data_port in inv.yield_ports_mgmt_data_network():
+            if self.is_vlan_set_for_port(self.vlan_mgmt, mgmt_data_port):
                 self.log.info(
-                    'Added management VLAN %s to access port %s' %
-                    (self.vlan_mgmt, self.mgmt_data_port))
+                    'Management VLAN %s is already added to access port %s' %
+                    (self.vlan_mgmt, mgmt_data_port))
             else:
-                self.log.error(
-                    'Failed adding management VLAN %s to access port %s' %
-                    (self.vlan_mgmt, self.mgmt_data_port))
-                sys.exit(1)
+                self.issue_cmd(
+                    self.ENABLE_REMOTE_CONFIG %
+                    (self.ADD_VLAN_TO_ACCESS_PORT %
+                     (mgmt_data_port, self.vlan_mgmt)))
+                if self.is_vlan_set_for_port(self.vlan_mgmt, mgmt_data_port):
+                    self.log.info(
+                        'Added management VLAN %s to access port %s' %
+                        (self.vlan_mgmt, mgmt_data_port))
+                else:
+                    self.log.error(
+                        'Failed adding management VLAN %s to access port %s' %
+                        (self.vlan_mgmt, mgmt_data_port))
+                    sys.exit(1)
 
         # Create management client VLAN
         if self.is_vlan_set(self.vlan_mgmt_client):

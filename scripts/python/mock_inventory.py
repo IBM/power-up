@@ -105,11 +105,9 @@ def get_port_mac_ip(inv):
 def get_switch_ip_to_mac_map(inv):
 
     switch_ip_to_mac_map = {}
-    ip_to_rack_id = {}
     rack_id_to_ip = {}
 
     for rack_id, rack_ip in inv.inv['ipaddr-data-switch'].iteritems():
-        ip_to_rack_id[rack_ip] = rack_id
         rack_id_to_ip[rack_id] = rack_ip
 
     for key, template in inv.inv['node-templates'].items():
@@ -120,6 +118,8 @@ def get_switch_ip_to_mac_map(inv):
                     for rack, ports in racks.items():
 
                         switch_ip = rack_id_to_ip[rack]
+                        if type(switch_ip) == list:
+                            switch_ip = switch_ip[0]
 
                         if switch_ip not in switch_ip_to_mac_map:
                             switch_ip_to_mac_map[switch_ip] = {}

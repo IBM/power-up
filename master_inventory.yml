@@ -26,18 +26,36 @@ version: 1.1
 
 ipaddr-mgmt-network: 192.168.16.0/20   # 4096 addresses
 ipaddr-mgmt-switch:
-    rack1: 192.168.16.20  # if redundant-network is set to 1, genesis will look for an additional switch at the next sequential address.
-    rack2: 192.168.16.2
-    rack3: 192.168.16.3
-    rack4: 192.168.16.4
-    rack5: 192.168.16.5
-    spine: 192.168.16.6
-ipaddr-data-switch:
-    rack1: 192.168.16.20  # if redundant-network is set to 1, genesis will look for an additional switch at the next sequential address.
-    rack2: 192.168.16.25
+    rack1: 192.168.16.2
+    rack2: 192.168.16.3
+    rack3: 192.168.16.4
+ipaddr-data-switch: # Without MLAG, can be string or list with a single element
+    rack1: 192.168.16.20
+    rack2:
+        - 192.168.16.25
     rack3: 192.168.16.30
-    rack4: 192.168.16.35
-    rack5: 192.168.16.40
+ipaddr-data-switch: # With MLAG, must be list with two elements
+    rack1:
+        - 192.168.16.25
+        - 192.168.16.26
+ipaddr-mlag-vip:
+    _rack1: 192.168.16.254
+cidr-mlag-ipl:
+    _rack1:
+        - 10.0.0.1/24
+        - 10.0.0.2/24
+mlag-vlan:
+    rack1: 4000
+mlag-port-channel:
+    rack1: 6
+mlag-ipl-ports:
+    rack1:
+        -
+            - 7
+            - 8
+        -
+            - 7
+            - 8
 redundant-network: false
 userid-default: user
 password-default: passw0rd
