@@ -18,7 +18,7 @@
 - name: container/set_data_switch_config.yml
   hosts: deployer
   tasks:
-    - name: kjl
+    - name: "Set data switch configuration"
       command: "{{ python_executable }} \
                 {{ scripts_path }}/python/set_data_switch_config.py \
                 {{ inventory }} \
