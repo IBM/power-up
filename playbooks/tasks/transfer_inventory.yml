@@ -30,4 +30,13 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Remove 'ansible_user' and 'ansible_ssh_private_key_file' keys
+  lineinfile:
+    dest: /var/oprc/inventory.yml
+    state: absent
+    regexp: "{{ item }}"
+  with_items:
+    - "^ansible_user:"
+    - "^ansible_ssh_private_key_file:"
 ...

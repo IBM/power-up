@@ -403,10 +403,12 @@ def populate_hosts_and_groups(inventory, inventory_source):
 
     inventory['all']['children'] = groups
 
-    inventory['all']['vars']['ansible_user'] = (
-        inventory_source['ansible_user'])
-    inventory['all']['vars']['ansible_ssh_private_key_file'] = (
-        inventory_source['ansible_ssh_private_key_file'])
+    if 'ansible_user' in inventory_source:
+        inventory['all']['vars']['ansible_user'] = (
+            inventory_source['ansible_user'])
+    if 'ansible_ssh_private_key_file' in inventory_source:
+        inventory['all']['vars']['ansible_ssh_private_key_file'] = (
+            inventory_source['ansible_ssh_private_key_file'])
 
 
 def populate_network_variables(inventory, inventory_source):
