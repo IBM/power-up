@@ -51,53 +51,9 @@ Project Resources
 
 For additional instructions and developer resources:
 
-* `User's Guide on Read the Docs <http://cluster-genesis.readthedocs.io>`_
-* `/docs <docs>`_ directory.
+* `User's Guide <http://cluster-genesis.readthedocs.io>`_ at 'Read the Docs'
+* `Developer's Guide <docs/OPCG_dev_guide.rst>`_
 * IRC:  #cluster-genesis channel on freenode.net
-
-
-Deployer Node Installation
-==========================
-
-::
-
-$ git clone https://github.com/open-power-ref-design/cluster-genesis.git
-$ cd cluster-genesis
-$ ./scripts/install.sh
-$ source scripts/setup-env
-$ cd playbooks
-
-
-Create LXC Container
-====================
-
-LXC container hosts features such as provisioning scripts, cluster
-configurations data, cobbler instance, DHCP server, and HTTP server.
-
-::
-
-$ ansible-playbook -i hosts lxc-create.yml -K
-
-
-Configure LXC Container and Provision Client Nodes
-==================================================
-
-::
-
-$ ansible-playbook -i hosts install.yml -K
-
-
-Configure Cluster Node Networks
-===============================
-
-After the OS installation, the ansible playbooks below will setup the networks
-on the client nodes as defined in the config.yml file.
-
-::
-
-$ ansible-playbook -i ./inventory.py ssh_keyscan.yml
-$ ansible-playbook -i ./inventory.py gather_mac_addresses.yml
-$ ansible-playbook -i ./inventory.py configure_operating_systems.yml
 
 
 Authors
