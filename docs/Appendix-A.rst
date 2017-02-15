@@ -19,17 +19,6 @@ Appendix - A Cheat Sheet
 
 **Installing the OpenPOWER Cluster Genesis Software**::
 
-    $ export GIT_SSL_NO_VERIFY=1
-	
--  Change the root password to passw0rd::
-
-    $ sudo passwd root    (set to passw0rd)
-    
--  If the root account does not exist (is not unlocked)::
-
-    $ sudo passwd root (then enter passw0rd twice)
-    $ sudo -u root  (to unlock the root passwd) (to lock again after running genesis: sudo passwd -l root)
-
 - Install git
     - Ubuntu::
 
@@ -57,10 +46,10 @@ Appendix - A Cheat Sheet
     $ ansible-playbook -i hosts lxc-create.yml -K (create container. Verify container networks)
 
 To begin cluster genesis::
-	
+
     $ ansible-playbook -i hosts install.yml -K (begins cluster genesis)
     Allow several minutes to run.
-   
+
 
 After the command prompt returns, run the following to see the status/progress of
 operating system load for each cluster node::
