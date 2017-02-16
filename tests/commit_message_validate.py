@@ -27,7 +27,7 @@ def get_head_commit_message():
 
 
 valid_subject_tags = ['feat:', 'fix:', 'docs:', 'style:', 'refactor:',
-                      ' test:', 'chore']
+                      'test:', 'chore']
 no_errors = True
 errors = []
 
