@@ -129,9 +129,7 @@ prompt_deployer_access_info ()
     while true; do
         collect_deployer_access_info
         echo
-        echo "Is the following information correct?"
-        echo
-        display_deployer_access_info
+        echo "Please confirm the information above is correct"
         echo
         read -p "[yes/no]: " yn
         case $yn in
@@ -162,7 +160,7 @@ done
 
 echo "## Deployer OS Information #############" >> $DEPLOYER_INFO_SAVE
 hostname >> $DEPLOYER_INFO_SAVE
-lsb_release -idrc >> $DEPLOYER_INFO_SAVE
+cat /etc/os-release >> $DEPLOYER_INFO_SAVE
 uname -a >> $DEPLOYER_INFO_SAVE
 echo >> $DEPLOYER_INFO_SAVE
 
@@ -177,13 +175,13 @@ git status >> $DEPLOYER_INFO_SAVE
 git log --oneline >> $DEPLOYER_INFO_SAVE
 echo >> $DEPLOYER_INFO_SAVE
 
-echo "    [sudo required to collect lxc status]"
+echo "[sudo required to collect lxc status]"
 echo "## Deployer LXC Information ############" >> $DEPLOYER_INFO_SAVE
 sudo lxc-ls -f >> $DEPLOYER_INFO_SAVE
+echo >> $DEPLOYER_INFO_SAVE
 
 echo "## Deployer Network Configuration ######" >> $DEPLOYER_INFO_SAVE
 ip addr >> $DEPLOYER_INFO_SAVE
-
 
 echo "Saving git diff to $GIT_REPO_INFO_SAVE"
 echo "############################" > $GIT_REPO_INFO_SAVE
