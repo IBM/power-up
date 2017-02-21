@@ -116,8 +116,8 @@ networks:
         method: static
         # name of physical interfaces to bond together.
         bond-interfaces:
-            - eth0
-            - eth1
+            - eth10
+            - eth11
         # if necessary not all bond modes support a primary slave
         bond-primary: eth10
         # bond-mode, needs to be one of 7 types
@@ -218,7 +218,6 @@ node-templates:
             - _external1
             - _external2
             - _pxe-dhcp
-            - _manual-bond1
             - _standalone-bond0
     _compute:
         hostname: compute
@@ -263,7 +262,6 @@ node-templates:
             - _external2
             - _pxe-dhcp
             - _manual-bond1
-            - _standalone-bond0
 
 software-bootstrap:
     all: apt-get update
