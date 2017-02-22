@@ -26,7 +26,7 @@
             dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-amd64.iso"
       - name: ubuntu-16.04.1-server-amd64
         images:
-          - url: "http://releases.ubuntu.com/16.04.1/ubuntu-16.04.1-server-amd64.iso"
+          - url: "http://old-releases.ubuntu.com/releases/xenial/ubuntu-16.04.1-server-amd64.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-amd64.iso"
       - name: ubuntu-14.04.5-server-ppc64el
         images:
@@ -36,7 +36,7 @@
             dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-ppc64el.mini.iso"
       - name: ubuntu-16.04.1-server-ppc64el
         images:
-          - url: "http://cdimage.ubuntu.com/releases/16.04.1/release/ubuntu-16.04.1-server-ppc64el.iso"
+          - url: "http://old-releases.ubuntu.com/releases/xenial/ubuntu-16.04.1-server-ppc64el.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-ppc64el.iso"
           - url: "http://ports.ubuntu.com/dists/xenial-updates/main/installer-ppc64el/current/images/netboot/mini.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-ppc64el.mini.iso"
