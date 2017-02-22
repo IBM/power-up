@@ -17,7 +17,6 @@
 
 - include: lxc-update.yml
 - include: container/set_mgmt_switch_config.yml
-- include: container/set_data_switch_config.yml
 - include: container/cobbler/cobbler_install.yml
 - include: container/inv_add_ports.yml port_type=ipmi
 - include: container/inv_add_switches.yml
