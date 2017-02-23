@@ -295,4 +295,4 @@ include bill of materials, system diagrams and config.yml files;
 - openstack-recipes
 - acclerated-db
 
-`OpenPOWER reference designs <https://github.com/open-power-ref-design>`_
+`OpenPOWER reference designs <https://github.com/open-power-ref-design-toolkit>`_

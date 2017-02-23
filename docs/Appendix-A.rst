@@ -30,7 +30,7 @@ Appendix - A Cheat Sheet
 
 - From your home directory, clone Cluster Genesis::
 
-    $ git clone https://github.com/open-power-ref-design/cluster-genesis
+    $ git clone https://github.com/open-power-ref-design-toolkit/cluster-genesis
 
 **Running the OpenPOWER Cluster Genesis Software**::
 

@@ -36,7 +36,7 @@ Prepare New Host
 
 #. From your home directory, clone Cluster Genesis::
 
-    user@new-host:~$ git clone https://github.com/open-power-ref-design/cluster-genesis
+    user@new-host:~$ git clone https://github.com/open-power-ref-design-toolkit/cluster-genesis
 
 #. Install the remaining software packages used by Cluster Genesis and
    setup the environment::

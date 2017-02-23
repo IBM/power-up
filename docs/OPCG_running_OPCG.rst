@@ -34,7 +34,7 @@ Installing and Running the Genesis code. Step by Step Instructions
     
 #.  From your home directory, clone Cluster Genesis::
 
-      $ git clone https://github.com/open-power-ref-design/cluster-genesis
+      $ git clone https://github.com/open-power-ref-design-toolkit/cluster-genesis
       
 #.  Install the remaining software packages used by Cluster Genesis and 
     setup the environment::
