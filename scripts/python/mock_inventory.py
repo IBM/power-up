@@ -20,6 +20,7 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import argparse
 import sys
+import os
 from shutil import copy2
 import fileinput
 from orderedattrdict import AttrDict
@@ -34,6 +35,7 @@ def mock_inventory(cfg_file, inv_file, log_level):
 
     # install.yml - include: lxc-update.yml
     copy2(cfg_file, inv_file)
+    os.chmod(inv_file, 0o644)
     for line in fileinput.input(inv_file, inplace=1):
         print(line, end='')
         if line.startswith('password-default'):
