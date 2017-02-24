@@ -396,7 +396,7 @@ class Inventory():
         # userid and password
         userid = self.inv[INV_USERID_DATA_SWITCH]
         password = self.inv[INV_PASSWORD_DATA_SWITCH]
-        return_value = {}
+        return_value = AttrDict()
         for rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].values():
             if type(rack_ip) == list:
                 for ip in rack_ip:
