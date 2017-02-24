@@ -6,5 +6,5 @@ Release Table
 
    "0.9", "Antares", "2016-10-24", "TBD"
    "1.0", "Betelgeuse", "2017-01-25", "TBD"
-   "TBD", "Castor", "TBD", "TBD"
+   "1.1", "Castor", "2017-02-24", "TBD"
    "TBD", "Denebola", "TBD", "TBD"
