@@ -106,8 +106,8 @@ def get_port_mac_ip(inv):
 
 def get_switch_ip_to_mac_map(inv):
 
-    switch_ip_to_mac_map = {}
-    rack_id_to_ip = {}
+    switch_ip_to_mac_map = AttrDict()
+    rack_id_to_ip = AttrDict()
 
     for rack_id, rack_ip in inv.inv['ipaddr-data-switch'].iteritems():
         rack_id_to_ip[rack_id] = rack_ip
@@ -120,19 +120,31 @@ def get_switch_ip_to_mac_map(inv):
                     for rack, ports in racks.items():
 
                         switch_ip = rack_id_to_ip[rack]
+
                         if type(switch_ip) == list:
-                            switch_ip = switch_ip[0]
+                            for mlag_switch_ip in switch_ip:
+                                if mlag_switch_ip not in switch_ip_to_mac_map:
+                                    switch_ip_to_mac_map[mlag_switch_ip] = {}
 
-                        if switch_ip not in switch_ip_to_mac_map:
-                            switch_ip_to_mac_map[switch_ip] = {}
+                                rack_num += 1
 
-                        rack_num += 1
+                                for port in ports:
+                                    mac = (b'00:A1:%02d:%02d:00:00' %
+                                           (rack_num, int(port)))
+                                    switch_ip_to_mac_map[mlag_switch_ip][str(port)] = (
+                                        [mac])
 
-                        for port in ports:
-                            mac = (b'00:00:%02d:%02d:00:00' %
-                                   (rack_num, int(port)))
-                            switch_ip_to_mac_map[switch_ip][str(port)] = (
-                                [mac])
+                        else:
+                            if switch_ip not in switch_ip_to_mac_map:
+                                switch_ip_to_mac_map[switch_ip] = {}
+
+                            rack_num += 1
+
+                            for port in ports:
+                                mac = (b'00:00:%02d:%02d:00:00' %
+                                       (rack_num, int(port)))
+                                switch_ip_to_mac_map[switch_ip][str(port)] = (
+                                    [mac])
 
     return switch_ip_to_mac_map
 
