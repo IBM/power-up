@@ -23,11 +23,12 @@
   notify: Wait for system to come back up
 
 - name: Wait for system to come back up
-  local_action: wait_for state=started
-                delay="{{ reboot_delay_time }}"
-                port=22
-                search_regex=OpenSSH
-                timeout="{{ reboot_wait_interval }}"
-                host="{{ inventory_hostname }}"
+  local_action: wait_for
+  args:
+    delay: "{{ reboot_delay_time }}"
+    port: 22
+    search_regex: OpenSSH
+    timeout: "{{ reboot_wait_interval }}"
+    host: "{{ ansible_ssh_host | default(inventory_hostname) }}"
 
 ...

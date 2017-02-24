@@ -33,4 +33,4 @@ log_level: "info"
 # How long to wait for a server to reboot
 reboot_wait_interval: 660
 # How long to wait for the server to go down before polling to see if its up
-reboot_delay_time: 120
+reboot_delay_time: 300
