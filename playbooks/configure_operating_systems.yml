@@ -29,6 +29,13 @@
   handlers:
     - include: handlers/reboot.yml
 
+- name: Wait for networks to initialize
+  hosts: localhost
+  tasks:
+    - name: Pause 1 minute
+      pause:
+        minutes: 1
+
 - name: Transfer keys
   hosts: controllers:compute
   tasks:
