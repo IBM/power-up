@@ -18,6 +18,7 @@
 import os.path
 import paramiko
 import re
+from orderedattrdict import AttrDict
 
 from lib.logger import Logger
 
@@ -44,14 +45,14 @@ class MellanoxSwitch(object):
             self.log.set_level(log_level)
 
     def get_macs(self, inv):
-        switch_ip_to_mac_map = {}
+        switch_ip_to_mac_map = AttrDict()
         for switch_ip, creds in inv.get_data_switches().iteritems():
             output = self.issue_cmd(SHOW_MACS_CMD, switch_ip, creds['user'],
                                     creds['password'])
-            port_to_mac = {}
+            port_to_mac = AttrDict()
             for line in output.splitlines():
                 mac_search = MAC_RE.search(line)
-                if mac_search:
+                if mac_search and "/" in line:
                     macAddr = mac_search.group().lower()
                     portInfo = line.split("/")
                     if len(portInfo) == 3:
