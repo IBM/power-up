@@ -198,11 +198,11 @@ class ConfigureMgmtSwitch(object):
         return False
 
     def is_vlan_set_for_port(self, vlan, port):
-        pattern = re.compile(r'^\s+VLANs:\s+(\S+)', re.MULTILINE)
+        pattern = re.compile(r'^\s+VLANs:(.+)', re.MULTILINE)
         match = pattern.search(
             self.issue_cmd(self.SHOW_VLANS % (port)))
         if match:
-            if str(vlan) in match.group(1).split(','):
+            if str(vlan) in re.split(',| ', match.group(1)):
                 return True
         return False
 
