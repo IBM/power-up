@@ -84,6 +84,9 @@ class TestOSInterfacesInventory(unittest.TestCase):
         inventory_source['nodes'].update(gen_group(3))
         inventory_source['nodes'].update(gen_group(5))
         inventory_source['nodes'].update(gen_group(1))
+        inventory_source['node-templates'] = {'g3': {},
+                                              'g5': {},
+                                              'g1': {}}
 
         test_mod.populate_hosts_and_groups(inventory, inventory_source)
         children = inventory['all'].pop('children')
@@ -102,6 +105,52 @@ class TestOSInterfacesInventory(unittest.TestCase):
                     'ng50': {}, 'ng51': {}, 'ng53': {},
                     'ng54': {}, 'ng10': {}, 'ng52': {}}}}
         self.assertDictEqual(inventory, expected)
+
+        # Test with templates having a mix of roles
+        inventory = {'all': {'vars': {}},
+                     '_meta': {'hostvars': {}}
+                     }
+        inventory_source = {'nodes': {}}
+        inventory_source['nodes'].update(gen_group(3))
+        inventory_source['nodes'].update(gen_group(5))
+        inventory_source['nodes'].update(gen_group(1))
+
+        g3_roles = ['r1', 'r2', 'r3']
+        g5_roles = ['r4', 'r5']
+        g1_roles = ['r1', 'r4']
+        inventory_source['node-templates'] = {'g3': {'roles': g3_roles},
+                                              'g5': {'roles': g5_roles},
+                                              'g1': {'roles': g1_roles}}
+        test_mod.populate_hosts_and_groups(inventory, inventory_source)
+
+        self.assertItemsEqual(inventory['r1'],
+                              ['ng10', 'ng30', 'ng31', 'ng32'])
+        self.assertItemsEqual(inventory['r2'],
+                              ['ng30', 'ng31', 'ng32'])
+        self.assertItemsEqual(inventory['r3'],
+                              ['ng30', 'ng31', 'ng32'])
+        self.assertItemsEqual(inventory['r4'],
+                              ['ng10', 'ng50', 'ng51', 'ng52', 'ng53', 'ng54'])
+        self.assertItemsEqual(inventory['r5'],
+                              ['ng50', 'ng51', 'ng52', 'ng53', 'ng54'])
+        children = inventory['all'].pop('children')
+        self.assertItemsEqual(['g1', 'g3', 'g5', 'r1', 'r2', 'r3', 'r4', 'r5'],
+                              children)
+
+        # Test with a template having a role that matches its name
+        inventory = {'all': {'vars': {}},
+                     '_meta': {'hostvars': {}}
+                     }
+        inventory_source = {'nodes': {}}
+        inventory_source['nodes'].update(gen_group(5))
+
+        inventory_source['node-templates'] = {'g5': {'roles': ['g5']}}
+        test_mod.populate_hosts_and_groups(inventory, inventory_source)
+        self.assertItemsEqual(inventory['g5'],
+                              ['ng50', 'ng51', 'ng52', 'ng53', 'ng54'])
+
+        children = inventory['all'].pop('children')
+        self.assertItemsEqual(['g5'], children)
 
     def test_sanitize_variable_name(self):
         name = 'hi-this-is-me'

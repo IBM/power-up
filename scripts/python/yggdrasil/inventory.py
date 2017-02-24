@@ -393,15 +393,38 @@ def get_host_ip_to_node(inventory_source):
 def populate_hosts_and_groups(inventory, inventory_source):
     # Create the 'all' group and children groups based on the
     # node groupings in the source inventory.
-    groups = []
-    for node_group, nodes in inventory_source['nodes'].iteritems():
-        groups.append(node_group)
-        inventory[node_group] = [node[HOST_IP_KEY] for node in nodes]
-        # Add empty hostvars
-        for node in inventory[node_group]:
-            inventory['_meta']['hostvars'][node] = {}
 
-    inventory['all']['children'] = groups
+    group_to_members = {}
+
+    def add_group_members(group, members):
+        member_list = group_to_members.get(group, [])
+        if not member_list:
+            group_to_members[group] = member_list
+        for member in members:
+            if member not in member_list:
+                member_list.append(member)
+
+    for template_name, nodes in inventory_source['nodes'].iteritems():
+        # Add empty hostvars for every node
+        for node in nodes:
+            inventory['_meta']['hostvars'][node[HOST_IP_KEY]] = {}
+
+        # get member nodes
+        members = [node[HOST_IP_KEY] for node in nodes]
+
+        # Add members to group based on template name
+        add_group_members(template_name, members)
+
+        # Add members to groups based on role names
+        node_template = inventory_source['node-templates'][template_name]
+        roles = node_template.get('roles', [])
+        for role in roles:
+            add_group_members(role, members)
+
+    for group, members in group_to_members.iteritems():
+        inventory[group] = members
+
+    inventory['all']['children'] = group_to_members.keys()
 
     if 'ansible_user' in inventory_source:
         inventory['all']['vars']['ansible_user'] = (
