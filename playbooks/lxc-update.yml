@@ -143,8 +143,8 @@
       command: >
         /bin/bash -c "
         source {{ venv_path }}/bin/activate &&
-        pip install --ignore-installed pyaml orderedattrdict pysnmp pyghmi \
-        paramiko tabulate &&
+        pip install --ignore-installed 'pyasn1==0.2.2' pyaml orderedattrdict
+        pysnmp pyghmi paramiko tabulate &&
         deactivate"
 
     - name: "Copy config file into deployment container"
