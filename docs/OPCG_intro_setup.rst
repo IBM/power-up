@@ -48,23 +48,21 @@ Hardware and Architecture Overview
 
 The OpenPOWER Cluster Genesis software supports clusters of servers
 interconnected with Ethernet. The
-servers must support IPMI and PXE boot. Currently single rack
-non-redundant networking (single data switch) is supported. Support for
-redundant networks and multiple racks is being added. Multiple racks can
+servers must support IPMI and PXE boot. Currently single racks with single 
+or redundant data switches (with MLAG) are supported. Multiple racks can
 be interconnected with traditional two tier access-aggregation
-networking or two tier leaf-spine networks with L3 interconnect capable
-of supporting VXLAN.
+networking.  In the future we plan to support two tier leaf-spine networks 
+with L3 interconnect capable of supporting VXLAN.
 
 Networking
 ~~~~~~~~~~
 
 The data network is implemented using the Mellanox SX1410 10 Gb switch.
 OPCG will support any number of data interfaces on the compute nodes.
-(Currently OPCG supports one or two ethernet interfaces.  These interfaces
-can be bonded.)  The first release of OPCG implements non-redundant data network. A
-follow on release will support redundant switches and expansion to multiple racks.
+Currently OPCG supports one or two ethernet interfaces.  These interfaces
+can be bonded with support for LAG or MLAG.
 
-Templates can definge multiple network configurations in the config.yml file.
+Templates are used to define multiple network configurations in the config.yml file.
 These can be physical ports, bonded ports, Linux bridges or vLANS. Physical ports can be
 renamed to ease installation of additional software stack elements.
 
@@ -73,7 +71,9 @@ Compute Nodes
 
 OPCG supports clusters of heterogeneous compute nodes. Users can define any number of
 node types by creating templates in a config file. Node templates can
-include any network templates defined in the network templates section.
+include any network templates defined in the network templates section.  The combination of
+node templates and network templates allows great flexibility in building heterogeneous clusterx with nodes 
+dedicated to specific purposes.
 
 Supported Hardware
 ~~~~~~~~~~~~~~~~~~~
@@ -83,12 +83,12 @@ OpenPOWER Compute Nodes;
 -  S812LC
 -  S822LC
 -  Tyan servers derived from the above 2 nodes are generally supported.
+-  SuperMicro OpenPOWER servers
 
 x86 Compute Nodes;
 
 -  Lenovo x3550
 -  Lenovo x3650
--  Lenovo RD550
 
 Data Switches;
 
@@ -100,8 +100,6 @@ Support for Lenovo G8264 is planned
 Management Switches;
 
 -  Lenovo G8052
--  Lenovo G7028
--  Lenovo G7052
 
 Prerequisite hardware setup
 ============================
@@ -113,29 +111,32 @@ Hardware initialization
    a list of all switch port to compute node connections is available
    and verified. Note that every node to be deployed, must have a BMC
    and PXE connection to a management switch. (see the example cluster
-   in Appendix-C or D)
+   in Appendix-D)
 -  Cable the deployer node to the cluster management network. It is
    strongly recommended that the deployer node be connected directly to
    the management switch. For large cluster deployments, a 10 Gb
    connection is recommended. The deployer node must also have access to
-   the public (or site) network for accessing software and image files.
-   If the cluster management network does not have external access, an
-   alternate connection with external access must be provided such as
-   the cluster data network, or wireless etc.
+   the public internet (or site) network for accessing software and operating 
+   system image files.  If the cluster management network does not have 
+   external access, an alternate connection with external access must be 
+   provided such as the cluster data network, or wireless etc.
 -  Insure that the BMC ports of all cluster nodes are configured to
    obtain an IP address via DHCP.
 -  If this is a first time OS install, insure that all PXE ports are
-   also configured to obtain an ip address via DHCP.
+   also configured to obtain an ip address via DHCP.  On OpenPOWER
+   servers, this is typically done using the Petitboot menus.
 -  Acquire any needed public and or site network addresses
 -  Insure you have a config.yml file to drive the cluster configuration.
    If necessary, edit / create the config.yml file (see section
    `4 <#anchor-4>`__ `Creating the config.yml File <#anchor-4>`__)
--  Configure data switch(es) (for out of box installation, it is usually
-   necessary to configure the switch using a serial connection. See the
-   switch installation guide. For Mellanox switches set "zeroconf on
-   mgmt0 interface:" to no)
+-  Configure data switch(es) For out of box installation, it is usually
+   easiest to configure the switch using a serial connection. See the
+   switch installation guide. Using the Mellanox configuration wizard;
 
    -  assign hostname
+   -  set DHCP to no for management interfaces
+   -  set zeroconf on mgmt0 interface: to no
+   -  do not enable ipv6 on management interfaces
    -  assign static ip address. This must match the address specified in
       the config.yml file (keyname: ipaddr-data-switch:) and be in
       a *different* subnet than your cluster management subnet used for BMC
@@ -145,6 +146,7 @@ Hardware initialization
    -  default gateway
    -  Primary DNS server
    -  Domain name
+   -  Set Enable ipv6 to no
    -  admin password. This must match the password specified in the
       config.yml file (keyword: password-data-switch:). Note that all
       data switches in the cluster must have the same userid and
@@ -159,28 +161,42 @@ Hardware initialization
       the config file have access to the cluster. (for a brand new
       switch this step can be ignored)
 
-      -  login to the switch
-      -  enable
-      -  configure terminal
-      -  show vlan (note those vlans that include the ports of the nodes
-         to be included in the new cluster)
-      -  remove those vlans or remove those ports from existing vlans
+      -  login to the switch::
+	  
+          enable
+          configure terminal
+          show vlan 
+ 
+         note those vlans that include the ports of the nodes to be included in the new cluster and remove those vlans or remove those ports from existing vlans::
 
-         -  no vlan n
+          no vlan n
 
-   -  Save config (In switch config mode: *configuration write* for
-      Mellanox switches *copy running-config startup-config* for Lenovo
-      switches (*write* works for G8052, G70XX). Consult vendor
-      documentation.)::
+   -  Save config.  In switch config mode::
 
-        Note that the management ports for the data and management switches
-        in your cluster must all be in the same subnet. It is recommended
-        that the subnet used for switch management be a private subnet
-        which exists on the cluster management switches. If an external
-        network is used to access the management interfaces of your cluster
-        switches, insure that you have a route from the deployment
-        container to the switch management interfaces.  Generally this is
-        handled automatically when Linux creates the deployer container.
+	   configuration write
+
+      Note that the management ports for the data and management switches
+      in your cluster must all be in the same subnet. It is recommended
+      that the subnet used for switch management be a private subnet
+      which exists on the cluster management switches. If an external
+      network is used to access the management interfaces of your cluster
+      switches, insure that you have a route from the deployment
+      container to the switch management interfaces.  Generally this is
+      handled automatically when Linux creates the deployer container.
+		
+   -  If using redundant data switches with MLAG, configure link aggregation
+      (LAG) on the interswitch peer links (IPL) links.  (It is important to
+      do this before cabling multiple links between the switches which will
+      otherwise result in loops)::
+
+        switch> en
+        switch# conf t
+        switch(config)# interface port-channel 6    (example port channel No.  We advise to use the number of the lowest port in the group
+        switch(config interface port-channel 1) # exit
+        switch(config)# lacp
+        switch(config)# interface ethernet 1/6-1/7      (example port channel #s eg ports 6 and 7)
+        switch(config interface ethernet 1/6-1/7)# channel-group 6 mode active
+        switch(config interface ethernet 1/6-1/7)# exit
 
 -  Configure Management switch(es) (for out of box installation, it is
    usually necessary to configure the switch using a serial connection.
@@ -192,39 +208,43 @@ Hardware initialization
       switches.  This must match the vlan specified by the "vlan-mgmt-network:"
       key in your cluster configuration (config.yml) file::
 
-        RS 8052> enable
-        RS 8052# configure terminal
-        RS 8052 (config)# vlan 16
+        RS G8052> enable
+        RS G8052# configure terminal
+        RS G8052(config)# vlan 16
         RS G8052(config-vlan)# enable
         RS G8052(config-vlan)# exit
 
    -  Enable IP interface mode for the management interface::
 
-        RS 8052 (config)# interface ip 1
+        RS G8052(config)# interface ip 1
 
    -  assign a static ip address, netmask and gateway address to the management interface.
       This must match the address specified in
       the config.yml file (keyname: ipaddr-mgmt-switch:) and be in a
       *different* subnet than your cluster management subnet. Place this
-      interface in the above created vlan::
+      interface in the above created vlan.  (Note: if the following configuration
+      is executed on the interface you are using to communicate with the switch,
+      you will lose connectivity when the vlan is applied.  To avoid this, use the
+      serial connection or an alternate management interface)::
 
-        RS 8052 (config-ip-if)# ip address 192.168.16.20 (example IP address)
-        RS 8052 (config-ip-if)# ip netmask 255.255.255.0
-        RS 8052 (config-ip-if)# vlan 16
-        RS 8052 (config-ip-if)# enable
-        RS 8052 (config-ip-if)# exit
+        RS G8052(config-ip-if)# ip address 192.168.16.20 (example IP address)
+        RS G8052(config-ip-if)# ip netmask 255.255.255.0
+        RS G8052(config-ip-if)# vlan 16
+        RS G8052(config-ip-if)# enable
+        RS G8052(config-ip-if)# exit
 
    -  Configure the default gateway and enable the gateway::
 
-        ip gateway 1 address 192.168.16.1  (example ip address)
-        ip gateway 1 enable
+        RS G8052(config)# ip gateway 1 address 192.168.16.1  (example ip address)
+        RS G8052(config)# ip gateway 1 enable
 
    -  Put the port used to connect to the deployer node (the node running
       Cluster Genesis) into trunk mode and add the above created vlan to that trunk::
 
-        interface port 46  (example port #)
-        switchport trunk allowed vlan 1,16
-        exit
+        RS G8052(config)# interface port 46  (example port #)
+        RS G8052(config-if)# switchport mode trunk
+        RS G8052(config-if)# switchport trunk allowed vlan 1,16
+        RS G8052(config-if)# exit
 
    -  Verify the management interface setup::
 
