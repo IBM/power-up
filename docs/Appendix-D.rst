@@ -174,7 +174,7 @@ be any of the above listed Lenovo switches::
         all: apt-get update
     #   _node-type2[0]: |
     #       export GIT_BRANCH=master
-    #       URL="https://raw.githubusercontent.com/open-power-ref-design/openstack-recipes/${GIT_BRANCH}/scripts/bootstrap-solution.sh"
+    #       URL="https://raw.githubusercontent.com/open-power-ref-design/private-compute-cloud/${GIT_BRANCH}/scripts/bootstrap-solution.sh"
     #       wget ${URL}
     #       chmod +x bootstrap-solution.sh
     #       ./bootstrap-solution.sh

@@ -17,7 +17,7 @@ Appendix - A Cheat Sheet
         - SSH login enabled
         - sudo priviledges
 
-**Installing the OpenPOWER Cluster Genesis Software**::
+**Installing the OpenPOWER Cluster Genesis Software**
 
 - Install git
     - Ubuntu::

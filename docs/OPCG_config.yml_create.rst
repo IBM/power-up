@@ -292,7 +292,10 @@ OpenPOWER reference design recipes
 Many OpenPOWER reference design recipes are available on github.  These recipes
 include bill of materials, system diagrams and config.yml files;
 
-- openstack-recipes
+- private-compute-cloud
+- standalone-ceph
+- standalone-swift
+- dbaas
 - acclerated-db
 
-`OpenPOWER reference designs <https://github.com/open-power-ref-design-toolkit>`_
+`OpenPOWER reference designs <https://github.com/open-power-ref-design>`_
