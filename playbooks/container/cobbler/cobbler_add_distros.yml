@@ -69,7 +69,8 @@
 
     - name: "Mount Distro installer images"
       mount:
-        name: "/mnt/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}"
+        name: "/mnt/{{ item.path | basename | \
+               regex_replace('^(.*).iso$', '\\1') }}"
         src: "{{ item.path }}"
         fstype: iso9660
         opts: loop,ro
@@ -81,14 +82,32 @@
       become_method: sudo
 
     - name: "Copy distro images to http repo directory"
-      command: "rsync -a /mnt/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}/ /var/www/html/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}/"
+      command: "rsync -a /mnt/{{ item.path | basename | \
+                regex_replace('^(.*).iso$', '\\1') }}/ \
+                /var/www/html/{{ item.path | basename | \
+                regex_replace('^(.*).iso$', '\\1') }}/"
       with_items:
         - "{{ iso_files.files }}"
       become: yes
       become_method: sudo
 
+    - name: "Create netboot directory for older ppc64el images"
+      file:
+        path: "/var/www/html/{{ item.path | basename | \
+               regex_replace('^(.*).mini.iso$', '\\1') \
+               }}/install/netboot/ubuntu-installer/ppc64el/"
+        state: directory
+      with_items:
+        - "{{ mini_iso_files.files }}"
+      become: yes
+      become_method: sudo
+
     - name: "Copy \"mini\" netboot files to web repo directory"
-      command: "rsync -a /mnt/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}/install/ /var/www/html/{{ item.path | basename | regex_replace('^(.*).mini.iso$', '\\1') }}/install/netboot/"
+      command: "rsync -a /mnt/{{ item.path | basename | \
+                regex_replace('^(.*).iso$', '\\1') }}/install/ \
+                /var/www/html/{{ item.path | basename | \
+                regex_replace('^(.*).mini.iso$', '\\1') \
+                }}/install/netboot/ubuntu-installer/ppc64el/"
       with_items:
         - "{{ mini_iso_files.files }}"
       become: yes
@@ -110,7 +129,7 @@
       become: yes
       become_method: sudo
 
-    - name: "Copy preseed & kickstart configurations to cobbler kickstart directory"
+    - name: "Copy preseed & kickstart files to cobbler kickstart directory"
       copy:
         src: "{{ item.path }}"
         remote_src: True
@@ -153,7 +172,8 @@
 
     - name: "Unmount distro installer images"
       mount:
-        name: "/mnt/{{ item.path | basename | regex_replace('^(.*).iso$', '\\1') }}"
+        name: "/mnt/{{ item.path | basename | \
+               regex_replace('^(.*).iso$', '\\1') }}"
         src: "{{ item }}"
         fstype: iso9660
         state: absent
@@ -163,8 +183,15 @@
       become: yes
       become_method: sudo
 
-    - name: "Call python \"cobbler_add_distros.py\" script to import distros and create default profiles"
-      command: "{{ python_executable }} {{ scripts_path }}/python/cobbler_add_distros.py /var/www/html/{{ item.path | basename | regex_replace('^(.*)[.]iso$', '\\1') }} {{ item.path | basename | regex_replace('^(.*)[.]iso$', '\\1') }} {{ log_level }}"
+    - name: "Call python \"cobbler_add_distros.py\" script to import distros \
+             and create default profiles"
+      command: "{{ python_executable }} \
+                {{ scripts_path }}/python/cobbler_add_distros.py \
+                /var/www/html/{{ item.path | basename | \
+                regex_replace('^(.*)[.]iso$', '\\1') }} \
+                {{ item.path | basename | \
+                regex_replace('^(.*)[.]iso$', '\\1') }} \
+                {{ log_level }}"
       with_items:
         - "{{ iso_files.files }}"
       become: yes

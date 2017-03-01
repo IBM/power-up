@@ -47,8 +47,12 @@ class CobblerAddDistros(object):
                         path)
                 elif item.lower() == 'ppc64el':
                     arch = 'ppc64le'
-                    kernel = "%s/install/netboot/vmlinux" % path
-                    initrd = "%s/install/netboot/initrd.gz" % path
+                    kernel = (
+                        "%s/install/netboot/ubuntu-installer/ppc64el/vmlinux"
+                        % path)
+                    initrd = (
+                        "%s/install/netboot/ubuntu-installer/ppc64el/initrd.gz"
+                        % path)
                 elif item.lower().startswith('14.04'):
                     os_version = 'trusty'
                 elif item.lower().startswith('16.04'):
