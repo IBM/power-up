@@ -1,5 +1,5 @@
 ---
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -52,10 +52,6 @@
       shell: "grep vlan-mgmt-client-network {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
       register: vlan_mgmt_client_network
 
-    - name: "Register primary network port"
-      shell: "ip route | grep ^default | awk '{print $5}'"
-      register: primary_network_port
-
     - name: "Update group_vars/all container_mgmt_subnet with no VLAN support"
       replace:
         dest: "{{ project_path_local }}/playbooks/group_vars/all"
@@ -84,7 +80,7 @@
 
     - name: "Ubuntu: Create bridge interfaces for VLAN Support"
       vars:
-        primary_port: "{{ primary_network_port.stdout }}"
+        primary_port: "{{ mgmt_network_interface }}"
         ipaddr_cidr: "{{ item.network | ipaddr(container_bridge_ipv4_offset) }}"
         vlan: "{{ item.vlan }}"
         bridge: "br{{ item.vlan }}"
@@ -117,7 +113,7 @@
 
     - name: "RHEL/CentOS: Create bridge interfaces for VLAN Support"
       vars:
-        primary_port: "{{ primary_network_port.stdout }}"
+        primary_port: "{{ mgmt_network_interface }}"
         ipaddr_cidr: "{{ item[0].network | ipaddr(container_bridge_ipv4_offset) }}"
         vlan: "{{ item[0].vlan }}"
         bridge: "br{{ item[0].vlan }}"
@@ -133,7 +129,7 @@
             - { network: "{{ ipaddr_mgmt_client_network.stdout }}",
                 vlan: "{{ vlan_mgmt_client_network.stdout }}"}
         -   - { temp: "{{ playbook_dir }}/templates/localhost/vlan-rhel.j2",
-                name: "{{ primary_network_port.stdout }}."}
+                name: "{{ mgmt_network_interface }}."}
             - { temp: "{{ playbook_dir }}/templates/localhost/bridge-rhel.j2",
                 name: "br"}
       notify: "restart networking"

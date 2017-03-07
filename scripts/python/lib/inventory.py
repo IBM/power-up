@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -116,6 +116,9 @@ class Inventory():
             self.log.error(
                 'Could not dump inventory to file: ' + self.inv_file)
             sys.exit(1)
+
+    def get_ipaddr_mgmt_network(self):
+        return self.inv[INV_IPADDR_MGMT_NETWORK]
 
     def add_switches(self):
         if (INV_USERID_MGMT_SWITCH in self.inv and

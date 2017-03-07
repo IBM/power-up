@@ -1,5 +1,5 @@
 ---
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -17,6 +17,7 @@
 
 container_name: ubuntu-14-04-deployer
 private_subnet: "10.0.3.0/24"
+mgmt_network_interface:
 project_path_local: "{{ ansible_env['PWD'] | regex_replace('^(.+/cluster-genesis).+?$', '\\1')}}"
 scripts_path_local: "{{ project_path_local }}/scripts"
 venv_path_local: "{{ project_path_local }}/deployenv"
