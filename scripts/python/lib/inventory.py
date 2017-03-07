@@ -224,7 +224,8 @@ class Inventory():
                     for ports_key, ports_value in _value.items():
                         if ports_key != INV_IPMI and ports_key != INV_PXE:
                             for rack in ports_value:
-                                vlan_dict[switch_index] = []
+                                if switch_index not in vlan_dict:
+                                    vlan_dict[switch_index] = []
                                 for network in value[INV_NETWORKS]:
                                     if INV_VLAN in self.inv[INV_NETWORKS][network]:
                                         _dict[INV_USERID_DATA_SWITCH] = userid
