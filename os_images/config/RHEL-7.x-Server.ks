@@ -7,7 +7,7 @@ text
 
 keyboard --vckeymap=us --xlayouts='us'
 lang en_US.UTF-8
-timezone America/Chicago
+timezone America/Chicago --utc
 
 auth --enableshadow --enablemd5
 user --name=defaultuser --groups=wheel $SNIPPET('password')
@@ -24,6 +24,7 @@ reboot
 bridge-utils
 vim
 wget
+ntp
 %end
 
 %pre

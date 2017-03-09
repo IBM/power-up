@@ -1,5 +1,5 @@
 ---
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -55,6 +55,7 @@
         - fence-agents
         - wget
         - vim
+        - ntp
       become: yes
       become_method: sudo
 
@@ -322,6 +323,20 @@
       become: yes
       become_method: sudo
 
+    - name: "Add mgmt subnet to NTP service configuration"
+      lineinfile:
+        dest: /etc/ntp.conf
+        line: "broadcast {{ container_mgmt_ipv4 | ipaddr('broadcast') }}"
+      become: yes
+      become_method: sudo
+
+    - name: "Restart NTP service"
+      service:
+        name: ntp
+        state: restarted
+      become: yes
+      become_method: sudo
+
     - name: "Restart cobblerd service"
       service:
         name: cobblerd
@@ -375,6 +390,13 @@
     - name: "Set cobblerd service to start on boot"
       service:
         name: cobblerd
+        enabled: yes
+      become: yes
+      become_method: sudo
+
+    - name: "Set NTP service to start on boot"
+      service:
+        name: ntp
         enabled: yes
       become: yes
       become_method: sudo

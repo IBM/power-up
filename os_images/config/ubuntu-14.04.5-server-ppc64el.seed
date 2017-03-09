@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -37,6 +37,7 @@ d-i live-installer/net-image string http://$http_server/ubuntu-14.04.5-server-pp
 d-i clock-setup/utc boolean true
 d-i time/zone string US/Central
 d-i clock-setup/ntp boolean true
+d-i clock-setup/ntp-server string $http_server
 ## Partitioning
 d-i partman-auto/disk string $getVar('install_disk', '/dev/sdj')
 d-i partman-auto/method string regular
@@ -56,7 +57,7 @@ $SNIPPET('password')
 d-i user-setup/allow-password-weak boolean true
 d-i user-setup/encrypt-home boolean false
 tasksel tasksel/first multiselect standard
-d-i pkgsel/include string openssh-server vlan bridge-utils vim ifenslave
+d-i pkgsel/include string openssh-server vlan bridge-utils vim ifenslave ntp ntpdate
 d-i pkgsel/update-policy select none
 d-i grub-installer/only_debian boolean false
 d-i grub-installer/with_other_os boolean false

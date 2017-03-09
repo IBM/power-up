@@ -54,7 +54,7 @@ Installing and Running the Genesis code. Step by Step Instructions
    RHEL iso is *RHEL-7.2-20151030.0-Server-ppc64le-dvd1.iso*, from within
    the */cluster-genesis/os\_images/config directory*::
 
-      $ cp RHEL-7.2-Server-ppc64le.ks RHEL-7.2-20151030.0-Server-ppc64le-dvd1.ks
+      $ cp RHEL-7.x-Server.ks RHEL-7.2-20151030.0-Server-ppc64le-dvd1.ks
 
    (The cobbler-profile: key in your config.yml file should have a value
    of RHEL-7.2-20151030.0-Server-ppc64le-dvd1 (no .ks extension)*
