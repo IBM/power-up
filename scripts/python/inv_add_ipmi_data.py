@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -123,7 +123,7 @@ class IpmiData(object):
                 ": '" +
                 ipmi_key + '[' + ipmi_field + ']' +
                 "' = " +
-                ipmi_value[ipmi_field])
+                str(ipmi_value[ipmi_field]))
             if inv_value:
                 return inv_value
             else:
