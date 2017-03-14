@@ -51,5 +51,5 @@ fi
 sudo -H pip install virtualenv
 virtualenv --no-wheel --system-site-packages deployenv
 source deployenv/bin/activate
-pip install 'ansible~=2.2.1.0' orderedattrdict
+pip install 'ansible~=2.2.1.0' orderedattrdict pyroute2
 deactivate
