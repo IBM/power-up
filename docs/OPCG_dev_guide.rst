@@ -36,6 +36,10 @@ Commit Message Rules
     - Lines must not exceed 72 characters
     - Periods must be followed by single space
 
+Commit message rules are enforced within a tox environment::
+
+    cluster-genesis$ tox -e commit_message_validate
+
 Unit Tests and Linters
 ----------------------
 
@@ -95,3 +99,35 @@ Linters can be run through tox::
     cluster-genesis$ tox -e ansible-lint
 
 Or called directly (again, be mindful of your python environment!)
+
+Copyright Date Validation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If any changed files include a copyright header the year must be current. This
+rule is enforced within a tox environment::
+
+    cluster-genesis$ tox -e verify_copyright
+
+Mock Inventory Generation
+-------------------------
+
+Upon completion, Cluster-Genesis provides an inventory of the cluster (saved
+locally on the deployer at /var/oprc/inventory.yml). This inventory is used to
+generate an Ansible dynamic inventory. It can also be consumed by other
+post-deployment services.
+
+A 'mock' inventory can be generated from any config.yml file. A tox environment
+is provided to automatically create a python virtual environment with all
+required dependencies. By default the 'config.yml' file in the cluster-genesis
+root directory will be used as the input::
+
+    cluster-genesis$ tox -e mock_inventory
+
+    usage: mock_inventory.py [-h] [config_file] [inventory_file]
+
+    positional arguments:
+      config_file     Input config.yml to process
+      inventory_file  Output inventory.yml path
+
+    optional arguments:
+      -h, --help      show this help message and exit
