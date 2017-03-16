@@ -36,6 +36,12 @@ SSH_HOST=$(grep -oh "ansible_host=[^ ]*" "${PLAYBOOKS}/hosts" | \
 SSH_KEY=$(grep -oh "ansible_ssh_private_key_file=[^ ]*" \
     "${PLAYBOOKS}/hosts" | awk -F = '{print $2}')
 
+# Get mgmt and data switch SSH userids
+MGMT_SWITCH_SSH_USER=$(awk -F: '/userid-mgmt-switch:/{print $2}' \
+    ${PROJECT_DIR}/config.yml)
+DATA_SWITCH_SSH_USER=$(awk -F: '/userid-data-switch:/{print $2}' \
+    ${PROJECT_DIR}/config.yml)
+
 # Create Directories
 TAG="logdump.$HOST.$DATE"
 if [ ! -d "${PROJECT_DIR}/debug_data" ]; then
@@ -63,6 +69,9 @@ ANSIBLE_LOG_SAVE="${LOGS_DIR}/${TAG}.deployer.ansible.log"
 
 LXC_CONF_PATH="${PLAYBOOKS}/lxc.conf"
 LXC_CONF_SAVE="${LOGS_DIR}/${TAG}.deployer.lxc.conf"
+
+MGMT_SWITCH_SAVE="${LOGS_DIR}/${TAG}.mgmt_switch"
+DATA_SWITCH_SAVE="${LOGS_DIR}/${TAG}.data_switch"
 
 # Container File Pointers
 INV_CONTAINER_PATH="~/cluster-genesis/inventory.yml"
@@ -125,7 +134,6 @@ save_deployer_access_info ()
 
 prompt_deployer_access_info ()
 {
-
     while true; do
         collect_deployer_access_info
         echo
@@ -138,9 +146,31 @@ prompt_deployer_access_info ()
             * ) echo "Please answer yes or no.";;
         esac
     done
-
 }
 
+get_config_key ()
+{
+    KEY=$1
+    FOUND=false
+    INDEX=0
+    while IFS='' read line; do
+        if [[ $line == $"$KEY:"* ]]; then
+            FOUND=true
+            continue
+        fi
+        if [ "$FOUND" = true ]; then
+            if [[ $line == $"    "* ]]; then
+                TEST=$(awk '{split($0, a); print a[2]}' <<< $line)
+                if [ ! -z $TEST ]; then
+                    config_value[$INDEX]=$TEST
+                    INDEX=($INDEX+1)
+                fi
+            else
+                FOUND=false
+            fi
+        fi
+    done < "$CONFIG_PATH"
+}
 
 # Collect Data!
 echo "Saving deployer information to $DEPLOYER_INFO_SAVE"
@@ -205,7 +235,6 @@ echo "## git diff HEAD #######################" >> $GIT_REPO_INFO_SAVE
 git diff HEAD >> $GIT_REPO_INFO_SAVE
 echo >> $GIT_REPO_INFO_SAVE
 
-
 # Save off local deployer files
 save_local_file $CONFIG_PATH $CONFIG_SAVE
 save_local_file $CONFIG_BACKUP_PATH $CONFIG_BACKUP_SAVE
@@ -214,9 +243,27 @@ save_local_file $ANSIBLE_LOG_PATH $ANSIBLE_LOG_SAVE
 save_local_file $LXC_CONF_PATH $LXC_CONF_SAVE
 
 # Save off files in container
-save_container_file "~/fake.file" "filler"
 save_container_file $INV_CONTAINER_PATH $INV_CONTAINER_SAVE
 save_container_file $GENESIS_LOG_PATH $GENESIS_LOG_SAVE
+
+# Save mgmt switch(es) configuration
+get_config_key "ipaddr-mgmt-switch"
+for ip in "${config_value[@]}"; do
+    echo "Collecting mgmt switch config from ${MGMT_SWITCH_SSH_USER}@$ip"
+    ssh ${MGMT_SWITCH_SSH_USER}@$ip 'en; conf t; line vty length 0; sh run' \
+        > "$MGMT_SWITCH_SAVE.$ip.log" || \
+        echo "WARNING: ssh returned non-zero return code!"
+done
+
+# Save data switch(es) configuration
+get_config_key "ipaddr-data-switch"
+for ip in "${config_value[@]}"; do
+    echo "Collecting data switch config from ${DATA_SWITCH_SSH_USER}@$ip"
+    ssh ${DATA_SWITCH_SSH_USER}@$ip \
+        'cli enable show\ running-config show\ vlan show\ mac-address-table' \
+        > "$DATA_SWITCH_SAVE.$ip.log" || \
+        echo "WARNING: ssh returned non-zero return code!"
+done
 
 # Tar & compress logs
 tar -cvzf "${LOGS_DIR}.tgz" -C "${PROJECT_DIR}/debug_data" "${TAG}"
