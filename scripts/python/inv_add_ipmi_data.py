@@ -20,106 +20,129 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 from pyghmi.ipmi import command as ipmi_command
+import pyghmi.exceptions as ipmi_exc
 
 from lib.inventory import Inventory
 from lib.logger import Logger
 
 
 class IpmiData(object):
+    IPMI_SYSTEM_FIRMWARE = b'System Firmware'
+    IPMI_SYSTEM = b'System'
+    IPMI_NODE1 = b'NODE 1'
+    IPMI_HARDWARE_VERSION = b'Hardware Version'
+    IPMI_PRODUCT_NAME = b'Product name'
+    IPMI_CHASSIS_PART_NUMBER = b'Chassis part number'
+    IPMI_CHASSIS_SERIAL_NUMBER = b'Chassis serial number'
+    IPMI_MODEL = b'Model'
+    IPMI_SERIAL_NUMBER = b'Serial Number'
+    IPMI_OPENPOWER_FW = b'OpenPOWER Firmware'
+    PPC64 = b'ppc64'
+    ARCHITECTURE = b'architecture'
+    NONE = b'None'
+
     def __init__(self, log_level, inv_file):
         self.log = Logger(__file__)
         if log_level is not None:
             self.log.set_level(log_level)
 
-        IPMI_SYSTEM = b'System'
-        IPMI_NODE1 = b'NODE 1'
-        self.IPMI_CHASSIS_PART_NUMBER = b'Chassis part number'
-        self.IPMI_CHASSIS_SERIAL_NUMBER = b'Chassis serial number'
-        self.IPMI_MODEL = b'Model'
-        self.IPMI_SERIAL_NUMBER = b'Serial Number'
-        self.IPMI_SYSTEM_FIRMWARE = b'System Firmware'
-        self.IPMI_PRODUCT_NAME = b'Product name'
-        self.IPMI_OPENPOWER_FW = b'OpenPOWER Firmware'
-        self.PPC64 = b'ppc64'
+        self.inv = Inventory(log_level, inv_file)
 
-        self.inv_obj = Inventory(log_level, inv_file)
-
-        for inv, key, _key, index, self.node in self.inv_obj.yield_nodes():
+        for _, _, self.group, self.index, self.node in \
+                self.inv.yield_nodes():
             ipmi_cmd = ipmi_command.Command(
-                bmc=self.node[self.inv_obj.INV_IPV4_IPMI],
-                userid=self.node[self.inv_obj.INV_USERID_IPMI],
-                password=self.node[self.inv_obj.INV_PASSWORD_IPMI])
-            fw = ipmi_cmd.get_inventory_of_component(
-                self.IPMI_SYSTEM_FIRMWARE)
+                bmc=self.node[self.inv.INV_IPV4_IPMI],
+                userid=self.node[self.inv.INV_USERID_IPMI],
+                password=self.node[self.inv.INV_PASSWORD_IPMI])
+
+            components = []
             try:
-                if self.IPMI_PRODUCT_NAME in fw.keys():
-                    if (fw[self.IPMI_PRODUCT_NAME] ==
-                            self.IPMI_OPENPOWER_FW):
-                        value = self.get_ipmi(
-                            self.IPMI_SYSTEM_FIRMWARE,
-                            self.IPMI_PRODUCT_NAME,
-                            fw,
-                            self.PPC64)
-                        if value is not None:
-                            self.inv_obj.add_to_node(
-                                _key,
-                                index,
-                                self.inv_obj.INV_ARCHITECTURE,
-                                value)
-            except AttributeError:
-                pass
-            for ipmi_key, ipmi_value in ipmi_cmd.get_inventory():
-                self.log.debug('%s: %s' % (ipmi_key, ipmi_value))
-                if ipmi_key == IPMI_SYSTEM or ipmi_key == IPMI_NODE1:
-                    value = self.get_ipmi(
-                        ipmi_key,
-                        self.IPMI_CHASSIS_PART_NUMBER,
-                        ipmi_value)
-                    if value is not None:
-                        self.inv_obj.add_to_node(
-                            _key,
-                            index,
-                            self.inv_obj.INV_CHASSIS_PART_NUMBER,
-                            value)
-                    value = self.get_ipmi(
-                        ipmi_key,
-                        self.IPMI_CHASSIS_SERIAL_NUMBER,
-                        ipmi_value)
-                    if value is not None:
-                        self.inv_obj.add_to_node(
-                            _key,
-                            index,
-                            self.inv_obj.INV_CHASSIS_SERIAL_NUMBER,
-                            value)
-                    value = self.get_ipmi(
-                        ipmi_key,
-                        self.IPMI_MODEL,
-                        ipmi_value)
-                    if value is not None:
-                        self.inv_obj.add_to_node(
-                            _key,
-                            index,
-                            self.inv_obj.INV_MODEL,
-                            value)
-                    value = self.get_ipmi(
-                        ipmi_key,
-                        self.IPMI_SERIAL_NUMBER,
-                        ipmi_value)
-                    if value is not None:
-                        self.inv_obj.add_to_node(
-                            _key,
-                            index,
-                            self.inv_obj.INV_SERIAL_NUMBER,
-                            value)
-                    if ipmi_key == IPMI_NODE1:
-                        break
+                for desc in ipmi_cmd.get_inventory_descriptions():
+                    components.append(desc)
+            except ipmi_exc.IpmiException as exc:
+                self._log_ipmi_exception(exc)
+                continue
+
+            self.comp_name = self.IPMI_SYSTEM_FIRMWARE
+            if self.comp_name in components:
+                try:
+                    self.comp_value = ipmi_cmd.get_inventory_of_component(
+                        self.comp_name)
+                    self._get_ipmi_architecture()
+                    self._get_ipmi_field(self.IPMI_HARDWARE_VERSION)
+                except ipmi_exc.IpmiException as exc:
+                    self._log_ipmi_exception(exc)
+
+            self.comp_name = self.IPMI_SYSTEM
+            if self.comp_name in components:
+                try:
+                    self.comp_value = ipmi_cmd.get_inventory_of_component(
+                        self.comp_name)
+                    self._get_ipmi_field(self.IPMI_PRODUCT_NAME)
+                    self._get_ipmi_field(self.IPMI_CHASSIS_PART_NUMBER)
+                    self._get_ipmi_field(self.IPMI_CHASSIS_SERIAL_NUMBER)
+                    self._get_ipmi_field(self.IPMI_MODEL)
+                    self._get_ipmi_field(self.IPMI_SERIAL_NUMBER)
+                except ipmi_exc.IpmiException as exc:
+                    self._log_ipmi_exception(exc)
+
+            self.comp_name = self.IPMI_NODE1
+            if self.comp_name in components:
+                try:
+                    self.comp_value = ipmi_cmd.get_inventory_of_component(
+                        self.comp_name)
+                    self._get_ipmi_field(self.IPMI_CHASSIS_PART_NUMBER)
+                    self._get_ipmi_field(self.IPMI_CHASSIS_SERIAL_NUMBER)
+                except ipmi_exc.IpmiException as exc:
+                    self._log_ipmi_exception(exc)
+
+    def _log_ipmi_exception(self, exc):
+        self.log.warning(
+            self.node[self.inv.INV_IPV4_IPMI] +
+            ": Could not collect IPMI data for '" +
+            self.comp_name +
+            "' component" +
+            ' - Error: ' + str(exc))
+
+    def _get_ipmi_architecture(self):
+        if self.comp_value:
+            if (self.comp_value[self.IPMI_PRODUCT_NAME] ==
+                    self.IPMI_OPENPOWER_FW):
+                value = self.get_ipmi(
+                    self.comp_name,
+                    self.IPMI_PRODUCT_NAME,
+                    self.comp_value,
+                    self.PPC64)
+                if value is not None and value != self.NONE:
+                    self.inv.add_to_node(
+                        self.group,
+                        self.index,
+                        self.ARCHITECTURE,
+                        value)
+
+    def _get_ipmi_field(self, ipmi_field):
+        if self.comp_value:
+            value = self.get_ipmi(
+                self.comp_name,
+                ipmi_field,
+                self.comp_value)
+            if value is not None and value != self.NONE:
+                self.inv.add_to_node(
+                    self.group,
+                    self.index,
+                    str(ipmi_field.lower().replace(' ', '_').replace(
+                        '-', '_')),
+                    value)
 
     def get_ipmi(
-        self,
-            ipmi_key, ipmi_field, ipmi_value, inv_value=None):
+            self,
+            ipmi_key,
+            ipmi_field,
+            ipmi_value,
+            inv_value=None):
         if ipmi_field in ipmi_value:
             self.log.info(
-                self.node[self.inv_obj.INV_IPV4_IPMI] +
+                self.node[self.inv.INV_IPV4_IPMI] +
                 ": '" +
                 ipmi_key + '[' + ipmi_field + ']' +
                 "' = " +
@@ -130,7 +153,7 @@ class IpmiData(object):
                 return str(ipmi_value[ipmi_field])
         else:
             self.log.info(
-                self.node[self.inv_obj.INV_IPV4_IPMI] +
+                self.node[self.inv.INV_IPV4_IPMI] +
                 ": '" +
                 ipmi_key + '[' + ipmi_field + ']' +
                 "' not found")
@@ -142,23 +165,23 @@ if __name__ == '__main__':
     Arg1: inventory file
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             exit(1)
 
-    log.clear()
+    LOG.clear()
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
+    INV_FILE = sys.argv[1]
+    if ARGV_COUNT == ARGV_MAX:
+        LOG_LEVEL = sys.argv[2]
     else:
-        log_level = None
+        LOG_LEVEL = None
 
-    ipmi_data = IpmiData(log_level, inv_file)
+    IpmiData(LOG_LEVEL, INV_FILE)
