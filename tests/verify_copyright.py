@@ -25,7 +25,8 @@ import re
 
 
 def get_changed_files():
-    return subprocess.check_output(['git', 'diff', 'HEAD~', '--name-only'])
+    return subprocess.check_output(
+        ['git', 'diff', 'HEAD~', '--name-only', '--diff-filter=d'])
 
 
 current_year = str(datetime.today().year)
