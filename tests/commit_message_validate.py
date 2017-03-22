@@ -26,8 +26,8 @@ def get_head_commit_message():
     return subprocess.check_output(['git', 'log', '-1', '--pretty=%B'])
 
 
-valid_subject_tags = ['feat:', 'fix:', 'docs:', 'style:', 'refactor:',
-                      'test:', 'chore']
+valid_subject_tags = [
+    'feat:', 'fix:', 'docs:', 'style:', 'refactor:', 'test:', 'chore:']
 no_errors = True
 errors = []
 
