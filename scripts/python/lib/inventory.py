@@ -45,6 +45,8 @@ INV_BOND_PRIMARY = 'bond-primary'
 INV_PORTS = 'ports'
 INV_ETH10 = 'eth10'
 INV_ETH11 = 'eth11'
+INV_ETH12 = 'eth12'
+INV_ETH13 = 'eth13'
 INV_IPMI = 'ipmi'
 INV_PXE = 'pxe'
 INV_USERID_IPMI = 'userid-ipmi'
@@ -77,6 +79,8 @@ INV_MAC_PXE = 'mac-pxe'
 INV_RACK_ID = 'rack-id'
 INV_PORT_ETH10 = 'port-eth10'
 INV_PORT_ETH11 = 'port-eth11'
+INV_PORT_ETH12 = 'port-eth12'
+INV_PORT_ETH13 = 'port-eth13'
 INV_TEMPLATE = 'template'
 
 
@@ -447,10 +451,18 @@ class Inventory():
                                 node_dict[INV_PORT_IPMI] = ipmi_port
                                 node_dict[INV_PORT_PXE] = \
                                     value[INV_PORTS][INV_PXE][rack][port_index]
-                                node_dict[INV_PORT_ETH10] = \
-                                    value[INV_PORTS][INV_ETH10][rack][port_index]
-                                node_dict[INV_PORT_ETH11] = \
-                                    value[INV_PORTS][INV_ETH11][rack][port_index]
+                                if INV_ETH10 in value[INV_PORTS]:
+                                    node_dict[INV_PORT_ETH10] = \
+                                        value[INV_PORTS][INV_ETH10][rack][port_index]
+                                if INV_ETH11 in value[INV_PORTS]:
+                                    node_dict[INV_PORT_ETH11] = \
+                                        value[INV_PORTS][INV_ETH11][rack][port_index]
+                                if INV_ETH12 in value[INV_PORTS]:
+                                    node_dict[INV_PORT_ETH12] = \
+                                        value[INV_PORTS][INV_ETH12][rack][port_index]
+                                if INV_ETH13 in value[INV_PORTS]:
+                                    node_dict[INV_PORT_ETH13] = \
+                                        value[INV_PORTS][INV_ETH13][rack][port_index]
                                 node_dict[INV_MAC_IPMI] = mgmt_port[ipmi_port]
                                 node_dict[INV_IPV4_IPMI] = \
                                     dhcp_mac_ip[mgmt_port[ipmi_port]]
@@ -554,7 +566,9 @@ class Inventory():
                     if port_name not in INV_MANAGEMENT_PORTS:
                         if (not self.is_mlag() or
                                 (self.is_mlag() and index == 0 and port_name == INV_ETH10) or
-                                (self.is_mlag() and index == 1 and port_name == INV_ETH11)):
+                                (self.is_mlag() and index == 1 and port_name == INV_ETH11) or
+                                (self.is_mlag() and index == 0 and port_name == INV_ETH12) or
+                                (self.is_mlag() and index == 1 and port_name == INV_ETH13)):
                             node_port_on_rack = str(node.get(INV_PORT_PATTERN %
                                                     port_name, ''))
                             macs = switch_ports_to_MACs.get(node_port_on_rack, [])
