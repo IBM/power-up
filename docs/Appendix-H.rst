@@ -37,7 +37,7 @@ Switch connectivity Issues:
    directly from deployer to the switch using the ipaddr,userid, and
    password keys defined in the config.yml
 
-Missing Hardware 
+Missing Hardware
 ~~~~~~~~~~~~~~~~~
 
 Hardware can fail to show up for various reasons. Most of the time these
@@ -276,7 +276,7 @@ the "container/set\_data\_switch\_config.yml" playbook to fail:
 
 * 1 ---*
 
-* 2 # Copyright 2016, IBM US, Inc.*
+* 2 # Copyright 2017, IBM US, Inc.*
 
 * 3 *
 
@@ -344,7 +344,7 @@ install playbook)**
 
 **---**
 
-**# Copyright 2016 IBM Corp.**
+**# Copyright 2017 IBM Corp.**
 
 **#**
 

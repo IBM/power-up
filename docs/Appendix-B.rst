@@ -1,5 +1,5 @@
 
-Appendix - B The System Configuration File 
+Appendix - B The System Configuration File
 ===========================================
 
 Genesis of the OpenPOWER Cloud Reference Config is controlled by the
@@ -42,7 +42,7 @@ config.yml YAML File format:
 ::
 
     ---
-    # Copyright 2016 IBM Corp.
+    # Copyright 2017 IBM Corp.
     #
     # All Rights Reserved.
     #
