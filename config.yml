@@ -1,5 +1,5 @@
 ---
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -37,6 +37,10 @@ port-mgmt-data-network:
     _rack1: 47
 ipaddr-mgmt-switch:
     _rack1: 192.168.16.20
+label-mgmt-switch-external-dev: enp1s0f0
+cidr-mgmt-switch-external-dev: 192.168.1.10/24
+ipaddr-mgmt-switch-external:
+    _rack1: 192.168.1.11
 ipaddr-data-switch: # Without MLAG, can be string or list with a single element
     _rack1: 192.168.16.25
     _rack2:

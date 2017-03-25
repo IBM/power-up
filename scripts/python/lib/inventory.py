@@ -24,6 +24,9 @@ from lib.logger import Logger
 
 INV_IPADDR_MGMT_NETWORK = 'ipaddr-mgmt-network'
 INV_IPADDR_MGMT_SWITCH = 'ipaddr-mgmt-switch'
+INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV = 'label-mgmt-switch-external-dev'
+INV_CIDR_MGMT_SWITCH_EXTERNAL_DEV = 'cidr-mgmt-switch-external-dev'
+INV_IPADDR_MGMT_SWITCH_EXTERNAL = 'ipaddr-mgmt-switch-external'
 INV_IPADDR_DATA_SWITCH = 'ipaddr-data-switch'
 INV_IPADDR_MLAG_VIP = 'ipaddr-mlag-vip'
 INV_CIDR_MLAG_IPL = 'cidr-mlag-ipl'
@@ -216,6 +219,20 @@ class Inventory():
                                     port_list.append(port)
         for port in port_list:
             yield port
+
+    def get_mgmt_switch_external_dev_label(self):
+        if INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV in self.inv:
+            return self.inv[INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV]
+
+    def get_mgmt_switch_external_dev_ip(self):
+        return self.inv[INV_CIDR_MGMT_SWITCH_EXTERNAL_DEV].split('/')[0]
+
+    def get_mgmt_switch_external_prefix(self):
+        return self.inv[INV_CIDR_MGMT_SWITCH_EXTERNAL_DEV].split('/')[1]
+
+    def yield_mgmt_switch_external_switch_ip(self):
+        for ipv4 in self.inv[INV_IPADDR_MGMT_SWITCH_EXTERNAL].values():
+            yield ipv4
 
     def yield_data_vlans(self):
         _dict = AttrDict()
