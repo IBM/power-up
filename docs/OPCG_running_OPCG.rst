@@ -37,7 +37,10 @@ Installing and Running the Genesis code. Step by Step Instructions
     lines to your .bashrc file.  It is recommended that you allow this.
     These lines can be removed using the "tear-down" script.
 
-
+#. If introspection is enabled then follow the instructions in
+   `Building Necessary Config Files <OPCG_build_introspection.rst#building-necessary-config-files>`_
+   to set the 'IS_BUILDROOT_CONFIG' and 'IS_KERNEL_CONFIG' environment
+   variables.
 #. copy your config.yml file to the ~/cluster-genesis directory (see
    section `4 <#anchor-4>`__ `Creating the config.yml
    File <#anchor-4>`__ for how to create the config.yml file)
@@ -119,12 +122,12 @@ After all BMC and PXE ports have been discovered Genesis will begin operating sy
 #. Introspection
 
 If introspection is enabled then all client systems will be booted into the
-in-memory OS with ssh enabled. One of the last tasks of this phase of Cluster 
+in-memory OS with ssh enabled. One of the last tasks of this phase of Cluster
 Genesis will print a table of all introspection hosts, including their
 IP addresses and login / ssh private key credentials. This list is maintained
 in the 'cluster-genesis/playbooks/hosts' file under the 'introspections' group.
-Genesis will pause after the introspection OS deployement to allow for customized 
-updates to the cluster nodes.  Use ssh (future: or Ansible) to run custom scripts 
+Genesis will pause after the introspection OS deployement to allow for customized
+updates to the cluster nodes.  Use ssh (future: or Ansible) to run custom scripts
 on the client nodes.
 
 #. To continue the Genesis process, press enter and/or enter the sudo password

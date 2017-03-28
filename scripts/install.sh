@@ -22,7 +22,8 @@ if [[ $ID == "ubuntu" ]]; then
 
     sudo apt-get update
     sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
-        python-netaddr ipmitool aptitude lxc vim vlan bridge-utils
+        python-netaddr ipmitool aptitude lxc vim vlan bridge-utils gcc cpp \
+        g++ make unzip libncurses5 libncurses5-dev
 
     if [[ $VERSION_ID == "14.04" ]]; then
         sudo apt-get -y install lxc-dev liblxc1
@@ -33,7 +34,8 @@ if [[ $ID == "ubuntu" ]]; then
 elif [[ $ID == "rhel" ]]; then
     sudo yum -y install python-pip python-devel libffi-devel openssl-devel \
         python-netaddr ipmitool lxc lxc-devel lxc-extra lxc-templates libvirt \
-        debootstrap gcc vim vlan bridge-utils
+        debootstrap gcc vim vlan bridge-utils cpp flex bison unzip cmake \
+        gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue ncurses-devel
     sudo systemctl start lxc.service
     sudo systemctl start libvirtd
 

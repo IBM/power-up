@@ -1,0 +1,39 @@
+From 9d31ccdeb6adcb17dec0a2100785540ebc0f7e56 Mon Sep 17 00:00:00 2001
+From: Douglas Lehr <dllehr@us.ibm.com>
+Date: Mon, 27 Mar 2017 16:35:11 -0500
+Subject: [PATCH] revert: Move openssh back to 7.1p2
+
+Newer releases of openssh deprecate a lot of the older forms of
+encryption, namely rsa<1024 bytes.  The genesis project currently
+uses such a key.  We need to turn back the openssh included in
+buildroot.
+---
+ package/openssh/openssh.hash | 2 +-
+ package/openssh/openssh.mk   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/package/openssh/openssh.hash b/package/openssh/openssh.hash
+index 09010d3..e117e0a 100644
+--- a/package/openssh/openssh.hash
++++ b/package/openssh/openssh.hash
+@@ -1,3 +1,3 @@
+ # Locally calculated after checking pgp signature
+ # Also from http://www.openssh.com/txt/release-7.4
+-sha256 1b1fc4a14e2024293181924ed24872e6f2e06293f3e8926a376b8aec481f19d1  openssh-7.4p1.tar.gz
++sha256  dd75f024dcf21e06a0d6421d582690bf987a1f6323e32ad6619392f3bfde6bbd        openssh-7.1p2.tar.gz
+diff --git a/package/openssh/openssh.mk b/package/openssh/openssh.mk
+index ce37ee7..0e5898d 100644
+--- a/package/openssh/openssh.mk
++++ b/package/openssh/openssh.mk
+@@ -4,7 +4,7 @@
+ #
+ ################################################################################
+ 
+-OPENSSH_VERSION = 7.4p1
++OPENSSH_VERSION = 7.1p2
+ OPENSSH_SITE = http://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable
+ OPENSSH_LICENSE = BSD-3c, BSD-2c, Public Domain
+ OPENSSH_LICENSE_FILES = LICENCE
+-- 
+2.7.4
+

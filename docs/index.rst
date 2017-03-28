@@ -18,6 +18,7 @@ Welcome to Cluster Genesis User's Guide documentation!
     Hoa Ngo,
     Nilesh Shah,
     Jorge Yanez,
+    Doug Lehr
 
 
 .. toctree::
@@ -31,6 +32,7 @@ Welcome to Cluster Genesis User's Guide documentation!
    OPCG_config.yml_create
    OPCG_running_OPCG
    OPCG_dev_guide
+   OPCG_build_introspection
    Appendix-A
    Appendix-B
    Appendix-C
