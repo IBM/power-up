@@ -79,6 +79,15 @@ class CobblerAddDistros(object):
             kernel_options = "text"
             kickstart = "/var/lib/cobbler/kickstarts/%s.ks" % name
 
+        elif 'introspection' in name_list:
+            breed = 'redhat'  # use default since there is no "buildroot" breed
+            os_version = ''
+            arch = 'ppc64le'
+            kernel = "%s/vmlinux" % path
+            initrd = "%s/rootfs.cpio.gz" % path
+            kernel_options = ''
+            kickstart = ''
+
         cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
         token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 

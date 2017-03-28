@@ -513,6 +513,13 @@ class Inventory():
             for index, node in enumerate(value):
                 yield self.inv, INV_NODES, key, index, node
 
+    def get_node_count(self):
+        count = 0
+        for key, value in self.inv[INV_NODES].items():
+            for index, node in enumerate(value):
+                count += 1
+        return count
+
     def yield_node_ipmi(self):
         for key, value in self.inv[INV_NODES].items():
             for node in value:

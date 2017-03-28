@@ -34,3 +34,5 @@ log_level: "debug"
 reboot_wait_interval: 660
 # How long to wait for the server to go down before polling to see if its up
 reboot_delay_time: 300
+
+introspection_enabled: false

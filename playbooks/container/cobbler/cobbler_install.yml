@@ -289,6 +289,7 @@
       with_items:
         - {regexp: 'TIMEOUT \d+', replace: 'TIMEOUT 35996'}
         - {regexp: 'TOTALTIMEOUT \d+', replace: 'TOTALTIMEOUT 35996'}
+      when: not introspection_enabled
       become: yes
       become_method: sudo
 

@@ -230,3 +230,14 @@
         -   - "{{ known_hosts }}"
             - "~/.ssh/known_hosts"
       when: not networks_only
+
+    - name: "Register introspection-enabled config.yml value"
+      shell: "grep introspection-enabled {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: introspection_enabled_config
+
+    - name: "Update introspection_enabled in group_vars/deployers"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/group_vars/all"
+        regexp: '^(introspection_enabled:).*$'
+        replace: '\1 true'
+      when: introspection_enabled_config.stdout|lower == "true"
