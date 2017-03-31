@@ -1,0 +1,191 @@
+#!/bin/bash
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+redcent=2
+source /etc/os-release
+echo;
+echo "OS: "$ID
+if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ]; then
+    redcent=1
+elif [ "$ID" = "ubuntu" ]; then
+    redcent=0
+fi
+#############################################################
+vlanmgmt=$(awk -F: '/vlan-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
+vlanmgmt=${vlanmgmt%%#*}
+vlanmgmt=${vlanmgmt//[$'\t\r\n ']}
+vlanmgmtclient=$(awk -F: '/vlan-mgmt-client-network:/{print $2}' ~/cluster-genesis/config.yml)
+vlanmgmtclient=${vlanmgmtclient%%#*}
+vlanmgmtclient=${vlanmgmtclient//[$'\t\r\n ']}
+bridgemgmt="br"$vlanmgmt
+bridgemgmtinterface=$(brctl show|grep $bridgemgmt|awk -F" " '{print $4}')
+bridgemgmtclient="br"$vlanmgmtclient
+bridgemgmtclientinterface=$(brctl show|grep $bridgemgmtclient|awk -F" " '{print $4}')
+cname=$(sudo lxc-ls |grep -m 1 'deployer')
+if [ ! -z $cname ]; then
+   echo "found container: "$cname
+else
+   echo "no container found"
+fi
+if [ -z "$(brctl show|grep -m 1 $bridgemgmt)" ]; then
+    bridgemgmt=""
+fi
+if [ -z "$(brctl show|grep -m 1 $bridgemgmtclient)" ]; then
+    bridgemgmtclient=""
+fi
+echo "Found interfaces:"
+echo "$bridgemgmt"
+echo "$bridgemgmtinterface"
+echo "$bridgemgmtclient"
+echo "$bridgemgmtclientinterface"
+#########################################################
+if [ -d ~/cluster-genesis ]; then
+    read -p "Backup config.yml from ~/cluster-genesis to ~/configbak ? (y/n) " resp
+    if [ $resp == "y" ]; then
+       if [ ! -d ~/configbak ]; then
+           mkdir ~/configbak
+       fi
+       name="config.yml"$(date|tr ' ' '-' )
+       echo "copying config.yml to ~/configbak as "$name
+       cp ~/cluster-genesis/config.yml ~/configbak/config.yml$(date|tr ' ' '-' )
+    fi
+fi
+#########################################################
+if [ -d ~/cluster-genesis ]; then
+    read -p "Backup os images from ~/cluster-genesis/os_images to ~ ? (y/n) " resp
+    if [ $resp == "y" ]; then
+       name="os_images"$(date|tr ' ' '-' )"/"
+       echo "copying os_images to home directory as "$name
+       cp -r ~/cluster-genesis/os_images ~/$name
+    fi
+fi
+##################################################
+cmd=""
+read -p "Remove Genesis management ip address from management switch ? (y/n) " resp
+if [ $resp == "y" ]; then
+    addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch-external:/{getline; print $2}' ~/cluster-genesis/config.yml)
+    addrmgmtsw=${addrmgmtsw%%#*}  #remove trailing comments
+    addrmgmtsw=${addrmgmtsw//[$'\t\r\n ']}
+    addrgenmgmtsw=$(awk -F: '/ipaddr-mgmt-switch:/{getline; print $2}' ~/cluster-genesis/config.yml)
+    addrgenmgmtsw=${addrgenmgmtsw%%#*}  #remove trailing comments
+    addrgenmgmtsw=${addrgenmgmtsw//[$'\t\r\n ']}
+    echo "External addr for mgmt switch : "$addrmgmtsw
+    echo "Genesis addr for mgmt switch : "$addrgenmgmtsw
+    echo;
+    echo "Enter management switch password"
+    sstr=$(ssh admin@$addrmgmtsw "en; conf t; show interface ip; exit")
+    echo "$sstr"
+    ifcno=$(echo "$sstr"|grep $addrgenmgmtsw)
+    if [ ! -z "$ifcno" ]; then
+        ifcno=${ifcno%%:*}
+        ifcno=${ifcno// /}
+        cmd=$cmd" no interface ip "$ifcno";"
+#        echo $cmd
+    else
+        echo "Genesis management ip address not present on switch"
+    fi
+fi
+   echo;
+if [ ! -z "$cmd" ]; then
+    echo "en; conf t;"$cmd" exit"
+    ssh admin@$addrmgmtsw "en; conf t;"$cmd
+fi
+#################################################
+if [ ! -z "$bridgemgmt" ]; then
+    read -p "Tear down bridge $bridgemgmt ? (y/n) " resp
+    if [ $resp == "y" ]; then
+        sudo ip link set dev $bridgemgmt down
+        if [ ! -z $bridgemgmtinterface ]; then
+            echo;
+            echo "Removing bridge interface "$bridgemgmtinterface
+            sudo brctl delif $bridgemgmt $bridgemgmtinterface
+            sudo ip link set dev $bridgemgmtinterface down
+            sudo ip link delete $bridgemgmtinterface
+        fi 
+        sudo brctl delbr $bridgemgmt
+        if [ "$redcent" = 0 ]; then
+            sudo rm /etc/network/interfaces.d/$bridgemgmt
+        else
+            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmt
+            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtinterface
+        fi
+    fi
+fi
+#######################################################
+if [ ! -z "$bridgemgmtclient" ]; then
+    read -p "Tear down bridge $bridgemgmtclient ? (y/n) " resp
+    if [ $resp == "y" ]; then
+        sudo ip link set dev $bridgemgmtclient down
+        if [ ! -z $bridgemgmtclientinterface ]; then
+            echo;
+            echo "Removing bridge interface "$bridgemgmtclientinterface
+            sudo brctl delif $bridgemgmtclient $bridgemgmtclientinterface
+            sudo ip link set dev $bridgemgmtclientinterface down
+            sudo ip link delete $bridgemgmtclientinterface
+        fi
+        sudo brctl delbr $bridgemgmtclient
+        if [ "$redcent" = 0 ]; then
+            sudo rm /etc/network/interfaces.d/$bridgemgmtclient
+        else
+            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclient
+            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclientinterface
+        fi
+    fi
+fi
+##################################################
+if [ ! -z "$cname" ]; then
+    read -p "Destroy container: $cname ? (y/n) " resp
+    if [ $resp == "y" ]; then
+        dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+        echo $dep
+        depaddr=${dep##*,}
+        depaddr=${depaddr%-*}
+        depaddr=${depaddr// /}
+        echo "removing host key from known_hosts for container: "$depaddr
+        ssh-keygen -R $depaddr
+        echo;
+        echo "destroying container " $cname
+        sudo lxc-stop -n $cname
+        sudo lxc-destroy -n $cname
+    fi
+fi
+###################################################
+if [ -d ~/cluster-genesis ]; then
+    read -p "Remove cluster-genesis ? (y/n) " resp
+    if [ $resp == "y" ]; then
+       read -p "Are you sure - remove cluster-genesis ? (y/n) " resp
+       if [ $resp == "y" ]; then
+           echo;
+           echo "Removing Cluster Genesis "
+           rm -rf ~/cluster-genesis
+       fi
+    fi
+fi
+##################################################
+str=$(cat ~/.bashrc|grep "cluster-genesis")
+if [ ! -z "$str" ] || [[ "$PATH" == *"cluster-genesis"* ]]; then
+    read -p "Remove Cluster Genesis path entries in .bashrc and PATH? (y/n) " resp
+    if [[ "$resp" == "y"* ]]; then
+        sed -i '/cluster-genesis/d' ~/.bashrc
+        sed -i '/complete -W/d' ~/.bashrc
+        echo;
+        echo "To clean the PATH variable: source ~/bin/cleanpath"
+        echo "To remove Cluster Genesis scripts form you ~/bin directory:"
+        echo "rm ~/bin/tear-down"
+        echo "rm ~/bin/cleanpath"
+    fi
+fi

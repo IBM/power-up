@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -13,5 +13,38 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+ccmd="complete -W 'log logc status deploy enable_mgmt_switch tear-down \
+lxc-create install_1 install_2 show-switch --help post-deploy' gen"
+eval "$ccmd"
+P=`pwd`
+P=${P#*"cluster-genesis"}
+if [ -z $P ]; then
+    if [[ ! $PATH == *"cluster-genesis/scripts:"* ]]; then
+        export PATH=`pwd`/scripts:$PATH
+    fi
+    if [[ ! $PATH == *"cluster-genesis/deployenv/bin:"* ]]; then
+        export PATH=`pwd`/deployenv/bin:$PATH
+    fi
 
-export PATH=`pwd`/deployenv/bin:$PATH
+    inbash=$(grep `pwd`"/scripts:" ~/.bashrc)$(grep 'complete -W "log' ~/.bashrc)
+    if [ -z $inbash ]; then
+        echo $'\n'"OK for Cluster Genesis to add setup statements to your .bashrc"
+        read -p "file (statements can be removed by running tear-down) (y/n) ? " resp
+        if [[ $resp == "y" ]]; then
+            if [ -z $(grep `pwd`"/scripts:" ~/.bashrc) ]; then
+                echo "PATH="`pwd`"/scripts:\$PATH" >> ~/.bashrc
+            fi
+            if [ -z $(grep 'complete -W "log' ~/.bashrc) ]; then
+                echo $ccmd >> ~/.bashrc
+            fi
+        fi
+    fi
+    if [ ! -d ~/bin ]; then
+        mkdir ~/bin
+        export PATH=$PATH:$HOME/bin
+    fi
+    cp scripts/tear-down ~/bin
+    cp scripts/cleanpath ~/bin
+else
+    echo "Please run setup-env from within the cluster-genesis directory"
+fi

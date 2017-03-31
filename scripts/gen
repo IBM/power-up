@@ -1,0 +1,284 @@
+#!/bin/bash
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if [[ ! "$PATH" = *"cluster-genesis/scripts:"* ]]; then
+    echo "Please source the cluster-genesis/scripts/setup-env script"
+    echo "from the cluster-genesis directory"
+    exit
+fi
+
+if [ -z "$complete -p|grep 'gen'" ]; then
+    echo "Please source the cluster-genesis/scripts/setup-env script"
+    echo "from the cluster-genesis directory"
+    exit
+fi
+genplaypath=${PATH%"cluster-genesis/scripts"*}
+genscriptspath=${genplaypath#*:}cluster-genesis/scripts
+genplaypath=${genplaypath#*:}cluster-genesis/playbooks/
+gendepenvpath=${PATH%"cluster-genesis/scripts"*}
+gendepenvpath=${gendepenvpath#*:}cluster-genesis/deployenv/bin
+PATH=$gendepenvpath:$PATH
+################################################
+if [ -z "$1" ] || [ "$1" = "?" ]; then
+    echo;
+    echo "'gen --help' for usage and a list of available commands"
+    echo;
+    exit
+fi
+if [ "$1" = "--help" ]; then
+    cmds=$(grep -m 1 "complete -W" ${genscriptspath}/setup-env)
+    cmds=${cmds#*"'"}
+    cmds=${cmds/\\/}
+    cmds=$cmds$(grep -m 1 "' gen\"" ${genscriptspath}/setup-env)
+    cmds=${cmds%*"' gen\""}
+    cmds=" "${cmds// /$'\n' }
+    echo;
+    echo "usage: gen [--help] <command> [<args>]"
+    echo "Available commands:"
+    echo "$cmds"
+    echo $'\n'"tab completion is enabled for commands"$'\n'
+    echo;
+    exit
+fi
+################################################
+source /etc/os-release
+#if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ]; then
+#    str=$(systemctl status NetworkManager|grep "Stopped Network Manager")
+#    str=$str$(systemctl status NetworkManager|grep "dead")
+#    if [ -z "$str" ]; then
+#        echo "Network Manager must be stopped to run Cluster Genesis"
+#        exit 1
+#    fi
+#fi
+################################################
+if [ "$1" = "deploy" ] || [ "$1" = "enable_mgmt_switch" ]; then
+    cd "$genplaypath"
+    ansible-playbook -i hosts enable_mgmt_switch.yml -K
+    echo;
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+fi
+##########################################################
+if [ "$1" = "deploy" ] || [ "$1" = "lxc-create" ]; then
+    cd "$genplaypath"
+    ansible-playbook -i hosts lxc-create.yml -K
+    echo;
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+fi
+##########################################################
+if [ "$1" = "install" ]; then
+    echo "Cluster Genesis will next deploy operating systems to your cluster nodes."
+    echo "Before proceding, be sure that needed OS images and kickstart files are copied"
+    echo "to the cluster-genesis/os_images directory"
+    echo;
+    read -p "Enter to continue, (t) to terminate " resp
+    if [ "$resp" = "t" ]; then exit; fi
+    cd "$genplaypath"
+    ansible-playbook -i hosts install.yml -K
+    echo;
+fi
+##########################################################
+if [ "$1" = "deploy" ] || [ "$1" = "install_1" ]; then
+    echo;
+    if [ "$resp" = "t" ]; then exit; fi
+    cd "$genplaypath"
+    ansible-playbook -i hosts install_1.yml -K
+    echo;
+fi
+##########################################################
+if [ "$1" = "deploy" ] || [ "$1" = "install_2" ]; then
+    echo;
+    if [ "$resp" = "t" ]; then exit; fi
+    cd "$genplaypath"
+    ansible-playbook -i hosts install_2.yml -K
+    echo;
+fi
+##########################################################
+if [ "$1" = "post-deploy" ]; then
+    cd "$genplaypath"
+    ansible-playbook -i ./inventory.py ssh_keyscan.yml
+    echo;
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    ansible-playbook -i ./inventory.py gather_mac_addresses.yml
+    echo;
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i hosts container/set_data_switch_config.yml 
+    echo;
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    ansible-playbook -i ./inventory.py configure_operating_systems.yml
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+fi
+##########################################################
+if [ "$1" = "log" ]; then
+    genpath=${PATH%"cluster-genesis/scripts"*}
+    genpath=${genpath#*:}cluster-genesis/
+    less +G $genpath"log.txt"
+fi
+########################################################
+if [ "$1" = "logc" ]; then
+    dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+    depaddr=${dep##*,}
+    depaddr=${depaddr%-*}
+    depaddr=${depaddr// /}
+    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
+       ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat cluster-genesis/log.txt"|less +G
+    fi
+fi
+##########################################################
+if [ "$1" = "status" ]; then
+    vlanmgmt=$(awk -F: '/vlan-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
+    vlanmgmt=${vlanmgmt%%#*}
+    vlanmgmt=${vlanmgmt// /}
+    vlanmgmtclient=$(awk -F: '/vlan-mgmt-client-network:/{print $2}' ~/cluster-genesis/config.yml)
+    vlanmgmtclient=${vlanmgmtclient%%#*}
+    vlanmgmtclient=${vlanmgmtclient// /}
+    bridgemgmt="br"$vlanmgmt
+    bridgemgmtinterface=$(brctl show|grep $bridgemgmt|awk -F" " '{print $4}')
+    bridgemgmtclient="br"$vlanmgmtclient
+    bridgemgmtclientinterface=$(brctl show|grep $bridgemgmtclient|awk -F" " '{print $4}')
+    cname=$(sudo lxc-ls|grep -m 1 'deployer')
+    echo;
+    echo Operating system: $ID
+    echo;
+    if [ ! -z $cname ]; then
+        echo "Genesis container: "
+        sudo lxc-ls -f|grep -m 1 'NAME'
+        echo "--------------------------------------------------------------------------------------------"
+        dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+        echo $dep
+        depaddr=${dep##*,}
+        depaddr=${depaddr%-*}
+        depaddr=${depaddr// /}
+    #    echo "dep addr "$depaddr
+    else
+        echo "no container found"
+    fi
+    echo;
+    if [ -z "$(brctl show|grep -m 1 $bridgemgmt)" ]; then
+        bridgemgmt=""
+        echo "No management bridge found:"
+    else
+        echo "Found bridge:""$bridgemgmt"
+        brctl show|grep "bridge name"
+        brctl show|grep -A 1 $bridgemgmt
+    fi
+    if [ -z "$(brctl show|grep -m 1 $bridgemgmtclient)" ]; then
+        bridgemgmtclient=""
+        echo "No client management bridge found"
+    else
+        echo "Found bridge:""$bridgemgmtclient"
+        brctl show|grep -A 1 $bridgemgmtclient
+    fi
+
+    read -p "Enter to continue:" resp
+    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
+        t=$(ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "ps aux|grep cobbler")
+        if [[ $t = *root* ]];then
+            echo "cobbler is running"
+            echo;
+            echo "cobbler status"
+            ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "sudo cobbler status"
+        else
+            echo "cobbler is NOT running"
+        fi
+        t=$(ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "ps aux|grep dnsmasq")
+        if [[ $t = *root* ]];then
+            echo "dnsmasq is running"
+            echo;
+            echo "DHCP leases"
+            ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat /var/lib/misc/dnsmasq.leases"
+        else
+            echo "dnsmasq is NOT running"
+        fi
+    fi
+fi
+############################################################
+if [ "$1" = "show-switch" ]; then
+    existnetworkmgmtsw=""
+    addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch-external:/{getline; print $2}' ~/cluster-genesis/config.yml)
+    addrmgmtsw=${addrmgmtsw%%#*}  #remove trailing comments
+    addrmgmtsw=${addrmgmtsw//[$'\t\r\n ']}
+    echo;
+    echo "External address of mgmt switch: ""$addrmgmtsw"
+    networkmgmtsw=$(awk -F: '/cidr-mgmt-switch-external-dev:/{print $2}' ~/cluster-genesis/config.yml)
+    networkmgmtsw=${networkmgmtsw%%#*}
+    networkmgmtsw=${networkmgmtsw// /}
+    if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ]; then
+        networkmgmtsw=$(ipcalc -n $networkmgmtsw)
+        networkmgmtsw=${networkmgmtsw#*=}
+        networkmgmtsw=${networkmgmtsw// /}
+    else
+        networkmgmtsw=$(ipcalc -b $networkmgmtsw|grep "Network:")
+        networkmgmtsw=${networkmgmtsw#*:}
+        networkmgmtsw=${networkmgmtsw// /}
+        networkmgmtsw=${networkmgmtsw%/*}
+    fi
+#    echo "network: "$networkmgmtsw"
+    
+    networkmgmtswroute=$(route|grep $networkmgmtsw)
+    if [ ! -z "$networkmgmtswroute" ]; then
+        existnetworkmgmtsw="yes"
+    else
+        networkmgmtsw=$(awk -F: '/ipaddr-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
+        networkmgmtsw=${networkmgmtsw// /}
+        networkmgmtswroute=$(ip route show|grep $networkmgmtsw)
+        if [ ! -z "$networkmgmtswroute" ]; then
+            addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch:/{getline; print $2}' ~/cluster-genesis/config.yml)
+            addrmgmtsw=${addrmgmtsw// /}
+            existnetworkmgmtsw="yes"
+        fi
+    fi
+    
+    portmgmtsw=$(awk -F: '/port-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
+    portmgmtsw=${portmgmtsw%%#*}
+    portmgmtsw=${portmgmtsw// /}
+    echo;
+    echo "Config.yml file specifies connection to management switch on port: "$portmgmtsw
+    echo;
+    if [ ! -z "$existnetworkmgmtsw" ]; then
+        if [ ! -z $addrmgmtsw ]; then
+           echo;
+           echo "Enter management switch login password"
+           ss=$(ssh admin@$addrmgmtsw "en; conf t; show interface ip; show interface port "$portmgmtsw)
+           echo "$ss"|grep "Interface information:"
+           echo "$ss"|grep "IP4"
+           echo;
+           echo $(echo "$ss"|grep "Current port")$(echo "$ss"|grep "VLANs:")
+           echo;
+        fi
+    else
+        echo "No route to management switch found"
+    fi
+fi
