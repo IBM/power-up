@@ -32,12 +32,12 @@ class CobblerAddDistros(object):
         if log_level is not None:
             log.set_level(log_level)
 
-        name_list = name.split('-')
+        name_list = [item.lower() for item in name.split('-')]
 
         if 'ubuntu' in name_list:
             breed = 'ubuntu'
             for item in name_list:
-                if item.lower() == 'amd64':
+                if item == 'amd64':
                     arch = 'x86_64'
                     kernel = (
                         "%s/install/netboot/ubuntu-installer/amd64/linux" %
@@ -45,7 +45,7 @@ class CobblerAddDistros(object):
                     initrd = (
                         "%s/install/netboot/ubuntu-installer/amd64/initrd.gz" %
                         path)
-                elif item.lower() == 'ppc64el':
+                elif item == 'ppc64el':
                     arch = 'ppc64le'
                     kernel = (
                         "%s/install/netboot/ubuntu-installer/ppc64el/vmlinux"
@@ -53,9 +53,9 @@ class CobblerAddDistros(object):
                     initrd = (
                         "%s/install/netboot/ubuntu-installer/ppc64el/initrd.gz"
                         % path)
-                elif item.lower().startswith('14.04'):
+                elif item.startswith('14.04'):
                     os_version = 'trusty'
-                elif item.lower().startswith('16.04'):
+                elif item.startswith('16.04'):
                     os_version = 'xenial'
             kernel_options = (
                 "netcfg/dhcp_timeout=1024 "
@@ -63,18 +63,18 @@ class CobblerAddDistros(object):
                 "ipv6.disable=1")
             kickstart = "/var/lib/cobbler/kickstarts/%s.seed" % name
 
-        elif ('CentOS' in name_list) or ('RHEL' in name_list):
+        elif ('centos' in name_list) or ('rhel' in name_list):
             breed = 'redhat'
             for item in name_list:
-                if item.lower() == 'x86_64':
+                if item == 'x86_64':
                     arch = 'x86_64'
                     kernel = "%s/images/pxeboot/vmlinuz" % path
                     initrd = "%s/images/pxeboot/initrd.img" % path
-                elif item.lower() == 'ppc64le':
+                elif item == 'ppc64le':
                     arch = 'ppc64le'
                     kernel = "%s/ppc/ppc64/vmlinuz" % path
                     initrd = "%s/ppc/ppc64/initrd.img" % path
-                elif item.lower().startswith('7'):
+                elif item.startswith('7'):
                     os_version = 'rhel7'
             kernel_options = "text"
             kickstart = "/var/lib/cobbler/kickstarts/%s.ks" % name
