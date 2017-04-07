@@ -84,6 +84,7 @@ INV_PORT_ETH10 = 'port-eth10'
 INV_PORT_ETH11 = 'port-eth11'
 INV_PORT_ETH12 = 'port-eth12'
 INV_PORT_ETH13 = 'port-eth13'
+INV_OS_DISK = 'os-disk'
 INV_TEMPLATE = 'template'
 
 
@@ -485,6 +486,8 @@ class Inventory():
                                     dhcp_mac_ip[mgmt_port[ipmi_port]]
                                 node_dict[INV_RACK_ID] = rack
                                 node_dict[INV_TEMPLATE] = key
+                                if INV_OS_DISK in value:
+                                    node_dict[INV_OS_DISK] = value[INV_OS_DISK]
                                 _list.append(node_dict)
                                 _dict[key] = _list
                                 self.inv[INV_NODES] = _dict

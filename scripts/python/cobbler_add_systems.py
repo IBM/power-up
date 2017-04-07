@@ -135,10 +135,8 @@ class CobblerAddSystems(object):
                     "dnsname-eth0": hostname},
                 token)
             KS_META = ""
-            if INV_OS_DISK in inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]:
-                disks = (
-                    inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                    [INV_OS_DISK])
+            if INV_OS_DISK in node:
+                disks = node[INV_OS_DISK]
                 if isinstance(disks, basestring):
                     KS_META += 'install_disk=%s ' % disks
                 elif isinstance(disks, list) and len(disks) == 2:
