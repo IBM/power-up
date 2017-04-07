@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -79,10 +79,10 @@ class ConfigureDataSwitch(object):
                 for ports in port_bonds.values():
                     for port in ports:
                         # Set port mode and add VLANs
-                        if port_vlans:
+                        if port in port_vlans:
                             self._add_vlans_to_port(port, port_vlans[port])
                         # Specify MTU
-                        if port_mtu:
+                        if port in port_mtu:
                             self._set_mtu_for_port(port, port_mtu[port])
             else:
                 for port, vlans in port_vlans.items():
@@ -102,10 +102,10 @@ class ConfigureDataSwitch(object):
                         # Remove any channel-group from port
                         self._remove_channel_group(ports[0])
                         self._create_mlag_interface(port_channel)
-                        if port_vlans:
+                        if ports[0] in port_vlans:
                             self._add_vlans_to_mlag_port_channel(
                                 port_channel, port_vlans[ports[0]])
-                        if port_mtu:
+                        if ports[0] in port_mtu:
                             self._set_mtu_for_mlag_port_channel(
                                 port_channel, port_mtu[ports[0]])
                         self._bind_mlag_interface(port_channel)
@@ -116,10 +116,10 @@ class ConfigureDataSwitch(object):
                     for port_channel, ports in port_bonds.items():
                         for port in ports:
                             self._remove_channel_group(port)
-                        if port_vlans:
+                        if ports[0] in port_vlans:
                             self._add_vlans_to_lag_port_channel(
                                 port_channel, port_vlans[ports[0]])
-                        if port_mtu:
+                        if ports[0] in port_mtu:
                             self._set_mtu_for_lag_port_channel(
                                 port_channel, port_mtu[ports[0]])
                         self._create_lag(port_channel)
