@@ -1,4 +1,5 @@
-# Copyright 2016 IBM Corp.
+#jinja2: lstrip_blocks: "true"
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -33,23 +34,22 @@ NAME={{  networks[network]['eth-port'] }}
 BRIDGE={{ networks[network]['bridge'] }}
 {# if not, loop and see if other network is a bridge and referencing this define #}
 {% else %}
-{% for bridge_network in host_networks %}
-{# if vlan is not present, but bridge is, we need to specify BRIDGE= in interface. #}
-{% if ( 'vlan' not in networks[bridge_network] and
-'bridge' in networks[bridge_network] and
-networks[bridge_network]['eth-port'] == networks[network]['eth-port'] )
- %}
+    {% for bridge_network in host_networks %}
+        {# if vlan is not present, but bridge is, we need to specify BRIDGE= in interface. #}
+        {% if ( 'vlan' not in networks[bridge_network] and
+                'bridge' in networks[bridge_network] and
+                networks[bridge_network]['eth-port'] == networks[network]['eth-port'] ) %}
 BRIDGE={{ networks[bridge_network]['bridge'] }}
-{% endif %}
-{% endfor %}
+        {% endif %}
+    {% endfor %}
 {% endif %}
 {% for bond_net in host_networks %}
-{% if 'bond-interfaces' in networks[bond_net] %}
-{% if networks[network]['eth-port'] in networks[bond_net]['bond-interfaces'] %}
+    {% if 'bond-interfaces' in networks[bond_net] %}
+        {% if networks[network]['eth-port'] in networks[bond_net]['bond-interfaces'] %}
 MASTER={{ networks[bond_net]['bond'] }}
 SLAVE=yes
-{% endif %}
-{% endif %}
+        {% endif %}
+    {% endif %}
 {% endfor %}
 {% if 'addr' in host_networks[network] %}
 IPADDR={{ host_networks[network]['addr'] }}

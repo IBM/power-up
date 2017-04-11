@@ -1,4 +1,5 @@
-# Copyright 2016 IBM Corp.
+#jinja2: lstrip_blocks: "true"
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -32,36 +33,35 @@ VLAN=yes
 {% if 'bridge' in networks[network] %}
 BRIDGE={{ networks[network]['bridge'] }}
 {% else %}
-{% for bridge_network in host_networks %}
-{# if vlan is not present, but bridge is, we need to specify BRIDGE= in interface.#}
-{% if ( 'vlan' in networks[bridge_network] and
-'bridge' in networks[bridge_network] and
-networks[bridge_network]['eth-port'] == networks[network]['eth-port'] and
-networks[bridge_network]['vlan'] == networks[network]['vlan'] )
- %}
+    {% for bridge_network in host_networks %}
+        {# if vlan is not present, but bridge is, we need to specify BRIDGE= in interface.#}
+        {% if ( 'vlan' in networks[bridge_network] and
+                'bridge' in networks[bridge_network] and
+                networks[bridge_network]['eth-port'] == networks[network]['eth-port'] and
+                networks[bridge_network]['vlan'] == networks[network]['vlan'] ) %}
 BRIDGE={{ networks[bridge_network]['bridge'] }}
-{% endif %}
-{% endfor %}
-{% if 'addr' in host_networks[network] %}
+        {% endif %}
+    {% endfor %}
+    {% if 'addr' in host_networks[network] %}
 IPADDR={{ host_networks[network]['addr'] }}
-{% endif %}
-{% if 'netmask' in networks[network] %}
+    {% endif %}
+    {% if 'netmask' in networks[network] %}
 NETMASK={{ networks[network]['netmask'] }}
-{% endif %}
-{% if 'gateway' in networks[network] %}
+    {% endif %}
+    {% if 'gateway' in networks[network] %}
 GATEWAY={{ networks[network]['gateway'] }}
-{% endif %}
-{% if 'network' in networks[network] %}
+    {% endif %}
+    {% if 'network' in networks[network] %}
 NETWORK={{ networks[network]['network'] }}
-{% endif %}
-{% if 'broadcast' in networks[network] %}
+    {% endif %}
+    {% if 'broadcast' in networks[network] %}
 BROADCAST={{ networks[network]['broadcast'] }}
-{% endif %}
-{% if 'dns-search' in networks[network] %}
+    {% endif %}
+    {% if 'dns-search' in networks[network] %}
 DOMAIN={{ networks[network]['dns-search'] }}
-{% endif %}
-{% if 'dns-nameservers' in networks[network] %}
+    {% endif %}
+    {% if 'dns-nameservers' in networks[network] %}
 DNS1={{ networks[network]['dns-nameservers'] }}
-{% endif %}
+    {% endif %}
 {% endif %}
 

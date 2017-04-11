@@ -1,4 +1,5 @@
-# Copyright 2016 IBM Corp.
+#jinja2: lstrip_blocks: "true"
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -32,7 +33,7 @@ DEVICE={{ networks[network]['bond'] }}
 {% set bonding_opts = [] %}
 {% do bonding_opts.append("mode="+ networks[network]['bond-mode'].__str__()) %}
 {% for argument in networks[network]['optional-bond-arguments'] %}
-{% do bonding_opts.append(argument+"="+networks[network]['optional-bond-arguments'][argument].__str__()) %}
+    {% do bonding_opts.append(argument+"="+networks[network]['optional-bond-arguments'][argument].__str__()) %}
 {% endfor %}
 BONDING_OPTS="
 {%- for opts in bonding_opts %}

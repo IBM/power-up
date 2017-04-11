@@ -93,7 +93,8 @@ class TestInterfacesTemplate(unittest.TestCase):
 
         template_path, template_file = os.path.split(TEMPLATE_FILE)
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path),
-                                 trim_blocks=True)
+                                 trim_blocks=True,
+                                 lstrip_blocks=True)
         template = env.get_template(template_file)
         rendered_file = template.render({'networks': networks,
                                          'host_networks': host_networks})
@@ -119,6 +120,7 @@ class TestInterfacesTemplate(unittest.TestCase):
 
 
 expected_output_1 = """\
+#jinja2: lstrip_blocks: "true"
 # Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
