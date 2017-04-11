@@ -11,29 +11,29 @@ Playbook "lxc-create.yml" fails to create lxc container.
    is returned (including nothing) cd into the cluster-genesis directory
    and re-run *source scripts/setup-env*.
 
-Verify network bridge named "br0" is up and connected to the management
-network. Verify that the bridge\_ports interface has a carrier:
+Verify that the Cluster Genesis network bridges associated with the management
+and client vlans specified in the config.yml file are up and that there are
+two interfaces attached to each bridge.  One of these interfaces should be a
+tagged vlan interface associated with the physical port to be used by by 
+Cluster Genesis.  The other should be a veth pair attached to the Cluster Genesis
+container::
 
-*cat /sys/class/net/p1p1/carrier*
+    $ gen status
 
-*1*
+Verify than both bridges have an ip address assigned::
 
-Verify bridge br0 has an ip address assigned;
-
-ip a show br0
+    ip address show brn  (n whould be the vlan number)
 
 Switch connectivity Issues:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
--  Verify connectivity from deployer container to managment interfaces
+-  Verify connectivity from deployer container to management interfaces
    of both management and data switches. Be sure to use values assigned
    to the [ipaddr,userid,password]-[mgmt,data]-switch keys in the
    config.yml. These switches can be on any subnet except the one to be
-   used for your cluster managment network, as long as they're
+   used for your cluster management network, as long as they're
    accessible to the deployer system.
--  Verify SNMP is enabled on both switches. Run *show snmp-server* on
-   the switch command line interface (command could vary).
--  Verify SSH is enabled on the data switch and that the user can ssh
+-  Verify SSH is enabled on the data switch and that you can ssh
    directly from deployer to the switch using the ipaddr,userid, and
    password keys defined in the config.yml
 
@@ -45,16 +45,26 @@ are do to miscabling or mistakes in the config.yml file. The Node
 discovery process starts with discovery of mac addresses and DHCP hand
 out of ip addresses to the BMC ports of the cluster nodes. This process
 can be monitored by checking the DHCP lease table after booting the BMCs
-of the cluster nodes. During execution of the install.yml playbook, at
+of the cluster nodes. During execution of the install_1.yml playbook, at
 the prompt;
 
 "Please reset BMC interfaces to obtain DHCP leases. Press <enter> to
 continue"
 
 After rebooting the BMCs and before pressing <enter>, you can execute
-from a second shell;
+from a second shell::
 
-*deployer@ubuntu-14-04-deployer:~$ cat /var/lib/misc/dnsmasq.leases*
+    gen status
+
+Alternately to see just the leases table, log into the deployer container::
+
+    $ ssh ~/.ssh/id_rsa_ansible-generated deployer@address
+
+The address used above can be read from the 'gen status' display.  It is
+the second address of the subnet specified by the ipaddr-mgmt-network: key
+in the config.yml file.  After logging in::
+
+    deployer@ubuntu-14-04-deployer:~$ cat /var/lib/misc/dnsmasq.leases
 
 *1471870835 a0:42:3f:30:61:cc 192.168.3.173 \* 01:a0:42:3f:30:61:cc*
 
@@ -64,7 +74,7 @@ from a second shell;
 
 *1471870865 a0:42:3f:30:61:fe 192.168.3.172 \* 01:a0:42:3f:30:61:fe*
 
-**To follow the progress you can execute;**
+**To follow the progress continually you can execute;**
 
 *deployer@ubuntu-14-04-deployer:~$ tail -f /var/lib/misc/dnsmasq.leases*
 
@@ -102,15 +112,26 @@ printout match the ports specified in the config.yml file. Mistakes can
 be corrected by correcting cabling, correcting the config.yml file and
 rebooting the BMCs.**
 
-**Mistakes in the config.yml file require a restart of the install.yml
-playbook. Before restarting, make a backup of any existing inventory.yml
-files and then create an empty inventory.yml file.**
+Mistakes in the config.yml file require a restart of the deploy process.
+(ie rerunning gen deploy.)  Before doing so remove the existing Genesis container
+by running the 'tear-down' script and answering yes to the prompt to destroy the container
+and it's associated bridges.
 
-*mv inventory.yml inventory.yml.bak*
+Depending on the error, it may be possible to rerun the deploy playbooks individually::
 
-*> inventory.yml*
+    $ gen install_1
+    $ gen install_2
 
-****
+Alternately, from the cluster-genesis/playbooks directory::
+
+    $ ansible-playbook -i hosts install_1.yml -K
+    $ ansible-playbook -i hosts install_2.yml -K
+
+Before rerunning the above playbooks, make a backup of any existing
+inventory.yml files and then create an empty inventory.yml file::
+
+    $ mv inventory.yml inventory.yml.bak
+    $ touch inventory.yml
 
 **Once all the BMC mac addresses have been given leases, press return in
 the genesis execution window.**
@@ -142,7 +163,7 @@ inventory.yml file. At this point the BMC ipv4 and mac address will
 already be populated in the inventory.yml within the container. To find
 out:**
 
-*ubuntu@bloom-deployer:~/cluster-genesis/playbooks$ grep "^deployer"
+*ubuntu@bloom-deployer: cluster-genesis/playbooks$ grep "^deployer"
 hosts*
 
 *deployer ansible\_user=deployer
@@ -265,12 +286,13 @@ nodes which have not pxe booted succesfully.*
 In general, to resume progress after a play stops on error (presumably
 after the error has been understood and corrected!) the failed playbook
 should be re-run and subsequent plays run as normal. In the case of
-"cluster-genesis/playbooks/install.yml" around 20 playbooks are
-included. If one of these playbooks fail then edit
-"cluster-genesis/playbooks/install.yml" and comment plays that have
-passed by writing a "#" at the front of the line. Be sure *not* to
-comment out the playbook that failed so that it will re-run. Here's an
-example of a modified "cluster-genesis/playbooks/install.yml" where the
+"cluster-genesis/playbooks/install_1.yml" and
+"cluster-genesis/playbooks/install_2.yml" around 20 playbooks are
+included. If one of these playbooks fail then edit the .yml file and
+and comment plays that have passed by writing a "#" at the front of the
+line. Be sure *not* to comment out the playbook that failed so that it
+will re-run. Here's an example of a modified
+"cluster-genesis/playbooks/install.yml" where the
 user wishes to resume after a data switch connectivity problem caused
 the "container/set\_data\_switch\_config.yml" playbook to fail:
 
@@ -433,45 +455,13 @@ persistent=True**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **To destroy the Genesis container and restart Genesis from that
-point;**
+point**::
 
-**sudo lxc-ls --fancy**
+    $ tear-down
 
-**sudo lxc-stop *\ *-n deployer-container-name**
+**Respond yes to prompts to destroy the container and remove it's associated bridges.
+Restart genesis from step 9 of the step by step instructions.**
 
-**sudo lxc-destroy -n deployer-container-name**
-
-**Restart genesis from step 15 of the step by step instructions.
-*\ *`5.1 <#anchor-7>`__*\ * *\ *`Installing and Running the Genesis
-code. Step by Step Instructions <#anchor-7>`__**
-
-**NOTE: if you have exited the shell session from which you previously
-created the container, be sure to execute the following setup scripts;**
-
-*\ source ~/cluster-genesis/scripts/setup-env*
-
-*export ANSIBLE\_HOST\_KEY\_CHECKING=False*
-
-**After recreating the container, you will need to remove the old key
-from the known\_hosts file in order to be able to ssh into the recreated
-container;**
-
-*ssh-keygen -f "/home/ubuntu/.ssh/known\_hosts" -R 192.168.0.2*
-
-Reinstalling Genesis
-~~~~~~~~~~~~~~~~~~~~
-
-Before reinstalling genesis, stop and destroy the deployer container;
-
-**sudo lxc-ls --fancy**
-
-**sudo lxc-stop *\ *-n deployer-container-name**
-
-**sudo lxc-destroy -n deployer-container-name**
-
-Then remove the cluster-genesis directory. Follow instructions of
-section `5 <#anchor-6>`__ `Running the OpenPOWER Cluster Configuration
-Software <#anchor-6>`__
 
 OpenPOWER Node issues
 ~~~~~~~~~~~~~~~~~~~~~
@@ -480,7 +470,7 @@ Specifying the target drive for operating system install;
 
 In the config.yml file, the *os-disk* key is the disk to which the
 operating system will be installed. Specifying this disk is not always
-obvious because Linux naming is insconsistent between boot and final OS
+obvious because Linux naming is inconsistent between boot and final OS
 install. For OpenPOWER S812LC, the two drives in the rear of the unit
 are typically used for OS install. These drives should normally be
 specified as /dev/sdj and /dev/sdk

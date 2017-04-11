@@ -102,6 +102,18 @@ Notes:
    supply a valid ipv4 address. a.b.c.d/n is used to represent any valid
    ipv4 address in CIDR format.
 
+Introspection:
+
+Introspection consists of loading a lightweight in-memory OS (linux buildroot)
+on all client nodes prior to OS installation on disk. This feature can be
+enabled via the 'introspection-enabled' key in 'config.yml' to a boolean
+value. If omitted or set to 'false' the introspection components will not be
+run. Initially it is only supported on clusters with all ppc64el deployer and
+client nodes.::
+
+    introspection-enabled: true   # Introspection Mode Enabled
+    introspection-enabled: false  # Introspection Mode Disabled
+
 For complete description of the key value pairs, see appendix A.
 
 Network Templates

@@ -36,8 +36,7 @@ Appendix - A Cheat Sheet
 
     $ cd cluster-genesis
     $ ./scripts/install.sh   (this will take a few minutes to complete)
-    $ source scripts/setup-env   (if you restart your shell session, you need to re-execute this and the next line.
-    $ export ANSIBLE_HOST_KEY_CHECKING=False
+    $ source scripts/setup-env
 
 -  copy your config.yml file to the /cluster-genesis directory
 -  create the Genesis container::
@@ -47,8 +46,13 @@ Appendix - A Cheat Sheet
 
 To begin cluster genesis::
 
-    $ ansible-playbook -i hosts install.yml -K (begins cluster genesis)
+    $ ansible-playbook -i hosts install_1.yml -K (begins cluster genesis)
     Allow several minutes to run.
+
+After the command prompt returns, and after any introspection scripts are run (if desired)::
+
+    $ ansible-playbook -i hosts install_2.yml -K (begins cluster genesis)
+    Allow up to 30 minutes to run.
 
 
 After the command prompt returns, run the following to see the status/progress of

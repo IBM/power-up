@@ -162,7 +162,7 @@ Hardware initialization
       switch this step can be ignored)
 
       -  login to the switch::
-	  
+
           enable
           configure terminal
           show vlan 
@@ -173,17 +173,18 @@ Hardware initialization
 
    -  Save config.  In switch config mode::
 
-	   configuration write
+          configuration write
 
-      Note that the management ports for the data and management switches
-      in your cluster must all be in the same subnet. It is recommended
-      that the subnet used for switch management be a private subnet
-      which exists on the cluster management switches. If an external
-      network is used to access the management interfaces of your cluster
-      switches, insure that you have a route from the deployment
-      container to the switch management interfaces.  Generally this is
-      handled automatically when Linux creates the deployer container.
-		
+      Note that the ip addresses of the management interface used by Cluster Genesis
+      for the data and management switches in your cluster must all be in the same subnet.
+      The address on the management switch is assigned and configured by Cluster Genesis
+      from information you provide in the config.yml file. An initial management ip address
+      must be present on the management switch and specified in the config.yml file under
+      the ipaddr-mgmt-switch-external keyname.
+      This initial address is left in place and available for external management and
+      monitoring of the switch.  The management address to be used by cluster genesis must
+      be configured by the user ahead of time and be accessible from the deployer node.
+
    -  If using redundant data switches with MLAG, configure link aggregation
       (LAG) on the interswitch peer links (IPL) links.  (It is important to
       do this before cabling multiple links between the switches which will
@@ -203,69 +204,25 @@ Hardware initialization
    See the switch installation guide. For additional info on Lenovo G8052 specific
    commands, see Appendix G. and the *Lenovo RackSwitch G8052 Installation guide*)
 
-
-   -  Enter config mode and create a vlan for use in accessing the management interfaces of your
-      switches.  This must match the vlan specified by the "vlan-mgmt-network:"
-      key in your cluster configuration (config.yml) file::
-
-        RS G8052> enable
-        RS G8052# configure terminal
-        RS G8052(config)# vlan 16
-        RS G8052(config-vlan)# enable
-        RS G8052(config-vlan)# exit
-
    -  Enable IP interface mode for the management interface::
 
         RS G8052(config)# interface ip 1
 
    -  assign a static ip address, netmask and gateway address to the management interface.
       This must match the address specified in
-      the config.yml file (keyname: ipaddr-mgmt-switch:) and be in a
-      *different* subnet than your cluster management subnet. Place this
-      interface in the above created vlan.  (Note: if the following configuration
-      is executed on the interface you are using to communicate with the switch,
-      you will lose connectivity when the vlan is applied.  To avoid this, use the
-      serial connection or an alternate management interface)::
+      the config.yml file (keyname: ipaddr-mgmt-switch-external:) and be in a
+      *different* subnet than your cluster management subnet::
 
-        RS G8052(config-ip-if)# ip address 192.168.16.20 (example IP address)
+        RS G8052(config-ip-if)# ip address 192.168.32.20 (example IP address)
         RS G8052(config-ip-if)# ip netmask 255.255.255.0
-        RS G8052(config-ip-if)# vlan 16
+        RS G8052(config-ip-if)# vlan 1       (User selectable, ussually default vlan 1 is used)
         RS G8052(config-ip-if)# enable
         RS G8052(config-ip-if)# exit
 
-   -  Configure the default gateway and enable the gateway::
+   -  Optionally configure a default gateway and enable the gateway::
 
-        RS G8052(config)# ip gateway 1 address 192.168.16.1  (example ip address)
+        RS G8052(config)# ip gateway 1 address 192.168.32.1  (example ip address)
         RS G8052(config)# ip gateway 1 enable
-
-   -  Put the port used to connect to the deployer node (the node running
-      Cluster Genesis) into trunk mode and add the above created vlan to that trunk::
-
-        RS G8052(config)# interface port 46  (example port #)
-        RS G8052(config-if)# switchport mode trunk
-        RS G8052(config-if)# switchport trunk allowed vlan 1,16
-        RS G8052(config-if)# exit
-
-   -  Verify the management interface setup::
-
-        RS G8052(config)#show interface ip
-
-      A typical good setup would look like::
-
-        Interface information:
-        1:      IP4 192.168.16.20    255.255.255.0   192.168.16.255,  vlan 16, up
-
-   -  Verify the vlan setup::
-
-        RS G8052(config)#show vlan
-
-      A typical good result would look something like::
-
-        VLAN                Name                Status            Ports
-        ----  --------------------------------  ------  -------------------------
-        1     Default VLAN                      ena     1-3 5 7 9 11 13-23 25 27 29 31
-                                                        33-46 48-XGE4
-        16    VLAN 16                           ena     46
 
    -  admin password. This must match the password specified in the
       config.yml file (keyword: password-mgmt-switch:). Note that all
