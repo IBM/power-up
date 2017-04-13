@@ -26,8 +26,9 @@ if [ -z "$complete -p|grep 'gen'" ]; then
     echo "from the cluster-genesis directory"
     exit
 fi
+GEN_SCRIPTS_PATH=$(dirname $0)
+GEN_PATH=${GEN_SCRIPTS_PATH//scripts/}
 genplaypath=${PATH%"cluster-genesis/scripts"*}
-genscriptspath=${genplaypath#*:}cluster-genesis/scripts
 genplaypath=${genplaypath#*:}cluster-genesis/playbooks/
 gendepenvpath=${PATH%"cluster-genesis/scripts"*}
 gendepenvpath=${gendepenvpath#*:}cluster-genesis/deployenv/bin
@@ -40,10 +41,10 @@ if [ -z "$1" ] || [ "$1" = "?" ]; then
     exit
 fi
 if [ "$1" = "--help" ]; then
-    cmds=$(grep -m 1 "complete -W" ${genscriptspath}/setup-env)
+    cmds=$(grep -m 1 "complete -W" ${GEN_SCRIPTS_PATH}/setup-env)
     cmds=${cmds#*"'"}
     cmds=${cmds/\\/}
-    cmds=$cmds$(grep -m 1 "' gen\"" ${genscriptspath}/setup-env)
+    cmds=$cmds$(grep -m 1 "' gen\"" ${GEN_SCRIPTS_PATH}/setup-env)
     cmds=${cmds%*"' gen\""}
     cmds=" "${cmds// /$'\n' }
     echo;
@@ -142,9 +143,7 @@ if [ "$1" = "post-deploy" ]; then
 fi
 ##########################################################
 if [ "$1" = "log" ]; then
-    genpath=${PATH%"cluster-genesis/scripts"*}
-    genpath=${genpath#*:}cluster-genesis/
-    less +G $genpath"log.txt"
+    less +G $GENPATH"log.txt"
 fi
 ########################################################
 if [ "$1" = "logc" ]; then
@@ -153,7 +152,21 @@ if [ "$1" = "logc" ]; then
     depaddr=${depaddr%-*}
     depaddr=${depaddr// /}
     if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
-       ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat cluster-genesis/log.txt"|less +G
+        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat cluster-genesis/log.txt"|less +G
+    else
+        echo "No ssh key found"
+    fi
+fi
+##########################################################
+if [ "$1" = "inventory" ]; then
+    dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+    depaddr=${dep##*,}
+    depaddr=${depaddr%-*}
+    depaddr=${depaddr// /}
+    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
+        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat cluster-genesis/inventory.yml"|less
+    else
+        echo "No ssh key found"
     fi
 fi
 ##########################################################

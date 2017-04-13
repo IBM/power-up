@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ccmd="complete -W 'log logc status deploy enable_mgmt_switch tear-down \
-lxc-create install_1 install_2 show-switch --help post-deploy' gen"
+lxc-create install_1 install_2 inventory show-switch --help post-deploy' gen"
 eval "$ccmd"
 P=`pwd`
 P=${P#*"cluster-genesis"}
