@@ -155,7 +155,7 @@
         source {{ venv_path }}/bin/activate &&
         pip install --ignore-installed
         'pyasn1==0.2.3'
-        'pysnmp==4.3.4'
+        'pysnmp==4.3.5'
         'pyaml==16.12.2'
         'orderedattrdict==1.4.3'
         'pyghmi==1.0.18'
