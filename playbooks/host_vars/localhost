@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-container_name: ubuntu-14-04-deployer
+container_name: cluster-genesis
 private_subnet: "10.0.3.0/24"
 mgmt_network_interface:
 project_path_local: "{{ ansible_env['PWD'] | regex_replace('^(.+/cluster-genesis).+?$', '\\1')}}"
