@@ -245,9 +245,10 @@ class Inventory():
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for _key, _value in value.items():
                 if _key == INV_PORTS:
-                    switch_index = 0
+                    index = 0
                     for ports_key, ports_value in _value.items():
                         if ports_key != INV_IPMI and ports_key != INV_PXE:
+                            switch_index = index % 2
                             for rack in ports_value:
                                 if switch_index not in vlan_dict:
                                     vlan_dict[switch_index] = []
@@ -269,7 +270,7 @@ class Inventory():
                                                     __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][0]] = _dict
                                                 else:
                                                     __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = _dict
-                            switch_index += 1
+                            index += 1
         for key, value in __dict.items():
             yield (
                 key,
@@ -290,9 +291,10 @@ class Inventory():
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for _key, _value in value.items():
                 if _key == INV_PORTS:
-                    switch_index = 0
+                    index = 0
                     for ports_key, ports_value in _value.items():
                         if ports_key != INV_IPMI and ports_key != INV_PXE:
+                            switch_index = index % 2
                             for rack, ports in ports_value.items():
                                 port_index = 0
                                 for port in ports:
@@ -364,7 +366,7 @@ class Inventory():
                                         ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][0]] = __dict
                                     else:
                                         ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = __dict
-                            switch_index += 1
+                            index += 1
         for key, value in ___dict.items():
             yield (
                 key,
