@@ -30,6 +30,7 @@ fi
 GEN_SCRIPTS_PATH=$(dirname $0)
 GEN_PATH=${GEN_SCRIPTS_PATH%\/scripts}
 GEN_PLAY_PATH=$GEN_PATH/playbooks
+cname=$(awk -F: '/container_name:/{print $2}' ${GEN_PLAY_PATH}/host_vars/localhost)
 ################################################
 if [ -z "$1" ] || [ "$1" = "?" ]; then
     echo;
@@ -38,42 +39,19 @@ if [ -z "$1" ] || [ "$1" = "?" ]; then
     exit
 fi
 if [ "$1" = "--help" ]; then
-    cmds=$(grep -m 1 "complete -W" ${GEN_SCRIPTS_PATH}/setup-env)
-    cmds=${cmds#*"'"}
-    cmds=${cmds/\\/}
-    cmds=$cmds$(grep -m 1 "' gen\"" ${GEN_SCRIPTS_PATH}/setup-env)
-    cmds=${cmds%*"' gen\""}
-    cmds=" "${cmds// /$'\n' }
     echo;
     echo "usage: gen [--help] <command> [<args>]"
     echo "Available commands:"
-    echo "$cmds"
+    echo "$COMPLETE"
     echo $'\n'"tab completion is enabled for commands"$'\n'
     echo;
     exit
 fi
 ################################################
 source /etc/os-release
-#if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ]; then
-#    str=$(systemctl status NetworkManager|grep "Stopped Network Manager")
-#    str=$str$(systemctl status NetworkManager|grep "dead")
-#    if [ -z "$str" ]; then
-#        echo "Network Manager must be stopped to run Cluster Genesis"
-#        exit 1
-#    fi
-#fi
-################################################
-if [ "$1" = "deploy" ] || [ "$1" = "setup" ]; then
-    cd "$genplaypath"
-    ansible-playbook -i hosts setup.yml
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
 ################################################
 if [ "$1" = "deploy" ] || [ "$1" = "enable_mgmt_switch" ]; then
+    set -e
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts enable_mgmt_switch.yml -K
     echo;
@@ -121,7 +99,8 @@ if [ "$1" = "deploy" ] || [ "$1" = "install_2" ]; then
     echo;
 fi
 ##########################################################
-if [ "$1" = "post-deploy" ]; then
+if [ "$1" = "post-deploy" ] || [ "$1" = "ssh_keyscan" ]; then
+    set -e
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i ./inventory.py ssh_keyscan.yml
     echo;
@@ -129,20 +108,35 @@ if [ "$1" = "post-deploy" ]; then
         read -p "Enter to continue, (t) to terminate " resp
         if [ "$resp" = "t" ]; then exit; fi
     fi
+fi
+##########################################################
+if [ "$1" = "post-deploy" ] || [ "$1" = "gather_mac_addresses" ]; then
+    set -e
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i ./inventory.py gather_mac_addresses.yml
     echo;
     if [ "$2" = "-p" ]; then
         read -p "Enter to continue, (t) to terminate " resp
         if [ "$resp" = "t" ]; then exit; fi
     fi
-
+fi
+#########################################################
+if [ "$1" = "post-deploy" ] || [ "$1" = "set_data_switch_config" ]; then
+    set -e
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts container/set_data_switch_config.yml
     echo;
     if [ "$2" = "-p" ]; then
         read -p "Enter to continue, (t) to terminate " resp
         if [ "$resp" = "t" ]; then exit; fi
     fi
+fi
+#########################################################
+if [ "$1" = "post-deploy" ] || [ "$1" = "configure_operating_systems" ]; then
+    set -e
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i ./inventory.py configure_operating_systems.yml
+    echo;
     if [ "$2" = "-p" ]; then
         read -p "Enter to continue, (t) to terminate " resp
         if [ "$resp" = "t" ]; then exit; fi
@@ -153,8 +147,12 @@ if [ "$1" = "log" ]; then
     less +G $GEN_PATH/log.txt
 fi
 ########################################################
+if [ "$1" = "loga" ]; then
+    less +G $GEN_PLAY_PATH/ansible.log
+fi
+########################################################
 if [ "$1" = "logc" ]; then
-    dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+    dep=$(sudo lxc-ls -f|grep -m 1 $cname)
     depaddr=${dep##*,}
     depaddr=${depaddr%-*}
     depaddr=${depaddr// /}
@@ -165,8 +163,12 @@ if [ "$1" = "logc" ]; then
     fi
 fi
 ##########################################################
+if [ "$1" = "config.yml" ]; then
+    vim $GEN_PATH/config.yml
+fi
+########################################################
 if [ "$1" = "inventory" ]; then
-    dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+    dep=$(sudo lxc-ls -f|grep -m 1 $cname)
     depaddr=${dep##*,}
     depaddr=${depaddr%-*}
     depaddr=${depaddr// /}
@@ -188,15 +190,14 @@ if [ "$1" = "status" ]; then
     bridgemgmtinterface=$(brctl show|grep $bridgemgmt|awk -F" " '{print $4}')
     bridgemgmtclient="br"$vlanmgmtclient
     bridgemgmtclientinterface=$(brctl show|grep $bridgemgmtclient|awk -F" " '{print $4}')
-    cname=$(sudo lxc-ls|grep -m 1 'deployer')
     echo;
     echo Operating system: $ID
     echo;
     if [ ! -z $cname ]; then
-        echo "Genesis container: "
+        echo "Genesis container: "$cname
         sudo lxc-ls -f|grep -m 1 'NAME'
         echo "--------------------------------------------------------------------------------------------"
-        dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+        dep=$(sudo lxc-ls -f|grep -m 1 $cname)
         echo $dep
         depaddr=${dep##*,}
         depaddr=${depaddr%-*}

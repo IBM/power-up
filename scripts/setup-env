@@ -13,9 +13,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ccmd="complete -W 'log logc status deploy enable_mgmt_switch tear-down \
-lxc-create install_1 install_2 inventory show-switch --help post-deploy' gen"
+ccmd="complete -W 'log logc loga status deploy enable_mgmt_switch tear-down config.yml \
+ssh_keyscan gather_mac_addresses set_data_switch_config configure_operating_systems lxc-create install_1 install_2 inventory show-switch --help post-deploy' gen"
 eval "$ccmd"
+COMPLETE=${ccmd#*\'}
+COMPLETE=${COMPLETE%\'*}
+export COMPLETE=" "${COMPLETE// /$'\n' }
 P=`pwd`
 P=${P#*"cluster-genesis"}
 if [ -z $P ]; then
@@ -26,15 +29,19 @@ if [ -z $P ]; then
         export PATH=`pwd`/deployenv/bin:$PATH
     fi
 
-    inbash=$(grep `pwd`"/scripts:" ~/.bashrc)$(grep 'complete -W "log' ~/.bashrc)
-    if [ -z $inbash ]; then
+    if [ -z "$(grep -m1 `pwd`"/scripts:" ~/.bashrc)" ] || \
+    [ -z "$(grep -m1 `pwd`"/deployenv/bin:" ~/.bashrc)" ] || \
+    [ -z "$(grep -m1 "complete -W 'log" ~/.bashrc)" ]; then
         echo $'\n'"OK for Cluster Genesis to add setup statements to your .bashrc"
         read -p "file (statements can be removed by running tear-down) (y/n) ? " resp
         if [[ $resp == "y" ]]; then
-            if [ -z $(grep `pwd`"/scripts:" ~/.bashrc) ]; then
+            if [ -z "$(grep -m1 `pwd`"/scripts:" ~/.bashrc)" ]; then
                 echo "PATH="`pwd`"/scripts:\$PATH" >> ~/.bashrc
             fi
-            if [ -z $(grep 'complete -W "log' ~/.bashrc) ]; then
+            if [ -z "$(grep -m1 `pwd`"/deployenv/bin:" ~/.bashrc)" ]; then
+                echo "PATH="`pwd`"/deployenv/bin:\$PATH" >> ~/.bashrc
+            fi
+            if [ -z "$(grep -m1 "complete -W 'log" ~/.bashrc)" ]; then
                 echo $ccmd >> ~/.bashrc
             fi
         fi

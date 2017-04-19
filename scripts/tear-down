@@ -25,6 +25,11 @@ elif [ "$ID" = "ubuntu" ]; then
     redcent=0
 fi
 #############################################################
+GEN_SCRIPTS_PATH=$(grep -m 1 "cluster-genesis/scripts" ~/.bashrc)
+GEN_SCRIPTS_PATH=${GEN_SCRIPTS_PATH#PATH=}
+GEN_SCRIPTS_PATH=${GEN_SCRIPTS_PATH%:\$PATH}
+GEN_PATH=${GEN_SCRIPTS_PATH%\/scripts}
+GEN_PLAY_PATH=$GEN_PATH/playbooks
 vlanmgmt=$(awk -F: '/vlan-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
 vlanmgmt=${vlanmgmt%%#*}
 vlanmgmt=${vlanmgmt//[$'\t\r\n ']}
@@ -35,7 +40,8 @@ bridgemgmt="br"$vlanmgmt
 bridgemgmtinterface=$(brctl show|grep $bridgemgmt|awk -F" " '{print $4}')
 bridgemgmtclient="br"$vlanmgmtclient
 bridgemgmtclientinterface=$(brctl show|grep $bridgemgmtclient|awk -F" " '{print $4}')
-cname=$(sudo lxc-ls |grep -m 1 'deployer')
+#cname=$(sudo lxc-ls |grep -m 1 'deployer')
+cname=$(awk -F: '/container_name:/{print $2}' ${GEN_PLAY_PATH}/host_vars/localhost)
 if [ ! -z $cname ]; then
    echo "found container: "$cname
 else
@@ -53,24 +59,24 @@ echo "$bridgemgmtinterface"
 echo "$bridgemgmtclient"
 echo "$bridgemgmtclientinterface"
 #########################################################
-if [ -d ~/cluster-genesis ]; then
-    read -p "Backup config.yml from ~/cluster-genesis to ~/configbak ? (y/n) " resp
+if [ -d $GEN_PATH ]; then
+    read -p "Backup config.yml from cluster-genesis directory to ~/configbak ? (y/n) " resp
     if [ $resp == "y" ]; then
        if [ ! -d ~/configbak ]; then
            mkdir ~/configbak
        fi
        name="config.yml"$(date|tr ' ' '-' )
        echo "copying config.yml to ~/configbak as "$name
-       cp ~/cluster-genesis/config.yml ~/configbak/config.yml$(date|tr ' ' '-' )
+       cp "$GEN_PATH"/config.yml ~/configbak/config.yml$(date|tr ' ' '-' )
     fi
 fi
 #########################################################
-if [ -d ~/cluster-genesis ]; then
-    read -p "Backup os images from ~/cluster-genesis/os_images to ~ ? (y/n) " resp
+if [ -d $GEN_PATH ]; then
+    read -p "Backup os images from cluster-genesis/os_images to ~ ? (y/n) " resp
     if [ $resp == "y" ]; then
        name="os_images"$(date|tr ' ' '-' )"/"
        echo "copying os_images to home directory as "$name
-       cp -r ~/cluster-genesis/os_images ~/$name
+       cp -r "$GEN_PATH"/os_images ~/$name
     fi
 fi
 ##################################################
@@ -102,6 +108,8 @@ fi
    echo;
 if [ ! -z "$cmd" ]; then
     echo "en; conf t;"$cmd" exit"
+    echo;
+    echo "Enter management switch password"
     ssh admin@$addrmgmtsw "en; conf t;"$cmd
 fi
 #################################################
@@ -150,7 +158,7 @@ fi
 if [ ! -z "$cname" ]; then
     read -p "Destroy container: $cname ? (y/n) " resp
     if [ $resp == "y" ]; then
-        dep=$(sudo lxc-ls -f|grep -m 1 'deployer')
+        dep=$(sudo lxc-ls -f|grep -m 1 $cname)
         echo $dep
         depaddr=${dep##*,}
         depaddr=${depaddr%-*}
@@ -164,8 +172,8 @@ if [ ! -z "$cname" ]; then
     fi
 fi
 ###################################################
-if [ -d ~/cluster-genesis ]; then
-    read -p "Remove cluster-genesis ? (y/n) " resp
+if [ -d $GEN_PATH ]; then
+    read -p "Remove cluster-genesis software? (y/n) " resp
     if [ $resp == "y" ]; then
         read -p "Are you sure - remove cluster-genesis ? (y/n) " resp
         if [ $resp == "y" ]; then
@@ -191,7 +199,7 @@ if [ ! -z "$str" ] || [[ "$PATH" == *"cluster-genesis"* ]]; then
         sed -i '/complete -W/d' ~/.bashrc
         echo;
         echo "To clean the PATH variable: source ~/bin/cleanpath"
-        echo "To remove Cluster Genesis scripts form you ~/bin directory:"
+        echo "To remove Cluster Genesis scripts from your ~/bin directory:"
         echo "rm ~/bin/tear-down"
         echo "rm ~/bin/cleanpath"
     fi
