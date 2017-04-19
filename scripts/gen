@@ -26,13 +26,10 @@ if [ -z "$complete -p|grep 'gen'" ]; then
     echo "from the cluster-genesis directory"
     exit
 fi
+
 GEN_SCRIPTS_PATH=$(dirname $0)
-GEN_PATH=${GEN_SCRIPTS_PATH//scripts/}
-genplaypath=${PATH%"cluster-genesis/scripts"*}
-genplaypath=${genplaypath#*:}cluster-genesis/playbooks/
-gendepenvpath=${PATH%"cluster-genesis/scripts"*}
-gendepenvpath=${gendepenvpath#*:}cluster-genesis/deployenv/bin
-PATH=$gendepenvpath:$PATH
+GEN_PATH=${GEN_SCRIPTS_PATH%\/scripts}
+GEN_PLAY_PATH=$GEN_PATH/playbooks
 ################################################
 if [ -z "$1" ] || [ "$1" = "?" ]; then
     echo;
@@ -67,7 +64,7 @@ source /etc/os-release
 #fi
 ################################################
 if [ "$1" = "deploy" ] || [ "$1" = "enable_mgmt_switch" ]; then
-    cd "$genplaypath"
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts enable_mgmt_switch.yml -K
     echo;
     if [ "$2" = "-p" ]; then
@@ -77,7 +74,7 @@ if [ "$1" = "deploy" ] || [ "$1" = "enable_mgmt_switch" ]; then
 fi
 ##########################################################
 if [ "$1" = "deploy" ] || [ "$1" = "lxc-create" ]; then
-    cd "$genplaypath"
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts lxc-create.yml -K
     echo;
     if [ "$2" = "-p" ]; then
@@ -93,7 +90,7 @@ if [ "$1" = "install" ]; then
     echo;
     read -p "Enter to continue, (t) to terminate " resp
     if [ "$resp" = "t" ]; then exit; fi
-    cd "$genplaypath"
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts install.yml -K
     echo;
 fi
@@ -101,7 +98,7 @@ fi
 if [ "$1" = "deploy" ] || [ "$1" = "install_1" ]; then
     echo;
     if [ "$resp" = "t" ]; then exit; fi
-    cd "$genplaypath"
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts install_1.yml -K
     echo;
 fi
@@ -109,13 +106,13 @@ fi
 if [ "$1" = "deploy" ] || [ "$1" = "install_2" ]; then
     echo;
     if [ "$resp" = "t" ]; then exit; fi
-    cd "$genplaypath"
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts install_2.yml -K
     echo;
 fi
 ##########################################################
 if [ "$1" = "post-deploy" ]; then
-    cd "$genplaypath"
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i ./inventory.py ssh_keyscan.yml
     echo;
     if [ "$2" = "-p" ]; then
@@ -129,7 +126,7 @@ if [ "$1" = "post-deploy" ]; then
         if [ "$resp" = "t" ]; then exit; fi
     fi
 
-    ansible-playbook -i hosts container/set_data_switch_config.yml 
+    ansible-playbook -i hosts container/set_data_switch_config.yml
     echo;
     if [ "$2" = "-p" ]; then
         read -p "Enter to continue, (t) to terminate " resp
@@ -143,7 +140,7 @@ if [ "$1" = "post-deploy" ]; then
 fi
 ##########################################################
 if [ "$1" = "log" ]; then
-    less +G $GENPATH"log.txt"
+    less +G $GEN_PATH/log.txt
 fi
 ########################################################
 if [ "$1" = "logc" ]; then
@@ -259,7 +256,7 @@ if [ "$1" = "show-switch" ]; then
         networkmgmtsw=${networkmgmtsw%/*}
     fi
 #    echo "network: "$networkmgmtsw"
-    
+
     networkmgmtswroute=$(route|grep $networkmgmtsw)
     if [ ! -z "$networkmgmtswroute" ]; then
         existnetworkmgmtsw="yes"
@@ -273,7 +270,7 @@ if [ "$1" = "show-switch" ]; then
             existnetworkmgmtsw="yes"
         fi
     fi
-    
+
     portmgmtsw=$(awk -F: '/port-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
     portmgmtsw=${portmgmtsw%%#*}
     portmgmtsw=${portmgmtsw// /}
