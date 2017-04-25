@@ -23,14 +23,14 @@ auto lo
 iface lo inet loopback
 
 {% for interface in ansible_interfaces %}
-    {% ( if interface != 'lo' and
-         ( inventory_hostname !=
-           hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') ) ) %}
+    {% if ( interface != 'lo' and
+            inventory_hostname !=
+            hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') ) %}
 auto {{ interface }}
 iface {{ interface }} inet manual
 iface {{ interface }} inet6 auto
-    {% ( elif inventory_hostname ==
-         hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') ) %}
+    {% elif ( inventory_hostname ==
+              hostvars[inventory_hostname]['ansible_' + interface.replace('-', '_')].get('ipv4', {}).get('address') ) %}
 auto {{ interface }}
 iface {{ interface }} inet dhcp
     {% endif %}
