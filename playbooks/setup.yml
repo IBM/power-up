@@ -1,0 +1,42 @@
+---
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: setup.yml
+  hosts: localhost
+  tasks:
+    - name: "Print default Log Level"
+      debug:
+        msg: "Log Level: {{ log_level }}"
+
+    - name: "Read {{ config_local }}"
+      include_vars:
+        name: config_file
+        file: "{{ config_local }}"
+
+    - block:
+      - name: "Print Log Level in {{ config_local }}"
+        debug:
+          msg: "Log Level: {{ config_file.log_level }}"
+
+      - name: "Update default Log Level"
+        replace:
+          dest: "{{ project_path_local }}/playbooks/group_vars/all"
+          regexp: '^(log_level:).*$'
+          replace: '\1 {{ config_file.log_level }}'
+      when:
+        - config_file.log_level is defined
+        - config_file.log_level is not none

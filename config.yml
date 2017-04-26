@@ -23,6 +23,7 @@
 
 version: 1.1
 
+log_level: debug
 introspection-enabled: false  # only supported for ppc64 deployer & clients
 ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-client-network: 192.168.20.0/24

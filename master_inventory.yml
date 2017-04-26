@@ -24,6 +24,7 @@
 
 version: 1.1
 
+log_level: debug
 ipaddr-mgmt-network: 192.168.16.0/20   # 4096 addresses
 ipaddr-mgmt-switch:
     rack1: 192.168.16.2

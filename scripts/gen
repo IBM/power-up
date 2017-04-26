@@ -66,6 +66,16 @@ source /etc/os-release
 #    fi
 #fi
 ################################################
+if [ "$1" = "deploy" ] || [ "$1" = "setup" ]; then
+    cd "$genplaypath"
+    ansible-playbook -i hosts setup.yml
+    echo;
+    if [ "$2" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+fi
+################################################
 if [ "$1" = "deploy" ] || [ "$1" = "enable_mgmt_switch" ]; then
     cd "$genplaypath"
     ansible-playbook -i hosts enable_mgmt_switch.yml -K

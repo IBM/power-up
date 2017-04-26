@@ -27,7 +27,7 @@ container_bridge_ipv4_offset: 3
 node_mgmt_ipv4_start: "{{ container_mgmt_subnet | ipaddr('101') }}"
 
 scripts_path: "{{ project_path }}/scripts"
-log_level: "debug"
+log_level: debug
 
 # Reboot time variables
 # How long to wait for a server to reboot
