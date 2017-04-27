@@ -178,11 +178,6 @@
       become: yes
       become_method: sudo
 
-    - name: "Print container information"
-      debug:
-        msg: "{{ container_info.stdout.split('\n') }}"
-      when: not networks_only
-
     - name: "Create Ansible host for \"deployer\""
       lineinfile:
         dest: "{{ project_path_local }}/playbooks/hosts"
@@ -194,41 +189,43 @@
           ansible_host={{ ipaddr_mgmt_network.stdout |
           ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
 
-    - name: Remove any existing known_hosts file
-      file:
-        path: "{{ known_hosts }}"
-        state: absent
-      when: not networks_only
+    - block:
+      - name: "Print container information"
+        debug:
+          msg: "{{ container_info.stdout.split('\n') }}"
 
-    - name: Create known_hosts file
-      file:
-        path: "{{ known_hosts }}"
-        state: touch
-        mode: 0600
-      when: not networks_only
+      - name: Remove any existing known_hosts file
+        file:
+          path: "{{ known_hosts }}"
+          state: absent
 
-    - name: |
-        Use ssh-keyscan to collect container host keys (retry until ssh is up)
-      command: |
-        /usr/bin/ssh-keyscan -H {{ ipaddr_mgmt_network.stdout |
-        ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
-      register: ssh_keyscan_output
-      until: ssh_keyscan_output.stdout != ''
-      retries: 6
-      delay: 10
-      when: not networks_only
+      - name: Create known_hosts file
+        file:
+          path: "{{ known_hosts }}"
+          state: touch
+          mode: 0600
 
-    - name: Append keys to playbooks/known_hosts and ~/.ssh/known_hosts
-      lineinfile:
-        line: "{{ item[0] }}"
-        dest: "{{ item[1] }}"
-        state: present
-        create: "yes"
-        mode: 0600
-      with_nested:
-        - "{{ ssh_keyscan_output.stdout_lines }}"
-        -   - "{{ known_hosts }}"
-            - "~/.ssh/known_hosts"
+      - name: |
+          Use ssh-keyscan to collect container host keys (retry until ssh is up)
+        command: |
+          /usr/bin/ssh-keyscan -H {{ ipaddr_mgmt_network.stdout |
+          ipaddr(container_mgmt_ipv4_offset) | ipaddr("address") }}
+        register: ssh_keyscan_output
+        until: ssh_keyscan_output.stdout != ''
+        retries: 6
+        delay: 10
+
+      - name: Append keys to playbooks/known_hosts and ~/.ssh/known_hosts
+        lineinfile:
+          line: "{{ item[0] }}"
+          dest: "{{ item[1] }}"
+          state: present
+          create: "yes"
+          mode: 0600
+        with_nested:
+          - "{{ ssh_keyscan_output.stdout_lines }}"
+          -   - "{{ known_hosts }}"
+              - "~/.ssh/known_hosts"
       when: not networks_only
 
     - name: "Register introspection-enabled config.yml value"

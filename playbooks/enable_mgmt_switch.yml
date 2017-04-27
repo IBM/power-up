@@ -32,14 +32,14 @@
       become: yes
       become_method: sudo
 
-    - name: "Print management network interface"
-      debug:
-        msg: "Management network interface - {{ mgmt_network_interface.stdout }}"
-      when: mgmt_network_interface.stdout != ""
+    - block:
+      - name: "Print management network interface"
+        debug:
+          msg: "Management network interface - {{ mgmt_network_interface.stdout }}"
 
-    - name: "Update mgmt_network_interface in host_vars/localhost"
-      replace:
-        dest: "{{ project_path_local }}/playbooks/host_vars/localhost"
-        regexp: '^(mgmt_network_interface:).*$'
-        replace: '\1 {{ mgmt_network_interface.stdout }}'
+      - name: "Update mgmt_network_interface in host_vars/localhost"
+        replace:
+          dest: "{{ project_path_local }}/playbooks/host_vars/localhost"
+          regexp: '^(mgmt_network_interface:).*$'
+          replace: '\1 {{ mgmt_network_interface.stdout }}'
       when: mgmt_network_interface.stdout != ""

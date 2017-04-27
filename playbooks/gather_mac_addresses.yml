@@ -41,17 +41,17 @@
            item.replace('-', '_')]['active'] }}"
       with_items: "{{ ansible_interfaces }}"
 
-    - name: Backup interfaces file
-      command: "cp /etc/network/interfaces /etc/network/interfaces.bak"
-      when: ansible_distribution == 'Ubuntu'
+    - block:
+      - name: Backup interfaces file
+        command: "cp /etc/network/interfaces /etc/network/interfaces.bak"
 
-    - name: Write interfaces file for ipv6 auto on all interfaces if Ubuntu
-      template:
-        src: "{{ playbook_dir }}/templates/ipv6Interface_ubuntu.j2"
-        dest: /etc/network/interfaces
-        owner: "root"
-        group: "root"
-        mode: "0644"
+      - name: Write interfaces file for ipv6 auto on all interfaces if Ubuntu
+        template:
+          src: "{{ playbook_dir }}/templates/ipv6Interface_ubuntu.j2"
+          dest: /etc/network/interfaces
+          owner: "root"
+          group: "root"
+          mode: "0644"
       when: ansible_distribution == 'Ubuntu'
 
     - name: Write ifcfg files for ipv6 on all interfaces if RHEL/CentOS
