@@ -28,7 +28,7 @@ import netaddr
 
 from lib.inventory import Inventory
 from inv_add_switches import InventoryAddSwitches
-from yggdrasil.allocate_ip_addresses import allocate_ips
+from allocate_ip_addresses import allocate_ips
 
 
 def mock_inventory(cfg_file, inv_file, log_level):

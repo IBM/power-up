@@ -1,1 +1,1 @@
-../scripts/python/yggdrasil/inventory.py
+../scripts/python/inventory.py

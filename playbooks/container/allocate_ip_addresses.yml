@@ -20,5 +20,5 @@
   tasks:
     - name: Allocate IP addresses to client node data network interfaces
       command: "{{ python_executable }} \
-                {{ scripts_path }}/python/yggdrasil/allocate_ip_addresses.py \
+                {{ scripts_path }}/python/allocate_ip_addresses.py \
                 --inventory {{ inventory }}"

@@ -16,11 +16,11 @@
 # limitations under the License.
 
 import copy
-from yggdrasil import inventory as test_mod
+import inventory as test_mod
 import mock
 import unittest
 
-TEST_PKG_MOD = 'yggdrasil.inventory'
+TEST_PKG_MOD = 'inventory'
 DEBUG_TEST_CASES = False
 
 
