@@ -115,7 +115,7 @@ if [ ! -z "$bridgemgmt" ]; then
             sudo brctl delif $bridgemgmt $bridgemgmtinterface
             sudo ip link set dev $bridgemgmtinterface down
             sudo ip link delete $bridgemgmtinterface
-        fi 
+        fi
         sudo brctl delbr $bridgemgmt
         if [ "$redcent" = 0 ]; then
             sudo rm /etc/network/interfaces.d/$bridgemgmt
@@ -167,12 +167,19 @@ fi
 if [ -d ~/cluster-genesis ]; then
     read -p "Remove cluster-genesis ? (y/n) " resp
     if [ $resp == "y" ]; then
-       read -p "Are you sure - remove cluster-genesis ? (y/n) " resp
-       if [ $resp == "y" ]; then
+        read -p "Are you sure - remove cluster-genesis ? (y/n) " resp
+        if [ $resp == "y" ]; then
+            echo;
+            echo "Removing Cluster Genesis "
+            rm -rf ~/cluster-genesis
+        fi
+    elif [ -d ~/cluster-genesis/playbooks/.facts ]; then
+        read -p "Remove cluster-genesis/playbooks/.facts ? (y/n) " resp
+        if [ $resp == "y" ]; then
            echo;
-           echo "Removing Cluster Genesis "
-           rm -rf ~/cluster-genesis
-       fi
+           echo "Removing cluster-genesis/playbooks/.facts "
+           rm -rf ~/cluster-genesis/playbooks/.facts
+        fi
     fi
 fi
 ##################################################

@@ -44,6 +44,7 @@
 
 - name: Copy known_hosts entries to all client nodes
   hosts: all
+  gather_facts: True
   tasks:
     - name: Append generated known_hosts contect to ~/.ssh/known_hosts
       lineinfile:
