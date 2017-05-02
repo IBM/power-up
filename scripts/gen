@@ -91,6 +91,9 @@ case "$1" in
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i ./inventory.py configure_operating_systems.yml;;
 
+    'post-deploy-passive')
+    post-deploy-passive $2;;
+
     'log')
     less +G $GEN_PATH/log.txt;;
 

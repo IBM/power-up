@@ -21,10 +21,10 @@ from lib.logger import Logger
 import mellanox_switch
 
 
-def main(log_level, inv_file):
+def main(log, inv_file):
 
-    inv = inventory.Inventory(log_level, inv_file)
-    switch = mellanox_switch.MellanoxSwitch(log_level)
+    inv = inventory.Inventory(log, inv_file)
+    switch = mellanox_switch.MellanoxSwitch(log)
     switch_ip_to_port_to_macs = switch.get_macs(inv)
     success = inv.add_data_switch_port_macs(switch_ip_to_port_to_macs)
     if not success:
@@ -47,12 +47,8 @@ if __name__ == '__main__':
             log.error('Invalid argument count')
             exit(1)
 
-    log.clear()
-
     inv_file = sys.argv[1]
     if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
-    else:
-        log_level = None
+        log.set_level(sys.argv[2])
 
-    main(log_level, inv_file)
+    main(log, inv_file)

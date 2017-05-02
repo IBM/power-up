@@ -165,6 +165,41 @@ and configure the data switches. From the host namespace, execute::
 
    $ gen post-deploy
 
+**Configuring networks on the cluster nodes with passive data switches**
+
+If data switches are configured as passive and networks are configured with
+MLAG verify
+
+  * The switch IPL ports are disabled or are not plugged in.
+  * No port channels are defined.
+
+   $ gen post-deploy-passive
+
+When prompted, write each switch MAC address table to file in
+'cluster-genesis/playbooks'. The files should be named to match the unique
+values set in the 'config.yml' 'ipaddr-data-switch' dictionary. For example,
+take the following 'ipaddr-data-switch' configuration::
+
+    ipaddr-data-switch:
+        base-rack: passive1
+        rack2: passive2
+        rack3: passive3
+
+The user would need to write three files:
+1. 'cluster-genesis/playbooks/passive1'
+2. 'cluster-genesis/playbooks/passive2'
+3. 'cluster-genesis/playbooks/passive3'
+
+If the user has ssh access to the switch management interface writing the MAC
+address table to file can easily be accomplished by redirecting stdout. Here is
+an example of the syntax for a Mellanox SX1400::
+
+    $ ssh <data_switch_user>@<data_switch_ip> 'cli en show\ mac-address-table' > ~/cluster-genesis/playbooks/passive1
+
+Note that this command would need to be run for each individual data switch,
+writing to a seperate file for each. It is recommended to verify each file has
+a complete table for the appropriate interface configuration.
+
 SSH Keys
 --------
 

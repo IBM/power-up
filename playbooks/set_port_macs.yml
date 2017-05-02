@@ -15,8 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: clear_data_switch_macs.yml
-- include: activate_client_interfaces.yml
-- include: pause.yml seconds=30
-- include: set_port_macs.yml
-- include: restore_client_interfaces.yml
+- name: set_port_macs.yml
+  hosts: localhost
+  tasks:
+    - name: Get interface MACs from the switch and write them to the inventory
+      command: "{{ python_executable_local }} \
+                {{ scripts_path_local }}/python/set_port_macs.py \
+                /var/oprc/inventory.yml \
+                {{ log_level }}"
+      ignore_errors: yes

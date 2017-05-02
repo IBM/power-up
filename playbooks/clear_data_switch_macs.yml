@@ -15,8 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: clear_data_switch_macs.yml
-- include: activate_client_interfaces.yml
-- include: pause.yml seconds=30
-- include: set_port_macs.yml
-- include: restore_client_interfaces.yml
+- name: clear_data_switch_macs.yml
+  hosts: localhost
+  tasks:
+    - name: Include localhost variables
+      include_vars: host_vars/localhost
+
+    - name: Clear data switch(es) MAC address table
+      command: "{{ python_executable_local }} \
+                {{ scripts_path_local }}/python/clear_port_macs.py \
+                /var/oprc/inventory.yml \
+                {{ log_level }}"

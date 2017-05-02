@@ -138,14 +138,20 @@ class Inventory():
     def add_switches(self):
         if (INV_USERID_MGMT_SWITCH in self.inv and
                 self.inv[INV_USERID_MGMT_SWITCH] is not None):
-                userid = self.inv[INV_USERID_MGMT_SWITCH]
-        else:
+            userid = self.inv[INV_USERID_MGMT_SWITCH]
+        elif INV_USERID_DEFAULT in self.inv:
             userid = self.inv[INV_USERID_DEFAULT]
+        else:
+            userid = None
+
         if (INV_PASSWORD_MGMT_SWITCH in self.inv and
                 self.inv[INV_PASSWORD_MGMT_SWITCH] is not None):
-                password = self.inv[INV_PASSWORD_MGMT_SWITCH]
-        else:
+            password = self.inv[INV_PASSWORD_MGMT_SWITCH]
+        elif INV_PASSWORD_DEFAULT in self.inv:
             password = self.inv[INV_PASSWORD_DEFAULT]
+        else:
+            password = None
+
         _list = []
         for index, (key, value) in (
                 enumerate(self.inv[INV_IPADDR_MGMT_SWITCH].items())):
@@ -161,14 +167,20 @@ class Inventory():
 
         if (INV_USERID_DATA_SWITCH in self.inv and
                 self.inv[INV_USERID_DATA_SWITCH] is not None):
-                userid = self.inv[INV_USERID_DATA_SWITCH]
-        else:
+            userid = self.inv[INV_USERID_DATA_SWITCH]
+        elif INV_USERID_DEFAULT in self.inv:
             userid = self.inv[INV_USERID_DEFAULT]
+        else:
+            userid = None
+
         if (INV_PASSWORD_DATA_SWITCH in self.inv and
                 self.inv[INV_PASSWORD_DATA_SWITCH] is not None):
-                password = self.inv[INV_PASSWORD_DATA_SWITCH]
-        else:
+            password = self.inv[INV_PASSWORD_DATA_SWITCH]
+        elif INV_PASSWORD_DEFAULT in self.inv:
             password = self.inv[INV_PASSWORD_DEFAULT]
+        else:
+            password = None
+
         _list = []
         for index, (key, value) in (
                 enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
@@ -463,10 +475,16 @@ class Inventory():
     def get_data_switches(self):
         # This methods a dict of switch IP to a dict with user
         # userid and password
-        userid = self.inv[INV_USERID_DATA_SWITCH]
-        password = self.inv[INV_PASSWORD_DATA_SWITCH]
+        if INV_USERID_DATA_SWITCH in self.inv:
+            userid = self.inv[INV_USERID_DATA_SWITCH]
+        else:
+            userid = None
+        if INV_PASSWORD_DATA_SWITCH in self.inv:
+            password = self.inv[INV_PASSWORD_DATA_SWITCH]
+        else:
+            password = None
         return_value = AttrDict()
-        for rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].values():
+        for rack, rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].iteritems():
             if type(rack_ip) == list:
                 for ip in rack_ip:
                     return_value[ip] = {
@@ -620,6 +638,8 @@ class Inventory():
                     ip_to_rack_id[ip] = rack_id
             else:
                 ip_to_rack_id[rack_ip] = rack_id
+        print(ip_to_rack_id)
+        print(switch_to_port_to_macs)
 
         # Get list of all nodes
         nodes = [node for sublist in self.inv['nodes'].values() for node

@@ -93,7 +93,6 @@ Notes:
 -  The management ip addresses for the management switch and the data
    switch must not reside in the same subnet as the nodes management
    network.
--
 -  It is permitted to include addititonal application specific key value
    pairs at the end of the cluster definition section. Additional keys
    will be copied to the inventory.yml file which can be read by
@@ -102,7 +101,31 @@ Notes:
    supply a valid ipv4 address. a.b.c.d/n is used to represent any valid
    ipv4 address in CIDR format.
 
-Introspection:
+**Passive Data Switch Mode**:
+
+Data switches can be set to "passive" mode to allow deployment without
+supplying login credentials to the switch management interfaces. This mode
+requires the user to manually write switch MAC address tables to file and to
+configure the data switch in accordance with the defined networks. The client
+networks will still be configured by Cluster Genesis.
+
+To configure passive switches simply omit 'userid-data-switch' from
+'config.yml'. The 'ipaddr-data-switch' dictionary still needs to be defined
+in order to be used as a switch identifier. In place of IP addresses anything
+may be used as long as each switch has a unique value.
+
+Passive data switch example configuration::
+
+    ipaddr-mgmt-switch:
+        base-rack: 192.168.16.5
+        rack2: 192.168.16.6
+        rack3: 192.168.16.7
+    ipaddr-data-switch:
+        base-rack: passive1
+        rack2: passive2
+        rack3: passive3
+
+**Introspection**:
 
 Introspection consists of loading a lightweight in-memory OS (linux buildroot)
 on all client nodes prior to OS installation on disk. This feature can be

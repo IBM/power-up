@@ -82,6 +82,50 @@ post-deploy(){
     ansible-playbook -i ./inventory.py configure_operating_systems.yml
 }
 
+post-deploy-passive(){
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i ./inventory.py ssh_keyscan.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i ./inventory.py activate_client_interfaces.yml
+    echo;
+    tput bold
+    echo "** User Action Required to Collect Data Switch MAC Adddress Tables **"
+    tput sgr0
+    echo "All client interfaces have been activated. Please collect MAC"
+    echo "address tables from all data switches and write each table to file"
+    echo "in 'cluster-genesis/playbooks'. The files should be named to match"
+    echo "the unique values set in the 'config.yml' 'ipaddr-data-switch'"
+    echo "dictionary."
+    echo;
+    tput bold
+    echo "Do no continue until all MAC table files are in place!"
+    tput sgr0
+    echo;
+    read -p "Enter to continue, (t) to terminate " resp
+    if [ "$resp" = "t" ]; then exit; fi
+
+    ansible-playbook -i hosts set_port_macs.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i ./inventory.py restore_client_interfaces.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i ./inventory.py configure_operating_systems.yml
+}
+
 show_logc(){
     dep=$(sudo lxc-ls -f|grep -m 1 $cname)
     depaddr=${dep##*,}

@@ -16,6 +16,6 @@
 
 {% for interface, mac in name_interfaces.iteritems()|sort %}
 # Rule "{{ interface }}"
-SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="{{ mac }}", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="[ep]*", NAME="{{ interface }}"
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="{{ mac|lower }}", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="[ep]*", NAME="{{ interface }}"
 
 {% endfor %}

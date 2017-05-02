@@ -1,0 +1,63 @@
+---
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: activate_client_interfaces.yml
+  hosts: all
+  tasks:
+    - name: Bring down all interfaces except ansible communication interface
+      command: "ifdown {{ item }}"
+      when:
+        - "{{ item != 'lo' }}"
+        - "{{ inventory_hostname != \
+           hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+        - "{{ hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')]['active'] }}"
+      with_items: "{{ ansible_interfaces }}"
+
+    - block:
+        - name: Backup interfaces file
+          command: "cp /etc/network/interfaces /etc/network/interfaces.bak"
+
+        - name: Write interfaces file for ipv6 auto on all interfaces if Ubuntu
+          template:
+            src: "{{ playbook_dir }}/templates/ipv6Interface_ubuntu.j2"
+            dest: /etc/network/interfaces
+            owner: "root"
+            group: "root"
+            mode: "0644"
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Write ifcfg files for ipv6 on all interfaces if RHEL/CentOS
+      template:
+        src: "{{ playbook_dir }}/templates/ipv6Interface_rhel.j2"
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+      when: (ansible_distribution == 'CentOS') or
+            (ansible_distribution == 'RedHat')
+      with_items: "{{ ansible_interfaces }}"
+
+    - name: Bring up all interfaces
+      command: "ifup {{ item }}"
+      when:
+        - "{{ item != 'lo' }}"
+        - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
+           item.replace('-', '_')].get('ipv4', {}).get('address') }}"
+      with_items: "{{ ansible_interfaces }}"
+      ignore_errors: yes

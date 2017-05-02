@@ -48,23 +48,28 @@ Hardware and Architecture Overview
 
 The OpenPOWER Cluster Genesis software supports clusters of servers
 interconnected with Ethernet. The
-servers must support IPMI and PXE boot. Currently single racks with single 
+servers must support IPMI and PXE boot. Currently single racks with single
 or redundant data switches (with MLAG) are supported. Multiple racks can
 be interconnected with traditional two tier access-aggregation
-networking.  In the future we plan to support two tier leaf-spine networks 
+networking.  In the future we plan to support two tier leaf-spine networks
 with L3 interconnect capable of supporting VXLAN.
 
 Networking
 ~~~~~~~~~~
 
 The data network is implemented using the Mellanox SX1410 10 Gb switch.
-OPCG will support any number of data interfaces on the compute nodes.
-Currently OPCG supports one or two ethernet interfaces.  These interfaces
-can be bonded with support for LAG or MLAG.
+Currently OPCG supports up to four ethernet interfaces. These interfaces
+can be bonded in pairs with support for LAG or MLAG.
 
 Templates are used to define multiple network configurations in the config.yml file.
 These can be physical ports, bonded ports, Linux bridges or vLANS. Physical ports can be
 renamed to ease installation of additional software stack elements.
+
+Data switches can be set to "passive" mode to allow deployment without
+supplying login credentials to the switch management interfaces. This mode
+requires the user to manually write switch MAC address tables to file and to
+configure the data switch in accordance with the defined networks. The client
+networks will still be configured by Cluster Genesis.
 
 Compute Nodes
 ~~~~~~~~~~~~~
@@ -72,7 +77,7 @@ Compute Nodes
 OPCG supports clusters of heterogeneous compute nodes. Users can define any number of
 node types by creating templates in a config file. Node templates can
 include any network templates defined in the network templates section.  The combination of
-node templates and network templates allows great flexibility in building heterogeneous clusterx with nodes 
+node templates and network templates allows great flexibility in building heterogeneous clusterx with nodes
 dedicated to specific purposes.
 
 Supported Hardware
@@ -116,9 +121,9 @@ Hardware initialization
    strongly recommended that the deployer node be connected directly to
    the management switch. For large cluster deployments, a 10 Gb
    connection is recommended. The deployer node must also have access to
-   the public internet (or site) network for accessing software and operating 
-   system image files.  If the cluster management network does not have 
-   external access, an alternate connection with external access must be 
+   the public internet (or site) network for accessing software and operating
+   system image files.  If the cluster management network does not have
+   external access, an alternate connection with external access must be
    provided such as the cluster data network, or wireless etc.
 -  Insure that the BMC ports of all cluster nodes are configured to
    obtain an IP address via DHCP.
@@ -165,8 +170,8 @@ Hardware initialization
 
           enable
           configure terminal
-          show vlan 
- 
+          show vlan
+
          note those vlans that include the ports of the nodes to be included in the new cluster and remove those vlans or remove those ports from existing vlans::
 
           no vlan n
