@@ -149,9 +149,8 @@ class Inventory():
             _dict[INV_USERID] = userid
             _dict[INV_PASSWORD] = password
             _list.append(_dict)
-        inv = AttrDict({})
-        inv[INV_SWITCHES] = AttrDict({})
-        inv[INV_SWITCHES][INV_MGMT] = _list
+        inv = AttrDict()
+        inv[INV_MGMT] = _list
 
         if (INV_USERID_DATA_SWITCH in self.inv and
                 self.inv[INV_USERID_DATA_SWITCH] is not None):
@@ -176,7 +175,7 @@ class Inventory():
             _dict[INV_USERID] = userid
             _dict[INV_PASSWORD] = password
             _list.append(_dict)
-        inv[INV_SWITCHES][INV_DATA] = _list
+        inv[INV_DATA] = _list
 
         self.inv[INV_SWITCHES] = inv
         self._dump_inv_file()
