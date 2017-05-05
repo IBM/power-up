@@ -24,6 +24,30 @@ if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ]; then
 elif [ "$ID" = "ubuntu" ]; then
     redcent=0
 fi
+get_config_key ()
+{
+    KEY=$1
+    FOUND=false
+    INDEX=0
+    while IFS='' read line; do
+        if [[ $line == $"$KEY:"* ]]; then
+            FOUND=true
+            continue
+        fi
+        if [ "$FOUND" = true ]; then
+            if [[ $line == $"    "* ]]; then
+                TEST=$(awk '{split($0, a); print a[2]}' <<< $line)
+                if [ ! -z $TEST ]; then
+                    config_value[$INDEX]=$TEST
+                    INDEX=($INDEX+1)
+                fi
+            else
+                FOUND=false
+            fi
+        fi
+    done < "$HOME/cluster-genesis/config.yml"
+}
+
 #############################################################
 GEN_SCRIPTS_PATH=$(grep -m 1 "cluster-genesis/scripts" ~/.bashrc)
 GEN_SCRIPTS_PATH=${GEN_SCRIPTS_PATH#PATH=}
@@ -204,3 +228,15 @@ if [ ! -z "$str" ] || [[ "$PATH" == *"cluster-genesis"* ]]; then
         echo "rm ~/bin/cleanpath"
     fi
 fi
+##################################################
+KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
+for key in "mgmt" "data"; do
+    read -p "Remove ${key} switch host key(s) from ${KNOWN_HOSTS}? (y/n) " resp
+    if [[ "$resp" == "y"* ]]; then
+        get_config_key "ipaddr-${key}-switch"
+        for ip in "${config_value[@]}"; do
+            echo "Removing any $ip host keys from ${KNOWN_HOSTS}"
+            ssh-keygen -R $ip -f $KNOWN_HOSTS
+        done
+    fi
+done
