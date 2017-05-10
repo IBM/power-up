@@ -19,6 +19,8 @@ import os.path
 import yaml
 from orderedattrdict.yamlutils import AttrDictYAMLLoader
 from orderedattrdict import AttrDict
+from collections import namedtuple
+from enum import Enum
 
 from lib.logger import Logger
 
@@ -86,9 +88,14 @@ INV_PORT_ETH12 = 'port-eth12'
 INV_PORT_ETH13 = 'port-eth13'
 INV_OS_DISK = 'os-disk'
 INV_TEMPLATE = 'template'
+INV_INFO = 'info'
+INV_CLASS = 'class'
 
 
 class Inventory():
+    class SwitchType(Enum):
+        MGMT, DATA = range(2)
+
     INV_CHASSIS_PART_NUMBER = 'chassis-part-number'
     INV_CHASSIS_SERIAL_NUMBER = 'chassis-serial-number'
     INV_MODEL = 'model'
@@ -115,7 +122,7 @@ class Inventory():
 
     def _dump_inv_file(self):
         try:
-            yaml.dump(
+            yaml.safe_dump(
                 self.inv,
                 open(self.inv_file, 'w'),
                 indent=4,
@@ -178,6 +185,41 @@ class Inventory():
         inv[INV_DATA] = _list
 
         self.inv[INV_SWITCHES] = inv
+        self._dump_inv_file()
+
+    def _get_switch_type(self, switch_type):
+        if switch_type == self.SwitchType.MGMT:
+            type = INV_MGMT
+        elif switch_type == self.SwitchType.DATA:
+            type = INV_DATA
+        else:
+            try:
+                raise Exception()
+            except:
+                self.log.error('Invalid switch type')
+                exit(1)
+        return type
+
+    def yield_switches(self, switch_type):
+        Switch = namedtuple('Switch', ['ip_addr', 'userid', 'password'])
+        for switch in self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]:
+            yield Switch(
+                switch[INV_IPV4_ADDR],
+                switch[INV_USERID],
+                switch[INV_PASSWORD])
+
+    def update_switch_model_info(self, switch_type, info):
+        for index, switch in enumerate(
+                self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]):
+            if info[index]:
+                switch[INV_INFO] = info[index]
+        self._dump_inv_file()
+
+    def update_switch_class(self, switch_type, classes):
+        for index, switch in enumerate(
+                self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]):
+            if classes[index]:
+                switch[INV_CLASS] = classes[index]
         self._dump_inv_file()
 
     def yield_mgmt_switch_ip(self):

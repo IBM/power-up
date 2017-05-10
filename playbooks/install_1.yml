@@ -18,10 +18,11 @@
 - include: introspection_build.yml
   when: introspection_enabled
 - include: lxc-update.yml
+- include: container/inv_add_switches.yml
+- include: container/get_switch_model_info.yml
 - include: container/set_mgmt_switch_config.yml
 - include: container/cobbler/cobbler_install.yml
 - include: container/inv_add_ports.yml port_type=ipmi
-- include: container/inv_add_switches.yml
 - include: container/cobbler/cobbler_add_introspection.yml
   when: introspection_enabled
 - include: container/ipmi_set_bootdev.yml bootdev=network persistent=False
