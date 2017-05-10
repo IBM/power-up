@@ -32,3 +32,5 @@
   when: introspection_enabled
 - include: container/inv_add_ports.yml port_type=pxe
 - include: container/inv_add_ipmi_data.yml
+- include: introspection_message.yml
+  when: introspection_enabled
