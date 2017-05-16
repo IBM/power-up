@@ -26,6 +26,7 @@ import paramiko
 
 from lib.inventory import Inventory
 from lib.logger import Logger
+from write_switch_memory import WriteSwitchMemory
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -171,6 +172,10 @@ class ConfigureMgmtSwitch(object):
                         'Failed adding management VLAN %s to access port %s' %
                         (self.vlan_mgmt_client, port))
                     sys.exit(1)
+
+        if inv.is_write_switch_memory():
+            switch = WriteSwitchMemory(LOG, INV_FILE)
+            switch.write_mgmt_switch_memory()
 
     def is_port_in_trunk_mode(self, port):
         if re.search(

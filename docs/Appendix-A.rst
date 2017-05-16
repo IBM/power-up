@@ -129,3 +129,12 @@ with password; from deployer or cluster node::
 
     $ ssh userid-default@a.b.c.d # password: password-default (from config.yml)
 
+**Write switch configuration to flash memory**
+
+Manual method for writing management and data switch configuration to flash memory::
+
+    $ ansible-playbook -i hosts container/write_switch_memory.yml
+
+This method requires enablement in the config.yml file::
+
+    write-switch-memory: true   # Write Switch Memory Enabled

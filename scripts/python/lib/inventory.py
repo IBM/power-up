@@ -43,6 +43,7 @@ INV_USERID_MGMT_SWITCH = 'userid-mgmt-switch'
 INV_PASSWORD_MGMT_SWITCH = 'password-mgmt-switch'
 INV_USERID_DATA_SWITCH = 'userid-data-switch'
 INV_PASSWORD_DATA_SWITCH = 'password-data-switch'
+INV_WRITE_SWITCH_MEMORY = 'write-switch-memory'
 INV_NODES_TEMPLATES = 'node-templates'
 INV_ETH_PORT = 'eth-port'
 INV_BOND_INTS = 'bond-interfaces'
@@ -691,3 +692,8 @@ class Inventory():
             index += 1
         self._dump_inv_file()
         return success
+
+    def is_write_switch_memory(self):
+        if INV_WRITE_SWITCH_MEMORY in self.inv and self.inv[INV_WRITE_SWITCH_MEMORY]:
+            return True
+        return False

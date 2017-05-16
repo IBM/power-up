@@ -24,6 +24,7 @@ import os.path
 from lib.inventory import Inventory
 from lib.logger import Logger
 from lib.ssh import SSH
+from write_switch_memory import WriteSwitchMemory
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -121,6 +122,10 @@ class ConfigureDataSwitch(object):
                         self._activate_lag(port_channel, ports)
 
             switch_index += 1
+
+        if self.inv.is_write_switch_memory():
+            switch = WriteSwitchMemory(LOG, INV_FILE)
+            switch.write_data_switch_memory()
 
     def _remove_channel_group(self, port):
         # Remove channel-group from interface
@@ -342,7 +347,7 @@ class ConfigureDataSwitch(object):
                     'Failed: ' + msg + ' on ' + self.ipv4 +
                     ' - Error: ' +
                     stdout_.replace('\n', ' ').replace('\r', ''))
-                sys.exit(1)
+                exit(1)
             else:
                 self.log.info(
                     msg + ' on ' + self.ipv4 +

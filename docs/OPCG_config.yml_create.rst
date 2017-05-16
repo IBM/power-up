@@ -137,6 +137,14 @@ client nodes.::
     introspection-enabled: true   # Introspection Mode Enabled
     introspection-enabled: false  # Introspection Mode Disabled
 
+**Write switch configuration to flash memory**
+
+The manangement and data switches can automatically write the configuration
+to flash memory using the 'write-switch-memory' key.::
+
+    write-switch-memory: true   # Write Switch Memory Enabled
+    write-switch-memory: false  # Write Switch Memory Disabled
+
 For complete description of the key value pairs, see appendix A.
 
 Network Templates
