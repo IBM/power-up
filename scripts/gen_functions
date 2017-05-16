@@ -1,0 +1,109 @@
+#!/bin/bash
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+print_help (){
+    cmds=$(cat ~/.bashrc|grep -w -m 1 'complete.*gen')
+    cmds=${cmds#*\'}
+    cmds=${cmds%\'*}
+    cmds=" "${cmds// /$'\n' }
+    echo;
+    echo "usage: gen [--help] <command> [<args>]"
+    echo "Available commands:"
+    echo "$cmds"
+    echo $'\n'"tab completion is enabled for commands"$'\n'
+    echo;
+}
+
+deploy (){
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i hosts enable_mgmt_switch.yml -K
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i hosts lxc-create.yml -K
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    echo;
+
+    ansible-playbook -i hosts install_1.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    echo;
+
+    ansible-playbook -i hosts install_2.yml -K
+}
+
+post-deploy(){
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i ./inventory.py ssh_keyscan.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i ./inventory.py gather_mac_addresses.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i hosts container/set_data_switch_config.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i ./inventory.py configure_operating_systems.yml
+}
+
+show_logc(){
+    dep=$(sudo lxc-ls -f|grep -m 1 $cname)
+    depaddr=${dep##*,}
+    depaddr=${depaddr%-*}
+    depaddr=${depaddr// /}
+    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
+        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr \
+            "cat cluster-genesis/log.txt"|less +G
+    else
+        echo "No ssh key found"
+    fi
+}
+
+inventory(){
+    dep=$(sudo lxc-ls -f|grep -m 1 $cname)
+    depaddr=${dep##*,}
+    depaddr=${depaddr%-*}
+    depaddr=${depaddr// /}
+    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
+        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr \
+            "cat cluster-genesis/inventory.yml"|less
+    else
+        echo "No ssh key found"
+    fi
+}

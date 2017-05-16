@@ -15,291 +15,107 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [[ ! "$PATH" = *"cluster-genesis/scripts:"* ]]; then
-    echo "Please source the cluster-genesis/scripts/setup-env script"
-    echo "from the cluster-genesis directory"
-    exit
-fi
-
-if [ -z "$complete -p|grep 'gen'" ]; then
-    echo "Please source the cluster-genesis/scripts/setup-env script"
-    echo "from the cluster-genesis directory"
-    exit
-fi
+set -e
 
 GEN_SCRIPTS_PATH=$(dirname $0)
 GEN_PATH=${GEN_SCRIPTS_PATH%\/scripts}
 GEN_PLAY_PATH=$GEN_PATH/playbooks
-cname=$(awk -F: '/container_name:/{print $2}' ${GEN_PLAY_PATH}/host_vars/localhost)
-################################################
-if [ -z "$1" ] || [ "$1" = "?" ]; then
-    echo;
-    echo "'gen --help' for usage and a list of available commands"
-    echo;
-    exit
-fi
-if [ "$1" = "--help" ]; then
-    echo;
-    echo "usage: gen [--help] <command> [<args>]"
-    echo "Available commands:"
-    echo "$COMPLETE"
-    echo $'\n'"tab completion is enabled for commands"$'\n'
-    echo;
-    exit
-fi
-################################################
+
 source /etc/os-release
-################################################
-if [ "$1" = "deploy" ] || [ "$1" = "enable_mgmt_switch" ]; then
-    set -e
+. ${GEN_SCRIPTS_PATH}/gen_functions
+
+cname=$(awk -F: '/container_name:/{print $2}' \
+${GEN_PLAY_PATH}/host_vars/localhost)
+depaddr=$(awk -F= '/ansible_host=/{print $4}' ${GEN_PLAY_PATH}/hosts)
+echo 'deployer addr: '$depaddr
+ansible_user=$(awk -F= '/ansible_user=/{print $2}' ${GEN_PLAY_PATH}/hosts)
+ansible_user=${ansible_user%" "*}
+echo 'ansible user: '$ansible_user
+
+if [[ ! "$PATH" = *"cluster-genesis/scripts:"* ]] ||
+    [ -z "$complete -p|grep 'gen'" ]; then
+    echo "Please source the cluster-genesis/scripts/setup-env script"
+    echo "from the cluster-genesis directory"
+    echo;
+    echo "source scripts/setup-env"
+    exit
+fi
+
+case "$1" in
+    ""|'?')
+    echo $'\n'"enter 'gen --help' for usage and a list of available \
+        commands"$'\n';;
+
+    '-h'|'--help')
+    print_help;;
+
+    'show_mgmt_switches')
+    "$GEN_SCRIPTS_PATH"/python/show_mgmt_switches.py "$GEN_PATH"/config.yml \
+        DEBUG;;
+
+    'deploy')
+    deploy $2;;
+
+    'enable-mgmt-switch')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts enable_mgmt_switch.yml -K
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
-##########################################################
-if [ "$1" = "deploy" ] || [ "$1" = "lxc-create" ]; then
+    ansible-playbook -i hosts enable_mgmt_switch.yml -K;;
+
+    'lxc-create')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts lxc-create.yml -K
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
-##########################################################
-if [ "$1" = "install" ]; then
-    echo "Cluster Genesis will next deploy operating systems to your cluster nodes."
-    echo "Before proceding, be sure that needed OS images and kickstart files are copied"
-    echo "to the cluster-genesis/os_images directory"
-    echo;
-    read -p "Enter to continue, (t) to terminate " resp
-    if [ "$resp" = "t" ]; then exit; fi
+    ansible-playbook -i hosts lxc-create.yml -K;;
+
+    'install_1')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts install.yml -K
-    echo;
-fi
-##########################################################
-if [ "$1" = "deploy" ] || [ "$1" = "install_1" ]; then
-    echo;
-    if [ "$resp" = "t" ]; then exit; fi
+    ansible-playbook -i hosts install_1.yml;;
+
+    'install_2')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts install_1.yml -K
-    echo;
-fi
-##########################################################
-if [ "$1" = "deploy" ] || [ "$1" = "install_2" ]; then
-    echo;
-    if [ "$resp" = "t" ]; then exit; fi
+    ansible-playbook -i hosts install_2.yml -K;;
+
+    'post-deploy')
+    post-deploy $2;;
+
+    'ssh_keyscan')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts install_2.yml -K
-    echo;
-fi
-##########################################################
-if [ "$1" = "post-deploy" ] || [ "$1" = "ssh_keyscan" ]; then
-    set -e
+    ansible-playbook -i ./inventory.py ssh_keyscan.yml;;
+
+    'gather_mac_addresses')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i ./inventory.py ssh_keyscan.yml
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
-##########################################################
-if [ "$1" = "post-deploy" ] || [ "$1" = "gather_mac_addresses" ]; then
-    set -e
+    ansible-playbook -i ./inventory.py gather_mac_addresses.yml;;
+
+    'set_data_switch_config')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i ./inventory.py gather_mac_addresses.yml
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
-#########################################################
-if [ "$1" = "post-deploy" ] || [ "$1" = "set_data_switch_config" ]; then
-    set -e
+    ansible-playbook -i hosts container/set_data_switch_config.yml;;
+
+    'configure_operating_systems')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts container/set_data_switch_config.yml
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
-#########################################################
-if [ "$1" = "post-deploy" ] || [ "$1" = "configure_operating_systems" ]; then
-    set -e
-    cd "$GEN_PLAY_PATH"
-    ansible-playbook -i ./inventory.py configure_operating_systems.yml
-    echo;
-    if [ "$2" = "-p" ]; then
-        read -p "Enter to continue, (t) to terminate " resp
-        if [ "$resp" = "t" ]; then exit; fi
-    fi
-fi
-##########################################################
-if [ "$1" = "log" ]; then
-    less +G $GEN_PATH/log.txt
-fi
-########################################################
-if [ "$1" = "loga" ]; then
-    less +G $GEN_PLAY_PATH/ansible.log
-fi
-########################################################
-if [ "$1" = "logc" ]; then
-    dep=$(sudo lxc-ls -f|grep -m 1 $cname)
-    depaddr=${dep##*,}
-    depaddr=${depaddr%-*}
-    depaddr=${depaddr// /}
+    ansible-playbook -i ./inventory.py configure_operating_systems.yml;;
+
+    'log')
+    less +G $GEN_PATH/log.txt;;
+
+    'loga')
+    if [ "$2" = "+F" ] || [ "$2" = "-f" ]; then
+        less +F $GEN_PLAY_PATH/ansible.log
+    else
+        less +G $GEN_PLAY_PATH/ansible.log
+    fi;;
+
+    'logc')
+    show_logc;;
+
+    'config.yml')
+    vim $GEN_PATH/config.yml;;
+
+    'inventory')
     if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
-        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat cluster-genesis/log.txt"|less +G
+        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr \
+            "cat cluster-genesis/inventory.yml"|less
     else
         echo "No ssh key found"
     fi
-fi
-##########################################################
-if [ "$1" = "config.yml" ]; then
-    vim $GEN_PATH/config.yml
-fi
-########################################################
-if [ "$1" = "inventory" ]; then
-    dep=$(sudo lxc-ls -f|grep -m 1 $cname)
-    depaddr=${dep##*,}
-    depaddr=${depaddr%-*}
-    depaddr=${depaddr// /}
-    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
-        ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat cluster-genesis/inventory.yml"|less
-    else
-        echo "No ssh key found"
-    fi
-fi
-##########################################################
-if [ "$1" = "status" ]; then
-    vlanmgmt=$(awk -F: '/vlan-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
-    vlanmgmt=${vlanmgmt%%#*}
-    vlanmgmt=${vlanmgmt// /}
-    vlanmgmtclient=$(awk -F: '/vlan-mgmt-client-network:/{print $2}' ~/cluster-genesis/config.yml)
-    vlanmgmtclient=${vlanmgmtclient%%#*}
-    vlanmgmtclient=${vlanmgmtclient// /}
-    bridgemgmt="br"$vlanmgmt
-    bridgemgmtinterface=$(brctl show|grep $bridgemgmt|awk -F" " '{print $4}')
-    bridgemgmtclient="br"$vlanmgmtclient
-    bridgemgmtclientinterface=$(brctl show|grep $bridgemgmtclient|awk -F" " '{print $4}')
-    echo;
-    echo Operating system: $ID
-    echo;
-    if [ ! -z $cname ]; then
-        echo "Genesis container: "$cname
-        sudo lxc-ls -f|grep -m 1 'NAME'
-        echo "--------------------------------------------------------------------------------------------"
-        dep=$(sudo lxc-ls -f|grep -m 1 $cname)
-        echo $dep
-        depaddr=${dep##*,}
-        depaddr=${depaddr%-*}
-        depaddr=${depaddr// /}
-    #    echo "dep addr "$depaddr
-    else
-        echo "no container found"
-    fi
-    echo;
-    if [ -z "$(brctl show|grep -m 1 $bridgemgmt)" ]; then
-        bridgemgmt=""
-        echo "No management bridge found:"
-    else
-        echo "Found bridge:""$bridgemgmt"
-        brctl show|grep "bridge name"
-        brctl show|grep -A 1 $bridgemgmt
-    fi
-    if [ -z "$(brctl show|grep -m 1 $bridgemgmtclient)" ]; then
-        bridgemgmtclient=""
-        echo "No client management bridge found"
-    else
-        echo "Found bridge:""$bridgemgmtclient"
-        brctl show|grep -A 1 $bridgemgmtclient
-    fi
+    ;;
 
-    read -p "Enter to continue:" resp
-    if [ -f ~/.ssh/id_rsa_ansible-generated ]; then
-        t=$(ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "ps aux|grep cobbler")
-        if [[ $t = *root* ]];then
-            echo "cobbler is running"
-            echo;
-            echo "cobbler status"
-            ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "sudo cobbler status"
-        else
-            echo "cobbler is NOT running"
-        fi
-        t=$(ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "ps aux|grep dnsmasq")
-        if [[ $t = *root* ]];then
-            echo "dnsmasq is running"
-            echo;
-            echo "DHCP leases"
-            ssh -i ~/.ssh/id_rsa_ansible-generated deployer@$depaddr "cat /var/lib/misc/dnsmasq.leases"
-        else
-            echo "dnsmasq is NOT running"
-        fi
-    fi
-fi
-############################################################
-if [ "$1" = "show-switch" ]; then
-    existnetworkmgmtsw=""
-    addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch-external:/{getline; print $2}' ~/cluster-genesis/config.yml)
-    addrmgmtsw=${addrmgmtsw%%#*}  #remove trailing comments
-    addrmgmtsw=${addrmgmtsw//[$'\t\r\n ']}
-    echo;
-    echo "External address of mgmt switch: ""$addrmgmtsw"
-    networkmgmtsw=$(awk -F: '/cidr-mgmt-switch-external-dev:/{print $2}' ~/cluster-genesis/config.yml)
-    networkmgmtsw=${networkmgmtsw%%#*}
-    networkmgmtsw=${networkmgmtsw// /}
-    if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ]; then
-        networkmgmtsw=$(ipcalc -n $networkmgmtsw)
-        networkmgmtsw=${networkmgmtsw#*=}
-        networkmgmtsw=${networkmgmtsw// /}
-    else
-        networkmgmtsw=$(ipcalc -b $networkmgmtsw|grep "Network:")
-        networkmgmtsw=${networkmgmtsw#*:}
-        networkmgmtsw=${networkmgmtsw// /}
-        networkmgmtsw=${networkmgmtsw%/*}
-    fi
-#    echo "network: "$networkmgmtsw"
-
-    networkmgmtswroute=$(route|grep $networkmgmtsw)
-    if [ ! -z "$networkmgmtswroute" ]; then
-        existnetworkmgmtsw="yes"
-    else
-        networkmgmtsw=$(awk -F: '/ipaddr-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
-        networkmgmtsw=${networkmgmtsw// /}
-        networkmgmtswroute=$(ip route show|grep $networkmgmtsw)
-        if [ ! -z "$networkmgmtswroute" ]; then
-            addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch:/{getline; print $2}' ~/cluster-genesis/config.yml)
-            addrmgmtsw=${addrmgmtsw// /}
-            existnetworkmgmtsw="yes"
-        fi
-    fi
-
-    portmgmtsw=$(awk -F: '/port-mgmt-network:/{print $2}' ~/cluster-genesis/config.yml)
-    portmgmtsw=${portmgmtsw%%#*}
-    portmgmtsw=${portmgmtsw// /}
-    echo;
-    echo "Config.yml file specifies connection to management switch on port: "$portmgmtsw
-    echo;
-    if [ ! -z "$existnetworkmgmtsw" ]; then
-        if [ ! -z $addrmgmtsw ]; then
-           echo;
-           echo "Enter management switch login password"
-           ss=$(ssh admin@$addrmgmtsw "en; conf t; show interface ip; show interface port "$portmgmtsw)
-           echo "$ss"|grep "Interface information:"
-           echo "$ss"|grep "IP4"
-           echo;
-           echo $(echo "$ss"|grep "Current port")$(echo "$ss"|grep "VLANs:")
-           echo;
-        fi
-    else
-        echo "No route to management switch found"
-    fi
-fi
+    'status')
+    "$GEN_SCRIPTS_PATH"/python/show_status.py "$GEN_PATH"/config.yml DEBUG;;
+esac
