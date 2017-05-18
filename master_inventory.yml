@@ -25,6 +25,7 @@
 version: 1.1
 
 log_level: debug
+deployer-gateway: true  # deployer will be configured as the default gateway for all client nodes
 deployment-environment:
     https_proxy: "http://192.168.1.2:3128"
     http_proxy: "http://192.168.1.2:3128"

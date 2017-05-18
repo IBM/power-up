@@ -138,6 +138,17 @@
       become: yes
       become_method: sudo
 
+    - name: "Configure dnsmasq to use deployer as gateway"
+      replace:
+        dest: /etc/cobbler/dnsmasq.template
+        regexp: '\$next_server'
+        replace: "{{ container_mgmt_subnet | \
+                  ipaddr(container_bridge_ipv4_offset) | \
+                  ipaddr('address') }}"
+      become: yes
+      become_method: sudo
+      when: deployer_gateway
+
     - name: "Save original /etc/cobbler/modules.conf file"
       copy:
         remote_src: True

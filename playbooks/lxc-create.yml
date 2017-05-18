@@ -235,9 +235,20 @@
       shell: "grep introspection-enabled {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
       register: introspection_enabled_config
 
-    - name: "Update introspection_enabled in group_vars/deployers"
+    - name: "Update introspection_enabled in group_vars/all"
       replace:
         dest: "{{ project_path_local }}/playbooks/group_vars/all"
         regexp: '^(introspection_enabled:).*$'
         replace: '\1 true'
       when: introspection_enabled_config.stdout|lower == "true"
+
+    - name: "Register deployer-gateway config.yml value"
+      shell: "grep deployer-gateway {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: deployer_gateway_config
+
+    - name: "Update deployer-gateway in group_vars/all"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/group_vars/all"
+        regexp: '^(deployer_gateway:).*$'
+        replace: '\1 true'
+      when: deployer_gateway_config.stdout|lower == "true"
