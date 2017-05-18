@@ -27,6 +27,7 @@ Commit Message Rules
         refactor:  Code change without new feature
         test:      Tests change
         chore:     Miscellaneous no code change
+        Revert     Revert previous commit
 
 - Body
     - Single blank line seperates subject line and message body

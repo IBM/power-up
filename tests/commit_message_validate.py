@@ -27,7 +27,8 @@ def get_head_commit_message():
 
 
 valid_subject_tags = [
-    'feat:', 'fix:', 'docs:', 'style:', 'refactor:', 'test:', 'chore:']
+    'feat:', 'fix:', 'docs:', 'style:', 'refactor:', 'test:', 'chore:',
+    'Revert']
 no_errors = True
 errors = []
 
@@ -36,16 +37,17 @@ for i, line in enumerate(get_head_commit_message().splitlines()):
         if line.split()[0] not in valid_subject_tags:
             no_errors = False
             errors.append("Subject line does not start with valid tag")
-        if line.split()[1][0].islower():
-            no_errors = False
-            errors.append("Subject line first word after tag is not "
-                          "capitalized")
-        if line.split()[-1][-1] == ".":
-            no_errors = False
-            errors.append("Subject line should not end with \".\"")
-        if len(line) > 50:
-            no_errors = False
-            errors.append("Subject line > 50 characters long")
+        if line.split()[0] != 'Revert':
+            if line.split()[1][0].islower():
+                no_errors = False
+                errors.append("Subject line first word after tag is not "
+                              "capitalized")
+            if line.split()[-1][-1] == ".":
+                no_errors = False
+                errors.append("Subject line should not end with \".\"")
+            if len(line) > 50:
+                no_errors = False
+                errors.append("Subject line > 50 characters long")
     elif i == 1:
         if line.strip() != '':
             no_errors = False
