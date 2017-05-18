@@ -103,9 +103,10 @@ class GetSwitchInfoAssignClass(object):
                     self.log.error('Management switch could not be identified')
                 sys.exit(1)
 
-        self.inv.update_switch_model_info(
-            self.inv.SwitchType.MGMT, self.info_list)
-        self.inv.update_switch_class(self.inv.SwitchType.MGMT, self.class_list)
+        if self.info_list:
+            self.inv.update_switch_model_info(
+                self.inv.SwitchType.MGMT, self.info_list)
+            self.inv.update_switch_class(self.inv.SwitchType.MGMT, self.class_list)
 
     def update_data_switch_info(self):
         """Update data switch model information and assign class."""
@@ -148,9 +149,10 @@ class GetSwitchInfoAssignClass(object):
                     self.log.error('Data switch could not be identified')
                 sys.exit(1)
 
-        self.inv.update_switch_model_info(
-            self.inv.SwitchType.DATA, self.info_list)
-        self.inv.update_switch_class(self.inv.SwitchType.DATA, self.class_list)
+        if self.info_list:
+            self.inv.update_switch_model_info(
+                self.inv.SwitchType.DATA, self.info_list)
+            self.inv.update_switch_class(self.inv.SwitchType.DATA, self.class_list)
 
     def _set_switch_info_class(
             self, pattern, attr, output, supported_switches):

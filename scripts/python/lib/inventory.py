@@ -24,6 +24,7 @@ from enum import Enum
 
 from lib.logger import Logger
 
+NONE = 'None'
 INV_IPADDR_MGMT_NETWORK = 'ipaddr-mgmt-network'
 INV_IPADDR_MGMT_SWITCH = 'ipaddr-mgmt-switch'
 INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV = 'label-mgmt-switch-external-dev'
@@ -209,10 +210,21 @@ class Inventory():
                 raise Exception()
             except:
                 self.log.error('Invalid switch type')
-                exit(1)
+                sys.exit(1)
         return type
 
     def yield_switches(self, switch_type):
+        if switch_type == self.SwitchType.MGMT:
+            if (INV_USERID_MGMT_SWITCH not in self.inv or
+                    not self.inv[INV_USERID_MGMT_SWITCH] or
+                    self.inv[INV_USERID_MGMT_SWITCH].lower() == NONE.lower()):
+                return
+        elif switch_type == self.SwitchType.DATA:
+            if (INV_USERID_DATA_SWITCH not in self.inv or
+                    not self.inv[INV_USERID_DATA_SWITCH] or
+                    self.inv[INV_USERID_DATA_SWITCH].lower() == NONE.lower()):
+                return
+
         Switch = namedtuple('Switch', ['ip_addr', 'userid', 'password'])
         for switch in self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]:
             yield Switch(
