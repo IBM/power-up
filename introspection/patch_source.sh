@@ -49,7 +49,7 @@ if [ -x "./prepare_patches.sh" ]; then
 fi
 
 cd "${SOURCE}"
-ls -1 ../patches/"${SOURCE}"_patches/*patch 2>/dev/null \
+ls -1 ../patches/*patch 2>/dev/null \
     | sort | while read pfile
 do
     echo "Applying patch: ${pfile}"

@@ -1,5 +1,4 @@
 #!/bin/bash
-__PWD=`pwd`
 # Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
@@ -18,13 +17,23 @@ __PWD=`pwd`
 #
 # Build custom vmlinux and root filesystem for introspection
 #
-# Move defconfig to .config
-# Execute buildroot makefile and place output in introspection/output dir
+# 1) Clone buildroot from open-power
+# 2) Apply needed patches to buildroot(old ssh, new configs etc)
 #
 # Exit 0 on success; 1 on failure
 #
 set -e
 
-# build rootfs and kernel.
-make --directory=${__PWD}/buildroot O=${__PWD}/output ppc64le_defconfig
-make --directory=${__PWD}/buildroot O=${__PWD}/output
+#if buildroot is already pulled, do not try to reclone, patch
+#application will fail
+if [ -d buildroot ]; then
+    echo "buildroot directory already exists"
+    exit
+fi
+
+#pull down open-power version of buildroot
+#checkout March tag, avoid master in case future updates break build
+git clone --branch 2017.02 https://github.com/open-power/buildroot.git
+
+./patch_source.sh buildroot
+

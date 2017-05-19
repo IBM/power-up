@@ -16,16 +16,21 @@
 # limitations under the License.
 
 - name: introspection_build.yml
-  hosts: localhost
+  hosts: deployer
+  vars:
+    project_path_local: "{{ hostvars['localhost']['project_path_local'] }}"
+    images_local: "{{ hostvars['localhost']['project_path_local'] }}/os_images"
+    intro_local: "{{ hostvars['localhost']['project_path_local'] }}/introspection"
+    config_buildroot: "{{ lookup('env', 'IS_BUILDROOT_CONFIG') }}"
+    config_kernel: "{{ lookup('env', 'IS_KERNEL_CONFIG') }}"
+
   tasks:
-    - name: Check if introspection kernel exists
-      stat:
-        path: "{{ project_path_local }}/os_images/introspection/vmlinux"
+    - name: "Check if introspection kernel exists"
+      local_action: stat path="{{ project_path_local }}/os_images/introspection/vmlinux"
       register: stat_result_kernel
 
-    - name: Check if introspection initrd exists
-      stat:
-        path: "{{ project_path_local }}/os_images/introspection/rootfs.cpio.gz"
+    - name: "Check if introspection initrd exists"
+      local_action: stat path="{{ project_path_local }}/os_images/introspection/rootfs.cpio.gz"
       register: stat_result_initrd
 
     - name: "Skip build: Use existing kernel and initrd"
@@ -34,22 +39,65 @@
         - stat_result_kernel.stat.exists
         - stat_result_initrd.stat.exists
 
-    - name: "Verify localhost architecture is ppc64el"
-      fail:
-        msg: "{{ ansible_architecture }} is not ppc64el"
-      when: ansible_architecture != "ppc64le"
+    - name: "Create introspection directory"
+      file:
+        path: "{{ project_path }}/introspection"
+        state: directory
+
+    - name: "Copy introspection directory"
+      copy:
+        src: "{{ intro_local }}"
+        dest: "{{ project_path }}"
+
+    - name: "Change introspection script permissions"
+      file:
+        path: "{{ project_path }}/introspection/{{ item }}"
+        mode: "u=rwx,g=rwx,o=rwx"
+      with_items:
+        - 'build.sh'
+        - 'add_key.sh'
+        - 'patch_source.sh'
+        - 'setup.sh'
+
+    - name: "Install buildroot  packages"
+      apt:
+        name: "{{ item }}"
+      with_items:
+        - make
+        - gcc
+        - g++
+        - wget
+        - unzip
+        - patch
+        - rsync
+        - git
+        - bzip2
+        - cpio
+        - bc
+      become: yes
+      become_method: sudo
+
+    - name: "Copy deployer authorized_keys into introspection"
+      copy:
+        src: "{{ ansible_env.HOME}}/.ssh/authorized_keys"
+        dest: "{{ project_path }}/introspection/overlayfs/root/.ssh/authorized_keys"
+        remote_src: yes
+
+    - name: "Execute introspection 'setup.sh' script"
+      command: "./setup.sh"
+      args:
+        chdir: "{{ project_path }}/introspection/"
 
     - name: "Execute introspection 'build.sh' script"
       command: "./build.sh"
       args:
-        chdir: "{{ project_path_local }}/introspection/"
-
-    - name: "Execute introspection 'add_key.sh' script"
-      command: "./add_key.sh {{ ssh_key_public }}"
-      args:
-        chdir: "{{ project_path_local }}/introspection/"
+        chdir: "{{ project_path }}/introspection/"
 
     - name: "Copy kernel and ramdisk into 'os_images/introspection'"
-      copy:
-        src: "{{ project_path_local }}/introspection/output/"
-        dest: "{{ project_path_local }}/os_images/introspection/"
+      fetch:
+        src: "{{ project_path }}/introspection/output/images/{{ item }}"
+        dest: "{{ images_local }}/introspection/"
+        flat: yes
+      with_items:
+        - rootfs.cpio.gz
+        - vmlinux
