@@ -16,7 +16,7 @@
 ccmd="complete -W 'log logc loga status deploy enable-mgmt-switch tear-down \
 config.yml ssh_keyscan gather_mac_addresses set_data_switch_config \
 configure_operating_systems lxc-create install_1 install_2 inventory \
-show_mgmt_switches --help post-deploy' gen"
+show_mgmt_switches --help post-deploy post-deploy-passive' gen"
 eval "$ccmd"
 P=`pwd`
 P=${P#*"cluster-genesis"}
@@ -31,10 +31,10 @@ if [ -z $P ]; then
     if [ -z "$(grep -m1 `pwd`"/scripts:" ~/.bashrc)" ] || \
     [ -z "$(grep -m1 `pwd`"/deployenv/bin:" ~/.bashrc)" ] || \
     [ -z "$(grep -m1 "complete -W 'log" ~/.bashrc)" ]; then
-        echo $'\n'"OK for Cluster Genesis to add setup statements to your \
-            .bashrc"
-        read -p "file (statements can be removed by running tear-down) \
-            (y/n) ? " resp
+        echo $'\n'"OK for Cluster Genesis to add setup statements to your"
+        echo $".bashrc file. (statements can be removed by running tear-down)"
+        echo;
+        read -p "Enter (y/n) ? " resp
         if [[ $resp == "y" ]]; then
             if [ -z "$(grep -m1 `pwd`"/scripts:" ~/.bashrc)" ]; then
                 echo "PATH="`pwd`"/scripts:\$PATH" >> ~/.bashrc
