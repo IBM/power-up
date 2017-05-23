@@ -76,12 +76,12 @@ upload_test_data ()
 
     LOCAL_DIR=$1
     if [ -z $2 ]; then
-        REMOTE_DIR=$(hostname)
+        REMOTE_DIR=$(hostname -s)
     else
         REMOTE_DIR=$2
     fi
 
-    DEPLOYER_HOSTNAME=$(hostname)
+    DEPLOYER_HOSTNAME=$(hostname -s)
     SSH_PRIVATE_KEY="$HOME/.ssh/id_rsa"
     SSH_REMOTE_USER="logdumps"
     SSH_REMOTE_HOST="9.3.210.21"
@@ -120,7 +120,7 @@ fi
 DATE=$(date +%Y-%m-%dT%H%M%z)
 
 # Get hostname
-HOST=$(hostname)
+HOST=$(hostname -s)
 
 # Get cluster-genesis top level directory
 PROJECT_DIR=$(git rev-parse --show-toplevel)
@@ -136,9 +136,9 @@ SSH_KEY=$(grep -oh "ansible_ssh_private_key_file=[^ ]*" \
     "${PLAYBOOKS}/hosts" | awk -F = '{print $2}')
 
 # Get mgmt and data switch SSH userids
-MGMT_SWITCH_SSH_USER=$(awk -F: '/userid-mgmt-switch:/{print $2}' \
+MGMT_SWITCH_SSH_USER=$(awk '/userid-mgmt-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
-DATA_SWITCH_SSH_USER=$(awk -F: '/userid-data-switch:/{print $2}' \
+DATA_SWITCH_SSH_USER=$(awk '/userid-data-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
 
 # Create DIR is user didn't set with arg
