@@ -51,13 +51,9 @@ class ConfigureMgmtSwitch(object):
         'interface port %d'
         ';switchport access vlan %d')
 
-    def __init__(self, log_level, inv_file):
-        self.log = Logger(__file__)
-        self.log_level = log_level
-        if log_level is not None:
-            self.log.set_level(log_level)
-
-        inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file):
+        inv = Inventory(log, inv_file)
+        self.log = log
 
         for self.ipv4 in inv.yield_mgmt_switch_ip():
             pass
@@ -207,7 +203,8 @@ class ConfigureMgmtSwitch(object):
         return False
 
     def issue_cmd(self, cmd):
-        if self.log_level == self.DEBUG or self.log_level == self.INFO:
+        log_level = self.log.get_level()
+        if log_level == self.DEBUG or log_level == self.INFO:
             paramiko.util.log_to_file(self.SSH_LOG)
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
@@ -241,7 +238,7 @@ if __name__ == '__main__':
     Arg1: inventory file
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
     ARGV_COUNT = len(sys.argv)
@@ -249,15 +246,10 @@ if __name__ == '__main__':
         try:
             raise Exception()
         except Exception:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
-
     INV_FILE = sys.argv[1]
-    if ARGV_COUNT == ARGV_MAX:
-        LOG_LEVEL = sys.argv[2]
-    else:
-        LOG_LEVEL = None
+    LOG.set_level(sys.argv[2])
 
-    ConfigureMgmtSwitch(LOG_LEVEL, INV_FILE)
+    ConfigureMgmtSwitch(LOG, INV_FILE)

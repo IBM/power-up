@@ -27,13 +27,10 @@ from lib.logger import Logger
 
 
 class IpmiPowerOff(object):
-    def __init__(self, log_level, inv_file, time_out, wait):
-        self.log = Logger(__file__)
-        if log_level is not None:
-            self.log.set_level(log_level)
-
-        inv = Inventory(log_level, inv_file)
-        self.ipmi_power = IpmiPower(log_level)
+    def __init__(self, log, inv_file, time_out, wait):
+        inv = Inventory(log, inv_file)
+        self.ipmi_power = IpmiPower(log)
+        self.log = log
 
         bmcs = []
         for rack_id, ipv4, userid, password in inv.yield_ipmi_access_info():
@@ -92,7 +89,7 @@ if __name__ == '__main__':
     Arg3: wait time
     Arg4: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 5
     ARGV_COUNT = len(sys.argv)
@@ -100,17 +97,12 @@ if __name__ == '__main__':
         try:
             raise Exception()
         except Exception:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
-
-    log.clear()
 
     INV_FILE = sys.argv[1]
     TIME_OUT = int(sys.argv[2])
     WAIT = int(sys.argv[3])
-    if ARGV_COUNT == ARGV_MAX:
-        LOG_LEVEL = sys.argv[4]
-    else:
-        LOG_LEVEL = None
+    LOG.set_level(sys.argv[4])
 
-    IpmiPowerOff(LOG_LEVEL, INV_FILE, TIME_OUT, WAIT)
+    IpmiPowerOff(LOG, INV_FILE, TIME_OUT, WAIT)

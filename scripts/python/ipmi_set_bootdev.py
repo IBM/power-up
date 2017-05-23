@@ -27,15 +27,11 @@ from lib.logger import Logger
 
 
 class IpmiSetBootdev(object):
-    def __init__(self, log_level, inv_file, bootdev, persist=False):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
+    def __init__(self, log, inv_file, bootdev, persist=False):
         if type(persist) is not bool:
             persist = (persist == 'True')
 
-        inv = Inventory(log_level, inv_file)
+        inv = Inventory(log, inv_file)
         for rack_id, ipv4, _userid, _password in inv.yield_ipmi_access_info():
             ipmi_cmd = ipmi_command.Command(
                 bmc=ipv4,
@@ -43,7 +39,7 @@ class IpmiSetBootdev(object):
                 password=_password)
 
             try:
-                rc = ipmi_cmd.set_bootdev(bootdev, persist)
+                status = ipmi_cmd.set_bootdev(bootdev, persist)
             except pyghmi_exception.IpmiException as error:
                 log.error(
                     'set_bootdev failed (device=%s persist=%s) - '
@@ -51,17 +47,17 @@ class IpmiSetBootdev(object):
                     (bootdev, persist, rack_id, ipv4, str(error)))
                 # sys.exit(1)
 
-            if 'error' in rc:
+            if 'error' in status:
                 log.error(
                     'set_bootdev failed (device=%s persist=%s) - '
                     'Rack: %s - IP: %s, %s' %
-                    (bootdev, persist, rack_id, ipv4, str(rc['error'])))
+                    (bootdev, persist, rack_id, ipv4, str(status['error'])))
                 # sys.exit(1)
 
             time.sleep(5)
 
             try:
-                rc = ipmi_cmd.get_bootdev()
+                status = ipmi_cmd.get_bootdev()
             except pyghmi_exception.IpmiException as error:
                 log.error(
                     'get_bootdev failed - '
@@ -69,14 +65,14 @@ class IpmiSetBootdev(object):
                     (rack_id, ipv4, str(error)))
                 # sys.exit(1)
 
-            if 'error' in rc:
+            if 'error' in status:
                 log.error(
                     'get_bootdev failed - '
                     'Rack: %s - IP: %s, %s' %
-                    (rack_id, ipv4, str(rc['error'])))
+                    (rack_id, ipv4, str(status['error'])))
                 # sys.exit(1)
-            elif (rc['bootdev'] == bootdev and
-                    str(rc['persistent']) == str(persist)):
+            elif (status['bootdev'] == bootdev and
+                  str(status['persistent']) == str(persist)):
                 log.info(
                     'set_bootdev successful (device=%s persist=%s) - '
                     'Rack: %s - IP: %s' %
@@ -86,7 +82,7 @@ class IpmiSetBootdev(object):
                     'set_bootdev failed - set: (device=%s persist=%s) '
                     'but read: (device=%s persist=%s) - '
                     'Rack: %s - IP: %s' %
-                    (bootdev, persist, rc['bootdev'], rc['persistent'],
+                    (bootdev, persist, status['bootdev'], status['persistent'],
                      rack_id, ipv4))
                 # sys.exit(1)
 
@@ -98,24 +94,20 @@ if __name__ == '__main__':
     Arg3: persistence (boolean)
     Arg4: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 5
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    INV_FILE = sys.argv[1]
+    BOOTDEV = sys.argv[2]
+    PERSIST = sys.argv[3]
+    LOG.set_level(sys.argv[4])
 
-    inv_file = sys.argv[1]
-    bootdev = sys.argv[2]
-    persist = sys.argv[3]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[4]
-    else:
-        log_level = None
-    ipmi_data = IpmiSetBootdev(log_level, inv_file, bootdev, persist)
+    IpmiSetBootdev(LOG, INV_FILE, BOOTDEV, PERSIST)

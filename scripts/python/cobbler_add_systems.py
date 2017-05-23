@@ -50,17 +50,13 @@ COBBLER_PROFILE_PPC64 = 'ubuntu-14.04.4-server-ppc64el'
 
 
 class CobblerAddSystems(object):
-    def __init__(self, log_level, inv_file):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
+    def __init__(self, log, inv_file):
         cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
         token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 
-        inv = Inventory(log_level, inv_file)
+        inv = Inventory(log, inv_file)
 
-        for node_inv, INV_NODES, key, index, node in inv.yield_nodes():
+        for _, _, _, _, node in inv.yield_nodes():
             hostname = node[INV_HOSTNAME]
             ipv4_ipmi = node[INV_IPV4_IPMI]
             userid_ipmi = node[INV_USERID_IPMI]
@@ -69,25 +65,25 @@ class CobblerAddSystems(object):
             mac_pxe = node[INV_MAC_PXE]
 
             if INV_COBBLER_PROFILE in node:
-                COBBLER_PROFILE = \
+                cobbler_profile = \
                     node[INV_COBBLER_PROFILE]
             elif (INV_COBBLER_PROFILE in
-                    inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]):
-                COBBLER_PROFILE = \
+                  inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]):
+                cobbler_profile = \
                     (inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                            [INV_COBBLER_PROFILE])
+                     [INV_COBBLER_PROFILE])
             elif (INV_ARCH in node and
-                    node[INV_ARCH] is not None):
+                  node[INV_ARCH] is not None):
                 if node[INV_ARCH].lower() == 'x86_64':
-                    COBBLER_PROFILE = COBBLER_PROFILE_X86_64
+                    cobbler_profile = COBBLER_PROFILE_X86_64
                 elif node[INV_ARCH].lower() == 'ppc64':
-                    COBBLER_PROFILE = COBBLER_PROFILE_PPC64
+                    cobbler_profile = COBBLER_PROFILE_PPC64
                 else:
                     log.log_error(
                         'Inventory: Invalid architecture set for %s' %
                         hostname)
             else:
-                COBBLER_PROFILE = COBBLER_PROFILE_X86_64
+                cobbler_profile = COBBLER_PROFILE_X86_64
 
             new_system_create = cobbler_server.new_system(token)
 
@@ -124,7 +120,7 @@ class CobblerAddSystems(object):
             cobbler_server.modify_system(
                 new_system_create,
                 "profile",
-                COBBLER_PROFILE,
+                cobbler_profile,
                 token)
             cobbler_server.modify_system(
                 new_system_create,
@@ -134,13 +130,13 @@ class CobblerAddSystems(object):
                     "ipaddress-eth0": ipv4_pxe,
                     "dnsname-eth0": hostname},
                 token)
-            KS_META = ""
+            ks_meta = ""
             if INV_OS_DISK in node:
                 disks = node[INV_OS_DISK]
                 if isinstance(disks, basestring):
-                    KS_META += 'install_disk=%s ' % disks
+                    ks_meta += 'install_disk=%s ' % disks
                 elif isinstance(disks, list) and len(disks) == 2:
-                    KS_META += (
+                    ks_meta += (
                         'install_disk=%s install_disk_2=%s ' %
                         (disks[0], disks[1]))
                 else:
@@ -148,18 +144,18 @@ class CobblerAddSystems(object):
                         'Invalid %s[%s][%s] value: '
                         'Must be string or two item list.' %
                         (INV_NODES_TEMPLATES, node[INV_TEMPLATE],
-                            INV_OS_DISK))
+                         INV_OS_DISK))
             if INV_PASSWORD_DEFAULT in inv.inv:
                 passwd = inv.inv[INV_PASSWORD_DEFAULT]
-                KS_META += 'passwd=%s passwdcrypted=false ' % passwd
+                ks_meta += 'passwd=%s passwdcrypted=false ' % passwd
             if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv:
                 passwd = inv.inv[INV_PASSWORD_DEFAULT_CRYPTED]
-                KS_META += 'passwd=%s passwdcrypted=true ' % passwd
-            if KS_META != "":
+                ks_meta += 'passwd=%s passwdcrypted=true ' % passwd
+            if ks_meta != "":
                 cobbler_server.modify_system(
                     new_system_create,
                     "ks_meta",
-                    KS_META,
+                    ks_meta,
                     token)
             if INV_KOPTS in inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]:
                 kopts = (
@@ -179,7 +175,7 @@ class CobblerAddSystems(object):
                 comment += (
                     '%s: %s\n' %
                     (INV_CHASSIS_SERIAL_NUMBER,
-                        node[INV_CHASSIS_SERIAL_NUMBER]))
+                     node[INV_CHASSIS_SERIAL_NUMBER]))
             if INV_MODEL in node:
                 comment += (
                     '%s: %s\n' %
@@ -198,7 +194,7 @@ class CobblerAddSystems(object):
 
             log.info(
                 "Cobbler Add System: name=%s, profile=%s" %
-                (hostname, COBBLER_PROFILE))
+                (hostname, cobbler_profile))
 
         cobbler_server.sync(token)
         log.info("Running Cobbler sync")
@@ -209,23 +205,18 @@ if __name__ == '__main__':
     Arg1: inventory file
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             exit(1)
 
-    log.clear()
+    INV_FILE = sys.argv[1]
+    LOG.set_level(sys.argv[2])
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
-    else:
-        log_level = None
-
-    cobbler_output = CobblerAddSystems(log_level, inv_file)
+    CobblerAddSystems(LOG, INV_FILE)

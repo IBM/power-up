@@ -38,23 +38,23 @@ class WatchLog(object):
         self.system_list = []
 
         try:
-            f = open(self.log_file, 'r')
+            fds = open(self.log_file, 'r')
         except IOError:
             log.error('Cannot open file: %s' % self.log_file)
         else:
-            f.close()
+            fds.close()
 
     def get_list(self, pattern, count):
         return_list = []
 
-        with open(self.log_file, 'r') as f:
-            for item in self.yield_tail_matches(f, pattern):
+        with open(self.log_file, 'r') as fds:
+            for item in self.yield_tail_matches(fds, pattern):
                 return_list.append(item)
-                log.info('Found Introspection Host IP: %s' % item)
+                self.log.info('Found Introspection Host IP: %s' % item)
                 if len(return_list) >= count:
                     break
 
-        return(return_list)
+        return return_list
 
     def yield_tail_matches(self, log_file, pattern):
         pxelinux_sent_ips = []
@@ -91,22 +91,22 @@ if __name__ == '__main__':
     Arg3: inventory file
     Arg4: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
-    argv_count = len(sys.argv)
-    if argv_count != 5:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT != 5:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log_file = sys.argv[1]
-    pattern = sys.argv[2]
-    inv_file = sys.argv[3]
-    log.set_level(sys.argv[4])
+    LOG_FILE = sys.argv[1]
+    PATTERN = sys.argv[2]
+    INV_FILE = sys.argv[3]
+    LOG.set_level(sys.argv[4])
 
-    l = WatchLog(log_file, inv_file, log)
-    system_list = l.get_list(pattern, l.system_count)
-    for ip in system_list:
+    WATCH_LOG = WatchLog(LOG_FILE, INV_FILE, LOG)
+    SYSTEM_LIST = WATCH_LOG.get_list(PATTERN, WATCH_LOG.system_count)
+    for ip in SYSTEM_LIST:
         print(ip)

@@ -25,8 +25,8 @@ from lib.logger import Logger
 
 
 class InventoryAddSwitches(object):
-    def __init__(self, log_level, inv_file):
-        inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file):
+        inv = Inventory(log, inv_file)
         inv.add_switches()
 
 
@@ -35,23 +35,18 @@ if __name__ == '__main__':
     Arg1: inventory file
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    INV_FILE = sys.argv[1]
+    LOG.set_level(sys.argv[2])
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
-    else:
-        log_level = None
-
-    ipmi_data = InventoryAddSwitches(log_level, inv_file)
+    InventoryAddSwitches(LOG, INV_FILE)

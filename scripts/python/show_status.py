@@ -21,10 +21,11 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import os
 import sys
-from lib import inventory
-from lib.logger import Logger
 import subprocess
 import paramiko
+
+from lib import inventory
+from lib.logger import Logger
 from lib import genesis
 
 GEN_PATH = genesis.gen_path
@@ -39,23 +40,23 @@ def main(log, inv_file):
 
     print('\nBridge Status: \n')
 
-    VLAN_MGMT = inv.get_vlan_mgmt_network()
-    BRIDGE_VLAN_MGMT = 'br' + str(VLAN_MGMT)
+    vlan_mgmt = inv.get_vlan_mgmt_network()
+    bridge_vlan_mgmt = 'br' + str(vlan_mgmt)
 
-    VLAN_MGMT_CLIENT = inv.get_vlan_mgmt_client_network()
-    BRIDGE_VLAN_MGMT_CLIENT = 'br' + str(VLAN_MGMT_CLIENT)
+    vlan_mgmt_client = inv.get_vlan_mgmt_client_network()
+    bridge_vlan_mgmt_client = 'br' + str(vlan_mgmt_client)
 
     output = subprocess.check_output(['bash', '-c', 'brctl show'])
-    if BRIDGE_VLAN_MGMT not in output:
+    if bridge_vlan_mgmt not in output:
         print('    Management VLAN not found')
     else:
-        print(subprocess.check_output(['bash', '-c', 'brctl show ' +
-              BRIDGE_VLAN_MGMT]))
-    if BRIDGE_VLAN_MGMT_CLIENT not in output:
+        print(subprocess.check_output(
+            ['bash', '-c', 'brctl show ' + bridge_vlan_mgmt]))
+    if bridge_vlan_mgmt_client not in output:
         print('    Client VLAN not found')
     else:
-        print(subprocess.check_output(['bash', '-c', 'brctl show ' +
-              BRIDGE_VLAN_MGMT_CLIENT]))
+        print(subprocess.check_output(
+            ['bash', '-c', 'brctl show ' + bridge_vlan_mgmt_client]))
 
     print('Container Status: \n')
     output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
@@ -72,22 +73,22 @@ def main(log, inv_file):
                 HOME_DIR + '/.ssh/id_rsa_ansible-generated')
             cont.connect(hostname=GEN_CONTAINER_ADDR, username='deployer',
                          pkey=key)
-            stdin, stdout, stderr = cont.exec_command('ps aux|grep cobbler')
+            _, stdout, _ = cont.exec_command('ps aux|grep cobbler')
             cobbler_running = stdout.read()
             if 'root' in cobbler_running:
                 print('cobbler is running')
-                stdin, stdout, stderr = cont.exec_command(
+                _, stdout, _ = cont.exec_command(
                     'sudo cobbler status')
                 cobbler_status = stdout.read()
                 print(cobbler_status)
             else:
                 print('cobbler is not running')
 
-            stdin, stdout, stderr = cont.exec_command('ps aux|grep dnsmasq')
+            _, stdout, _ = cont.exec_command('ps aux|grep dnsmasq')
             dnsmasq_running = stdout.read()
             if 'root' in dnsmasq_running:
                 print('dnsmasq is running')
-                stdin, stdout, stderr = cont.exec_command(
+                _, stdout, _ = cont.exec_command(
                     'cat /var/lib/misc/dnsmasq.leases')
                 dnsmasq_status = stdout.read()
                 print(dnsmasq_status)
@@ -104,9 +105,9 @@ def print_lines(str, line_list):
     printed."""
     str = str.splitlines()
     index = 0
-    for i in range(len(str)):
+    for _ in range(len(str)):
         for substr in line_list:
-            if (substr in str[index] or substr == '*'):
+            if substr in str[index] or substr == '*':
                 print(str[index])
         index += 1
 
@@ -114,15 +115,15 @@ def print_lines(str, line_list):
 def get_int_input(prompt_str, minn, maxx):
     while 1:
         try:
-            n = int(raw_input(prompt_str))
-            if not (minn <= n <= maxx):
+            input = int(raw_input(prompt_str))
+            if not minn <= input <= maxx:
                 raise ValueError()
             else:
                 break
         except ValueError:
             print("enter an integer between " +
                   str(minn) + ' and ' + str(maxx))
-    return n
+    return input
 
 
 if __name__ == '__main__':
@@ -139,8 +140,8 @@ if __name__ == '__main__':
     LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:

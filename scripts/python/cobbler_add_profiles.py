@@ -27,11 +27,7 @@ COBBLER_PASS = 'cobbler'
 
 
 class CobblerAddProfiles(object):
-    def __init__(self, log_level, distro, name, kopts):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
+    def __init__(self, log, distro, name, kopts):
         if kopts == "none":
             kopts = ""
 
@@ -93,25 +89,20 @@ if __name__ == '__main__':
     Arg3: kernel options
     Arg4: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 5
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    DISTRO = sys.argv[1]
+    NAME = sys.argv[2]
+    KOPTS = sys.argv[3]
+    LOG.set_level(sys.argv[4])
 
-    distro = sys.argv[1]
-    name = sys.argv[2]
-    kopts = sys.argv[3]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[4]
-    else:
-        log_level = None
-
-    cobbler_output = CobblerAddProfiles(log_level, distro, name, kopts)
+    CobblerAddProfiles(LOG, DISTRO, NAME, KOPTS)

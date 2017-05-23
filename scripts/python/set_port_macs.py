@@ -36,19 +36,18 @@ if __name__ == '__main__':
     Arg1: inventory file
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log.set_level(sys.argv[2])
+    INV_FILE = sys.argv[1]
+    LOG.set_level(sys.argv[2])
 
-    main(log, inv_file)
+    main(LOG, INV_FILE)

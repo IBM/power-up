@@ -19,8 +19,8 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 import sys
 import time
-import netaddr
 import xmlrpclib
+import netaddr
 from pyghmi.ipmi import command as ipmi_command
 from pyghmi import exceptions as pyghmi_exception
 
@@ -44,13 +44,9 @@ INV_HOSTNAME = 'hostname'
 
 
 class InventoryModifyIPv4(object):
-    def __init__(self, log_level, inv_file, node_mgmt_ipv4_start):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
-        inv_original = Inventory(log_level, inv_file)
-        inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file, node_mgmt_ipv4_start):
+        inv_original = Inventory(log, inv_file)
+        inv = Inventory(log, inv_file)
 
         new_ip = netaddr.IPNetwork(node_mgmt_ipv4_start)
         i = 0
@@ -58,7 +54,7 @@ class InventoryModifyIPv4(object):
         dnsmasq_template = open(DNSMASQ_TEMPLATE, 'a')
         dnsmasq_template.write('\n')
 
-        for inventory, INV_NODES, key, index, node in inv.yield_nodes():
+        for _, _, key, index, node in inv.yield_nodes():
 
             log.info(
                 'Logging Inventory IP   - Rack: %s - Node: %s - Key: %s '
@@ -104,17 +100,17 @@ class InventoryModifyIPv4(object):
         cobbler_server.sync(token)
         log.info("Running Cobbler sync")
 
-        for (rack, ip, user, passwd) in inv_original.yield_ipmi_access_info():
+        for rack, ipv4, user, passwd in inv_original.yield_ipmi_access_info():
             ipmi_cmd = ipmi_command.Command(
-                bmc=ip,
+                bmc=ipv4,
                 userid=user,
                 password=passwd)
 
-            rc = ipmi_cmd.reset_bmc()
+            ipmi_cmd.reset_bmc()
 
             log.info(
                 'BMC Cold Reset Issued - Rack: %s - IP: %s' %
-                (rack, ip))
+                (rack, ipv4))
 
         time.sleep(120)
 
@@ -125,14 +121,14 @@ class InventoryModifyIPv4(object):
                 password=_password)
 
             try:
-                rc = ipmi_cmd.get_power()
+                status = ipmi_cmd.get_power()
             except pyghmi_exception.IpmiException as error:
                 log.error(
                     'BMC Power status failed - Rack: %s - IP: %s, %s' %
                     (rack_id, ipv4, str(error)))
                 sys.exit(1)
 
-            if rc.get(POWERSTATE) == OFF:
+            if status.get(POWERSTATE) == OFF:
                 log.info(
                     'BMC at Standby - Rack: %s - IP: %s' %
                     (rack_id, ipv4))
@@ -144,25 +140,19 @@ if __name__ == '__main__':
     Arg2: node_mgmt_ipv4_start
     Arg3: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 4
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    INV_FILE = sys.argv[1]
+    NODE_MGMT_IPV4_START = sys.argv[2]
+    LOG.set_level(sys.argv[3])
 
-    inv_file = sys.argv[1]
-    node_mgmt_ipv4_start = sys.argv[2]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[3]
-    else:
-        log_level = None
-
-    ipmi_data = InventoryModifyIPv4(
-        log_level, inv_file, node_mgmt_ipv4_start)
+    InventoryModifyIPv4(LOG, INV_FILE, NODE_MGMT_IPV4_START)

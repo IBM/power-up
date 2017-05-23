@@ -28,16 +28,13 @@ from get_dhcp_lease_info import GetDhcpLeases
 
 
 class InventoryAddPorts(object):
-    def __init__(self, dhcp_leases_file, log_level, inv_file, port_type):
-        log = Logger(__file__)
-        log.set_level(log_level)
+    def __init__(self, dhcp_leases_file, log, inv_file, port_type):
+        inv = Inventory(log, inv_file)
 
-        inv = Inventory(log_level, inv_file)
-
-        dhcp_leases = GetDhcpLeases(dhcp_leases_file, log_level)
+        dhcp_leases = GetDhcpLeases(dhcp_leases_file, log)
         dhcp_mac_ip = dhcp_leases.get_mac_ip()
 
-        mgmt_switch_config = GetMgmtSwitchConfig(log_level)
+        mgmt_switch_config = GetMgmtSwitchConfig(log)
         mgmt_sw_cfg = AttrDict()
         for rack, ipv4 in inv.yield_mgmt_rack_ipv4():
             mgmt_sw_cfg[rack] = mgmt_switch_config.get_port_mac(rack, ipv4)
@@ -70,28 +67,28 @@ class InventoryAddPorts(object):
                     ports_found += 1
                     self.table.append(
                         [True, template, port_type, rack, port, result[0],
-                            result[1]])
+                         result[1]])
                     log.info(
                         'Node Port Defined in Inventory - Template: %s '
                         'Type: %s Rack: %s Port: %02d MAC: %s IP: %s' %
                         (template, port_type, rack, port, result[0],
-                            result[1]))
+                         result[1]))
                 elif port in mgmt_sw_cfg_mac_lists[rack]:
                     for mac in mgmt_sw_cfg_mac_lists[rack][port]:
                         if mac in dhcp_mac_ip:
-                            ip = dhcp_mac_ip[mac]
+                            ipaddr = dhcp_mac_ip[mac]
                             self.table.append(
                                 [False, template, port_type, rack, port, mac,
-                                    ip])
+                                 ipaddr])
                             log.warning(
                                 'Node Port MAC/IP NOT Defined in Inventory - '
                                 'Template: %s Type: %s Rack: %s Port: %02d '
                                 'MAC: %s IP: %s' %
-                                (template, port_type, rack, port, mac, ip))
+                                (template, port_type, rack, port, mac, ipaddr))
                         else:
                             self.table.append(
                                 [False, template, port_type, rack, port, mac,
-                                    '-'])
+                                 '-'])
                             log.warning(
                                 'No DHCP Lease Found for Port MAC Address - '
                                 'Template: %s Type: %s Rack: %s Port: %02d '
@@ -138,25 +135,22 @@ if __name__ == '__main__':
     Arg3: Port Type
     Arg4: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
-    argv_count = len(sys.argv)
-    if argv_count != 5:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT != 5:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    INV_FILE = sys.argv[1]
+    DHCP_LEASES_FILE = sys.argv[2]
+    PORT_TYPE = sys.argv[3]
+    LOG.set_level(sys.argv[4])
 
-    inv_file = sys.argv[1]
-    dhcp_leases_file = sys.argv[2]
-    port_type = sys.argv[3]
-    log_level = sys.argv[4]
+    INV_PORTS = InventoryAddPorts(
+        DHCP_LEASES_FILE, LOG, INV_FILE, PORT_TYPE)
 
-    inv_ports = InventoryAddPorts(
-        dhcp_leases_file, log_level, inv_file, port_type)
-
-    print(inv_ports.get_table_pretty())
-    sys.exit(0)
+    print(INV_PORTS.get_table_pretty())

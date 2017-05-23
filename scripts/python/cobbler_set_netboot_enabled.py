@@ -27,11 +27,7 @@ COBBLER_PASS = 'cobbler'
 
 
 class CobblerSetNetbootEnabled(object):
-    def __init__(self, log_level, netboot_enabled_value):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
+    def __init__(self, log, netboot_enabled_value):
         cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
         token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 
@@ -53,23 +49,18 @@ if __name__ == '__main__':
     Arg1: netboot_enabled value
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    NETBOOT_ENABLED_VALUE = sys.argv[1]
+    LOG.set_level(sys.argv[2])
 
-    netboot_enabled_value = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
-    else:
-        log_level = None
-
-    cobbler_output = CobblerSetNetbootEnabled(log_level, netboot_enabled_value)
+    CobblerSetNetbootEnabled(LOG, NETBOOT_ENABLED_VALUE)

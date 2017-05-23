@@ -36,12 +36,8 @@ IPMI_SET_MSG = 'IPMI IP changed to \'%s\' - Rack: %s - IP: %s - MAC: %s'
 
 
 class IpmiSetStaticIP(object):
-    def __init__(self, log_level, inv_file):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
-        inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file):
+        inv = Inventory(log, inv_file)
         for rack_id, ipv4, _userid, _password in inv.yield_ipmi_access_info():
             ipmi_cmd = ipmi_command.Command(
                 bmc=ipv4,
@@ -57,8 +53,8 @@ class IpmiSetStaticIP(object):
                     (rack_id, ipv4, str(error)))
                 sys.exit(1)
 
-            m = re.search('^(.+?)/', inv['ipv4_address'])
-            inv_ipv4_address_no_mask = m.group(1)
+            match = re.search('^(.+?)/', inv['ipv4_address'])
+            inv_ipv4_address_no_mask = match.group(1)
 
             # Check that IPMI port is not set to Static
             if inv['ipv4_configuration'] == STATIC:
@@ -111,22 +107,18 @@ if __name__ == '__main__':
     Arg1: inventory file
     Arg2: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 3
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    INV_FILE = sys.argv[1]
+    LOG.set_level(sys.argv[2])
 
-    inv_file = sys.argv[1]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[2]
-    else:
-        log_level = None
-    IpmiSetStaticIP(log_level, inv_file)
+    IpmiSetStaticIP(LOG, INV_FILE)

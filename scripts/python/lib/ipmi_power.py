@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -22,8 +22,6 @@ import sys
 from pyghmi.ipmi import command as ipmi_command
 from pyghmi import exceptions as pyghmi_exception
 
-from lib.logger import Logger
-
 
 class IpmiPower(object):
     WAIT = False
@@ -32,10 +30,8 @@ class IpmiPower(object):
     POWERSTATE = 'powerstate'
     ERROR = 'error'
 
-    def __init__(self, log_level):
-        self.log = Logger(__file__)
-        if log_level is not None:
-            self.log.set_level(log_level)
+    def __init__(self, log):
+        self.log = log
         self.ipmi_cmd = None
 
     def _command(self, bmc):

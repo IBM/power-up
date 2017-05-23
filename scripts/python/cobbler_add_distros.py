@@ -27,11 +27,7 @@ COBBLER_PASS = 'cobbler'
 
 
 class CobblerAddDistros(object):
-    def __init__(self, log_level, path, name):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
+    def __init__(self, log, path, name):
         name_list = [item.lower() for item in name.split('-')]
 
         if 'ubuntu' in name_list:
@@ -170,24 +166,19 @@ if __name__ == '__main__':
     Arg2: distro name
     Arg3: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 4
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    PATH = sys.argv[1]
+    NAME = sys.argv[2]
+    LOG.set_level(sys.argv[3])
 
-    path = sys.argv[1]
-    name = sys.argv[2]
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[3]
-    else:
-        log_level = None
-
-    cobbler_output = CobblerAddDistros(log_level, path, name)
+    CobblerAddDistros(LOG, PATH, NAME)

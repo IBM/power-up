@@ -41,12 +41,9 @@ class IpmiData(object):
     ARCHITECTURE = b'architecture'
     NONE = b'None'
 
-    def __init__(self, log_level, inv_file):
-        self.log = Logger(__file__)
-        if log_level is not None:
-            self.log.set_level(log_level)
-
-        self.inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file):
+        self.inv = Inventory(log, inv_file)
+        self.log = log
 
         for _, _, self.group, self.index, self.node in \
                 self.inv.yield_nodes():
@@ -149,15 +146,14 @@ class IpmiData(object):
                 str(ipmi_value[ipmi_field]))
             if inv_value:
                 return inv_value
-            else:
-                return str(ipmi_value[ipmi_field])
-        else:
-            self.log.info(
-                self.node[self.inv.INV_IPV4_IPMI] +
-                ": '" +
-                ipmi_key + '[' + ipmi_field + ']' +
-                "' not found")
-            return None
+            return str(ipmi_value[ipmi_field])
+
+        self.log.info(
+            self.node[self.inv.INV_IPV4_IPMI] +
+            ": '" +
+            ipmi_key + '[' + ipmi_field + ']' +
+            "' not found")
+        return None
 
 
 if __name__ == '__main__':
@@ -176,12 +172,7 @@ if __name__ == '__main__':
             LOG.error('Invalid argument count')
             sys.exit(1)
 
-    LOG.clear()
-
     INV_FILE = sys.argv[1]
-    if ARGV_COUNT == ARGV_MAX:
-        LOG_LEVEL = sys.argv[2]
-    else:
-        LOG_LEVEL = None
+    LOG.set_level(sys.argv[2])
 
-    IpmiData(LOG_LEVEL, INV_FILE)
+    IpmiData(LOG, INV_FILE)

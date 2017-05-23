@@ -24,7 +24,6 @@ from orderedattrdict import AttrDict
 from pysnmp.hlapi import *
 
 from lib.utilities import *
-from lib.logger import Logger
 
 SNMP_PORT = 161
 PUBLIC = 'public'
@@ -33,45 +32,43 @@ DOT_1D_TP_FDB_PORT = 'dot1dTpFdbPort'
 
 
 class GetMgmtSwitchConfig(object):
-    def __init__(self, log_level):
-        self.log = Logger(__file__)
-        if log_level is not None:
-            self.log.set_level(log_level)
+    def __init__(self, log):
+        self.log = log
 
     def get_port_mac(self, rack, switch_mgmt_ipv4):
         self.mac_port = []
         for (
-            errorIndication,
-            errorStatus,
-            errorIndex,
-            varBinds) in nextCmd(
-                SnmpEngine(),
-                CommunityData(PUBLIC),
-                UdpTransportTarget((switch_mgmt_ipv4, SNMP_PORT)),
-                ContextData(),
-                ObjectType(ObjectIdentity(BRIDGE_MIB, DOT_1D_TP_FDB_PORT)),
-                lexicographicMode=False):
+                error_indication,
+                error_status,
+                error_index,
+                var_binds) in nextCmd(
+                    SnmpEngine(),
+                    CommunityData(PUBLIC),
+                    UdpTransportTarget((switch_mgmt_ipv4, SNMP_PORT)),
+                    ContextData(),
+                    ObjectType(ObjectIdentity(BRIDGE_MIB, DOT_1D_TP_FDB_PORT)),
+                    lexicographicMode=False):
 
-            if errorIndication:
-                self.log.error(errorIndication)
+            if error_indication:
+                self.log.error(error_indication)
                 sys.exit(1)
-            elif errorStatus:
+            elif error_status:
                 self.log.error('%s at %s' % (
-                    errorStatus.prettyPrint(),
-                    errorIndex and varBinds[int(errorIndex) - 1][0] or '?'))
+                    error_status.prettyPrint(),
+                    error_index and var_binds[int(error_index) - 1][0] or '?'))
                 sys.exit(1)
             else:
                 _dict = AttrDict()
-                for varBind in varBinds:
-                    m = re.search(
-                        ('^%s::%s\.(' +
+                for var_bind in var_binds:
+                    match = re.search(
+                        (r'^%s::%s\.(' +
                          '(%s)' +
                          ' = ' +
-                         '(\d+)$') % (
+                         r'(\d+)$') % (
                              BRIDGE_MIB, DOT_1D_TP_FDB_PORT, PATTERN_MAC),
-                        str(varBind))
-                    mac = m.group(1)
-                    port = int(m.group(3))
+                        str(var_bind))
+                    mac = match.group(1)
+                    port = int(match.group(3))
                     _dict[port] = mac
                     self.log.info(
                         'Rack: %s - MAC: %s - port: %d' % (rack, mac, port))

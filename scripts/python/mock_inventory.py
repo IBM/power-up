@@ -19,19 +19,19 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import argparse
-import sys
 import os
 from shutil import copy2
 import fileinput
 from orderedattrdict import AttrDict
 import netaddr
 
+from lib.logger import Logger
 from lib.inventory import Inventory
 from inv_add_switches import InventoryAddSwitches
 from allocate_ip_addresses import allocate_ips
 
 
-def mock_inventory(cfg_file, inv_file, log_level):
+def mock_inventory(cfg_file, inv_file, log):
 
     # install.yml - include: lxc-update.yml
     copy2(cfg_file, inv_file)
@@ -44,27 +44,27 @@ def mock_inventory(cfg_file, inv_file, log_level):
                   '/home/ubuntu/.ssh/id_rsa_ansible-generated')
 
     # install.yml - include: container/inv_add_ports.yml port_type=ipmi
-    inv = Inventory(log_level, inv_file)
+    inv = Inventory(log, inv_file)
     (dhcp_mac_ip, mgmt_sw_cfg) = get_port_mac_ip(inv)
     inv.create_nodes(dhcp_mac_ip, mgmt_sw_cfg)
 
     # install.yml - include: container/inv_add_switches.yml
-    InventoryAddSwitches(log_level, inv_file)
+    InventoryAddSwitches(log, inv_file)
 
     # install.yml - include: container/inv_add_ports.yml port_type=pxe
-    inv = Inventory(log_level, inv_file)
+    inv = Inventory(log, inv_file)
     inv.add_pxe(dhcp_mac_ip, mgmt_sw_cfg)
 
     # install.yml - include: container/inv_add_ipmi_data.yml
-    inv = Inventory(log_level, inv_file)
+    inv = Inventory(log, inv_file)
     add_ipmi_data(inv)
 
     # install.yml - include: container/allocate_ip_addresses.yml
-    inv = Inventory(log_level, inv_file)
+    inv = Inventory(log, inv_file)
     allocate_ips(inv_file)
 
     # gather_mac_addresses.yml
-    inv = Inventory(log_level, inv_file)
+    inv = Inventory(log, inv_file)
     switch_ip_to_port_to_macs = get_switch_ip_to_mac_map(inv)
     inv.add_data_switch_port_macs(switch_ip_to_port_to_macs)
 
@@ -80,7 +80,7 @@ def get_port_mac_ip(inv):
     ipmi_ip = 1
     pxe_ip = 2
 
-    for key, template in inv.inv['node-templates'].items():
+    for _, template in inv.inv['node-templates'].items():
         if 'ports' in template:
             for inv_port_type, racks in template['ports'].items():
                 rack_num = -1
@@ -112,7 +112,7 @@ def get_switch_ip_to_mac_map(inv):
     for rack_id, rack_ip in inv.inv['ipaddr-data-switch'].iteritems():
         rack_id_to_ip[rack_id] = rack_ip
 
-    for key, template in inv.inv['node-templates'].items():
+    for _, template in inv.inv['node-templates'].items():
         if 'ports' in template:
             for inv_port_type, racks in template['ports'].items():
                 rack_num = -1
@@ -153,7 +153,7 @@ def add_ipmi_data(inv):
 
     ppc_index = 0
 
-    for inv_out, key, _key, index, node in inv.yield_nodes():
+    for _, _, _key, index, node in inv.yield_nodes():
 
         cobbler_profile = (
             inv.inv['node-templates'][node['template']]['cobbler-profile'])
@@ -187,23 +187,21 @@ if __name__ == '__main__':
     Arg2: Output inventory.yml
     """
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config_file",
+    LOG = Logger(__file__)
+
+    PARSER = argparse.ArgumentParser()
+    PARSER.add_argument("config_file",
                         help="Input config.yml to process",
                         nargs='?',
                         default='config.yml',
                         type=str)
-    parser.add_argument("inventory_file",
+    PARSER.add_argument("inventory_file",
                         help="Output inventory.yml path",
                         nargs='?',
                         default='inventory.yml',
                         type=str)
-    args = parser.parse_args()
+    ARGS = PARSER.parse_args()
 
-    log_level = 'DEBUG'
-
-    mock_inventory(args.config_file,
-                   args.inventory_file,
-                   log_level)
-
-    sys.exit(0)
+    mock_inventory(ARGS.config_file,
+                   ARGS.inventory_file,
+                   LOG)

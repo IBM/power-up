@@ -30,11 +30,7 @@ COBBLER_PROFILE = 'introspection'
 
 
 class CobblerAddIntrospection(object):
-    def __init__(self, log_level):
-        log = Logger(__file__)
-        if log_level is not None:
-            log.set_level(log_level)
-
+    def __init__(self, log):
         cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
         token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 
@@ -65,22 +61,17 @@ if __name__ == '__main__':
     """
     Arg1: log level
     """
-    log = Logger(__file__)
+    LOG = Logger(__file__)
 
     ARGV_MAX = 2
-    argv_count = len(sys.argv)
-    if argv_count > ARGV_MAX:
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
-            log.error('Invalid argument count')
+            LOG.error('Invalid argument count')
             sys.exit(1)
 
-    log.clear()
+    LOG.set_level(sys.argv[1])
 
-    if argv_count == ARGV_MAX:
-        log_level = sys.argv[1]
-    else:
-        log_level = None
-
-    cobbler_output = CobblerAddIntrospection(log_level)
+    CobblerAddIntrospection(LOG)

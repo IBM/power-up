@@ -23,8 +23,8 @@ import yaml
 from orderedattrdict.yamlutils import AttrDictYAMLLoader
 
 ARGV_MAX = 3
-argv_count = len(sys.argv)
-if argv_count > ARGV_MAX:
+ARGV_COUNT = len(sys.argv)
+if ARGV_COUNT > ARGV_MAX:
     try:
         raise Exception()
     except:
@@ -32,30 +32,30 @@ if argv_count > ARGV_MAX:
         sys.exit(1)
 
 
-def abs_path(file):
+def abs_path(file_):
     return os.path.abspath(
-        os.path.dirname(os.path.abspath(file)) +
+        os.path.dirname(os.path.abspath(file_)) +
         os.path.sep +
-        os.path.basename(file))
+        os.path.basename(file_))
 
 
-yaml_file = abs_path(sys.argv[1])
+YAML_FILE = abs_path(sys.argv[1])
 
 try:
-    content = yaml.load(open(yaml_file), Loader=AttrDictYAMLLoader)
+    CONTENT = yaml.load(open(YAML_FILE), Loader=AttrDictYAMLLoader)
 except:
-    print('Could not load file: ' + yaml_file)
+    print('Could not load file: ' + YAML_FILE)
     sys.exit(1)
 
 if len(sys.argv) == ARGV_MAX:
-    yaml_file = abs_path(sys.argv[2])
+    YAML_FILE = abs_path(sys.argv[2])
 
 try:
     yaml.dump(
-        content,
-        open(yaml_file, 'w'),
+        CONTENT,
+        open(YAML_FILE, 'w'),
         indent=4,
         default_flow_style=False)
 except:
-    print('Could not dump file: ' + yaml_file)
+    print('Could not dump file: ' + YAML_FILE)
     sys.exit(1)

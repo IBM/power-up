@@ -49,13 +49,9 @@ class EnableMgmtSwitch(object):
     LOCAL = 'lo'
     UP_STATE = 'up'
 
-    def __init__(self, log_level, inv_file):
-        self.log = Logger(__file__)
-        self.log_level = log_level
-        if log_level is not None:
-            self.log.set_level(log_level)
-
-        inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file):
+        inv = Inventory(log, inv_file)
+        self.log = log
 
         for self.ipv4 in inv.yield_mgmt_switch_ip():
             pass
@@ -348,12 +344,7 @@ if __name__ == '__main__':
             LOG.error('Invalid argument count')
             sys.exit(1)
 
-    LOG.clear()
-
     INV_FILE = sys.argv[1]
-    if ARGV_COUNT == ARGV_MAX:
-        LOG_LEVEL = sys.argv[2]
-    else:
-        LOG_LEVEL = None
+    LOG.set_level(sys.argv[2])
 
-    EnableMgmtSwitch(LOG_LEVEL, INV_FILE)
+    EnableMgmtSwitch(LOG, INV_FILE)

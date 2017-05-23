@@ -58,14 +58,9 @@ class ConfigureDataSwitch(object):
     MLAG_ACTIVE = 'mlag-channel-group %d mode active'
     NO_CHANNEL_GROUP = 'no channel-group'
 
-    def __init__(self, log_level, inv_file):
-
-        self.log = Logger(__file__)
-        self.log_level = log_level
-        if log_level is not None:
-            self.log.set_level(log_level)
-
-        self.inv = Inventory(log_level, inv_file)
+    def __init__(self, log, inv_file):
+        self.inv = Inventory(log, inv_file)
+        self.log = log
 
         for self.ipv4, self.userid, self.password, vlans \
                 in self.inv.yield_data_vlans():
@@ -373,12 +368,7 @@ if __name__ == '__main__':
             LOG.error('Invalid argument count')
             sys.exit(1)
 
-    LOG.clear()
-
     INV_FILE = sys.argv[1]
-    if ARGV_COUNT == ARGV_MAX:
-        LOG_LEVEL = sys.argv[2]
-    else:
-        LOG_LEVEL = None
+    LOG.set_level(sys.argv[2])
 
-    ConfigureDataSwitch(LOG_LEVEL, INV_FILE)
+    ConfigureDataSwitch(LOG, INV_FILE)
