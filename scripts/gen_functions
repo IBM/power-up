@@ -94,7 +94,7 @@ post-deploy-passive(){
     ansible-playbook -i ./inventory.py activate_client_interfaces.yml
     echo;
     tput bold
-    echo "** User Action Required to Collect Data Switch MAC Adddress Tables **"
+    echo "** User Action Required to Collect Data Switch MAC Address Tables **"
     tput sgr0
     echo "All client interfaces have been activated. Please collect MAC"
     echo "address tables from all data switches and write each table to file"
@@ -103,7 +103,7 @@ post-deploy-passive(){
     echo "dictionary."
     echo;
     tput bold
-    echo "Do no continue until all MAC table files are in place!"
+    echo "Do not continue until all MAC table files are in place!"
     tput sgr0
     echo;
     read -p "Enter to continue, (t) to terminate " resp

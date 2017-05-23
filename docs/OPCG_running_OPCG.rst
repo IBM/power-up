@@ -190,6 +190,48 @@ The user would need to write three files:
 2. 'cluster-genesis/playbooks/passive2'
 3. 'cluster-genesis/playbooks/passive3'
 
+Each file must be formatted according to the following rules:
+
+    * MAC addresses and ports are listed in a tabular format.
+        - Columns can be in any order
+        - Additional columns (e.g. vlan) are OK as long as a header is
+          provided.
+    * If a header is provided and it includes the strings "mac address" and
+      "port" (case insensitive) it will be used to identify column positions.
+      Column headers must be delimited by at least two spaces. Single spaces
+      will be considered a continuation of a single column header (e.g. "mac
+      address" is one column, but "mac address  vlan" would be two).
+    * If a header is not provided then only MAC address and Port columns are
+      allowed.
+    * MAC addresses are written as six groups of two hexadecimal digits
+      separated by colons or dashes (e.g. 00:16:3e:bf:71:e7 or
+      00-16-3e-bf-71-e7).
+    * Ports are written either as:
+        - An integer
+        - A string with a "/". The string up to and including the "/" will be
+          removed. (e.g. "Eth1/5" will be saved as "5").
+
+Both Lenovo and Mellanox switches currently supported by Cluster Genesis follow
+these rules. An example of a user generated "generic" file would be::
+
+    mac address        Port
+    0c:c4:7a:20:0d:22    38
+    0c:c4:7a:76:b0:9b    19
+    0c:c4:7a:76:b1:16    9
+    0c:c4:7a:76:c8:ec    37
+    40:f2:e9:23:82:ba    18
+    40:f2:e9:23:82:be    17
+    40:f2:e9:24:96:5a    22
+    40:f2:e9:24:96:5e    21
+    5c:f3:fc:31:05:f0    13
+    5c:f3:fc:31:06:2a    12
+    5c:f3:fc:31:06:2c    11
+    5c:f3:fc:31:06:ea    16
+    5c:f3:fc:31:06:ec    15
+    6c:ae:8b:69:22:24    2
+    70:e2:84:14:02:92    5
+    70:e2:84:14:0f:57    1
+
 If the user has ssh access to the switch management interface writing the MAC
 address table to file can easily be accomplished by redirecting stdout. Here is
 an example of the syntax for a Mellanox SX1400::
@@ -199,6 +241,7 @@ an example of the syntax for a Mellanox SX1400::
 Note that this command would need to be run for each individual data switch,
 writing to a seperate file for each. It is recommended to verify each file has
 a complete table for the appropriate interface configuration.
+
 
 SSH Keys
 --------
