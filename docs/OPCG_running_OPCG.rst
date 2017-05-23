@@ -6,8 +6,9 @@ Running the OpenPOWER Cluster Configuration Software
 Installing and Running the Genesis code. Step by Step Instructions
 ------------------------------------------------------------------
 
-#.  Verify that all the steps in section `3.2 <#anchor-5>`__ `Setting up
-    the Deployer Node <#anchor-5>`__ have been executed
+#.  Verify that all the steps in section `4 <#anchor-5>`__ `Prerequisite Hardware Setup
+    <#anchor-5>`__ have been executed.  Genesis can not run if addresses have not been configured
+    on the cluster switches and recorded in the config.yml file.
 #.  login to the deployer node.
 #.  Install git
 
@@ -65,12 +66,12 @@ Installing and Running the Genesis code. Step by Step Instructions
 
    One of the following options can be used to reset the BMC interfaces;
 
-   - Cycle power to the cluster nodes. BMC ports should boot and obtain
+   - Cycle power to the cluster nodes. BMC ports should boot and wait to obtain
      an IP address from the deployer node.
    - Use ipmitool run as root local to each node; ipmitool bmc reset warm OR
      ipmitool mc reset warm depending on server
-   - Use ipmitool remotely. (this assumes a known ip address already
-     exists on the BMC interface)::
+   - Use ipmitool remotely such as from the deployer node. (this assumes a known
+     ip address already exists on the BMC interface)::
 
         ipmitool -I lanplus -U <username> -P <password> -H <bmc ip address> mc reset cold
 
@@ -82,19 +83,24 @@ Installing and Running the Genesis code. Step by Step Instructions
       DHCP, save and exit.
    -  use IPMItool to configure BMC network for DHCP and reboot the BMC
 
+   Most of Genesis' capabilities are accessed using the 'gen' program. For a
+   complete overview of the gen program, see Appendix A.
 
 #. To deploy operating systems to your cluster nodes::
 
       $ gen deploy
 
-#. This process can take as little as 30 minutes to several hours depending on
-   on the size of the cluster and the complexity of the deployment.
+#. This will create the management neworks, install the container that runs most of the Genesis
+   functions and then optionally launch the introspection OS and then install OS's on the cluster nodes.
+   This process can take as little as 30 minutes or as much as mutliple hours depending on
+   the size of the cluster, the capabilities of the deployer and the complexity of the deployment.
 
    - To monitor progress of the deployment, open an additional terminal session
-     into the deployment node and run the gen program with a status request.::
+     into the deployment node and run the gen program with a status request.  (During install, you
+     must allow Genesis to make updates to your .bashrc file in order to run gen functions
+     from another terminal session)::
 
       $ gen status
-
 
 
    After several minutes Cluster Genesis will have initialized and should display a list of cluster
@@ -110,14 +116,15 @@ Installing and Running the Genesis code. Step by Step Instructions
 
 After Genesis completes the assignment of DHCP addresses to the cluster nodes BMC ports,
 Genesis will interrogate the management switches and read the MAC addresses associated with
-the BMC and PXE ports and initialize Cobbler to assign specific addresses to those MAC addresses.
+the BMC and PXE ports and initialize Cobbler to assign specific IP addresses to the interfaces
+holding those MAC addresses.
 
-After Genesis has assigned IP addresses to the PXE ports of all cluster nodes, it will display a list of
+After Genesis has assigned IP addresses to the BMC ports of all cluster nodes, it will display a list of
 all nodes.  Genesis will wait up to 30 minutes for the PXE ports of all cluster nodes to
 reset and obtain an IP address.  After 30 minutes, if there are nodes which have
 still not requested a DHCP address, Genesis will pause to give you an opportunity to make fixes.
 
-After all BMC and PXE ports have been discovered Genesis will begin operating system provisioning.
+After all BMC and PXE ports have been discovered Genesis will begin operating system deployment.
 
 #. Introspection
 
@@ -151,11 +158,6 @@ This log file can be viewed::
 
      $ gen logc
 
-Cluster Genesis will generate an inventory file (inventory.yml) in
-the /home/deployer/cluster-genesis directory in the container.
-To view the inventory file (future)::
-
-     $ gen inventory
 
 **Configuring networks on the cluster nodes**
 
@@ -165,13 +167,18 @@ and configure the data switches. From the host namespace, execute::
 
    $ gen post-deploy
 
-**Configuring networks on the cluster nodes with passive data switches**
-
-If data switches are configured as passive and networks are configured with
-MLAG verify
+If data switches are configured with MLAG verify
 
   * The switch IPL ports are disabled or are not plugged in.
   * No port channels are defined.
+
+**Configuring networks on the cluster nodes with passive data switches**
+
+When prompted, it is advisable to clear the mac address table on the data switch(es).
+This step can be skipped if the operating systems have just been installed on the cluster nodes
+and the mac address timeout on the switches is short enough to insure that no mac addresses remain
+for the data switch ports connected to cluster nodes. If in doubt, check the acquired mac address
+file (see below) to insure that each data port for your cluster has only a single mac address entry.
 
    $ gen post-deploy-passive
 
@@ -240,7 +247,8 @@ an example of the syntax for a Mellanox SX1400::
 
 Note that this command would need to be run for each individual data switch,
 writing to a seperate file for each. It is recommended to verify each file has
-a complete table for the appropriate interface configuration.
+a complete table for the appropriate interface configuration and only one mac address
+entry per interface.
 
 
 SSH Keys

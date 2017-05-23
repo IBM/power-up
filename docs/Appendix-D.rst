@@ -12,15 +12,14 @@ A Sample config.yml file;
 
 The config file below defines two compute node templates and multiple network
 templates.  The sample cluster can be configured with the provided config.yml file.
-The deployer node needs to have access to the internet for accessing packages.  The current
-release of Genesis utilizes the interface with the default route for provisioning the cluster.
-This means that the internet must be accessible on that same interface.  Internet access must
-then be provided via one of the dotted line paths shown in the figure above.
+The deployer node needs to have access to the internet for accessing packages.
+Internet access must then be provided via one of the dotted line paths shown
+in the figure above or alternately via a wireless or dedicated interface.
 
 Various OpenPOWER nodes can be used such as the S821LC.  The deployer node can be OpenPOWER
 or alternately a laptop which does not need to remain in the cluster.  The data switch can be
-Mellanox SX1700 or SX1410 or Lenovo G8264, G8052, G7028 or G7052.  The management switch can
-be any of the above listed Lenovo switches::
+Mellanox SX1700 or SX1410. The management switch must be a
+Lenovo G8052 switch::
 
     # This sample configuration file documents all of the supported key values
     # supported by the genesis software.  It can be used as the basis for creating

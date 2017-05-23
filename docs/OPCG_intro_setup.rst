@@ -4,7 +4,7 @@ Introduction
 ============
 
 OpenPOWER Cluster Genesis (OPCG) enables greatly simplified configuration of clusters of
-baremetal OpenPOWER servers running Linux. It leverages widely used open
+bare metal OpenPOWER servers running Linux. It leverages widely used open
 source tools such as Cobbler, Ansible and Python. Because it relies
 solely on industry standard protocols such as IPMI and PXE boot, hybrid
 clusters of OpenPOWER and x86 nodes can readily be supported. Currently
@@ -77,8 +77,8 @@ Compute Nodes
 OPCG supports clusters of heterogeneous compute nodes. Users can define any number of
 node types by creating templates in a config file. Node templates can
 include any network templates defined in the network templates section.  The combination of
-node templates and network templates allows great flexibility in building heterogeneous clusterx with nodes
-dedicated to specific purposes.
+node templates and network templates allows great flexibility in building heterogeneous
+clusters with nodes dedicated to specific purposes.
 
 Supported Hardware
 ~~~~~~~~~~~~~~~~~~~
@@ -118,7 +118,7 @@ Hardware initialization
    and PXE connection to a management switch. (see the example cluster
    in Appendix-D)
 -  Cable the deployer node to the cluster management network. It is
-   strongly recommended that the deployer node be connected directly to
+   required that the deployer node be connected directly to
    the management switch. For large cluster deployments, a 10 Gb
    connection is recommended. The deployer node must also have access to
    the public internet (or site) network for accessing software and operating
@@ -180,34 +180,88 @@ Hardware initialization
 
           configuration write
 
-      Note that the ip addresses of the management interface used by Cluster Genesis
-      for the data and management switches in your cluster must all be in the same subnet.
-      The address on the management switch is assigned and configured by Cluster Genesis
-      from information you provide in the config.yml file. An initial management ip address
-      must be present on the management switch and specified in the config.yml file under
-      the ipaddr-mgmt-switch-external keyname.
-      This initial address is left in place and available for external management and
-      monitoring of the switch.  The management address to be used by cluster genesis must
-      be configured by the user ahead of time and be accessible from the deployer node.
-
-   -  If using redundant data switches with MLAG, configure link aggregation
-      (LAG) on the interswitch peer links (IPL) links.  (It is important to
-      do this before cabling multiple links between the switches which will
-      otherwise result in loops)::
-
-        switch> en
-        switch# conf t
-        switch(config)# interface port-channel 6    (example port channel No.  We advise to use the number of the lowest port in the group
-        switch(config interface port-channel 1) # exit
-        switch(config)# lacp
-        switch(config)# interface ethernet 1/6-1/7      (example port channel #s eg ports 6 and 7)
-        switch(config interface ethernet 1/6-1/7)# channel-group 6 mode active
-        switch(config interface ethernet 1/6-1/7)# exit
+   -  If using redundant data switches with MLAG, Leave the interswitch peer links (IPL) links
+      disconnected until Cluster Genesis completes.  (This avoids loops)
 
 -  Configure Management switch(es) (for out of box installation, it is
    usually necessary to configure the switch using a serial connection.
    See the switch installation guide. For additional info on Lenovo G8052 specific
    commands, see Appendix G. and the *Lenovo RackSwitch G8052 Installation guide*)
+
+   In order for Cluster Genesis to access and configure the switches in your cluster
+   it is necessary to configure management access on all switches and provide management
+   access information in the config.yml file.  The diagram below shows the intitial switch setup
+   and the corresponding config file entries;
+
+   .. figure:: _images/cluster-genesis-initial-switch-setup.png
+        :height: 350
+        :align: center
+
+        Initial switch setup
+
+   In this example, the management switch has an in-band management interface.  The initial
+   setup requires an 'externally' accessible address on an in-band interface of all management switches.
+   ('Externally' accessible is used here to mean external to the cluster. ie on the customers' management intranet)
+   Cluster genesis uses this address along with the provided userid and password credentials to access
+   the management switch initially. Cluster genesis will create a vlan isolated management network for accessing
+   the management interfaces of the switches in your cluster. A new management interface is created on the
+   management switch in the vlan indicated by the config.yml file.  The 'externally' accessible inerface
+   is left unchanged and is available for external monitoring or other purposes. In addition, a vlan is
+   created on the management switches for isolating access to the pxe and BMC interfaces of all node in
+   the cluster.
+
+   The following entries in the config.yml file relate to initial switch setup;
+
+       - cidr-mgmt-switch-external-dev: 10.0.48.3/20    # example address
+
+         Address on the deployer node for access to the customers external management network.
+         Used by Cluster Genesis for initial management switch access.  It is optional to configure
+         this address on an interface on the deployer.  If it is not configured, Genesis will configure
+         it temporarily and then remove it when it has finished configuring the management network.
+
+       - ipaddr-mgmt-switch-external:
+             rack1: 10.0.48.20        # example address
+
+             Address of the management switch on the customers external management network.
+             Used by Cluster Genesis for initial management switch access.
+
+       - port-mgmt-network: 46
+
+         Specifies the port on the management switch that the deployer is connected to.
+
+       - ipaddr-mgmt-network: 192.168.16.0/24
+
+         Defines the private network that Genesis creates for access to the management interfaces of switches
+         in the cluster. Although the user is free to change this, it is usually not necessary as Genesis will
+         vlan isolate this network so that it will not conflict with existing networks in the customer environment.
+
+       - ipaddr-data-switch:
+             rack1: 192.168.16.25
+
+             Address on the data switch in the private network that genesis creates. Currently the user
+             needs to set up this address on the data switches before running Cluster Genesis. In the
+             future, Genesis will automatically create this address. This address must be within the
+             subnet defined by the ipaddr-mgmt-network: value. Optionally, the customer may also set up a
+             management interface in his external subnet for monitoring or other management purposes.
+
+       - port-mgmt-data-network:
+             rack1:
+             - 45
+
+         Ports on the management switch which connect to management ports on the data switches.
+
+   .. figure:: _images/cluster-genesis-switch-management-network-setup.png
+        :height: 350
+        :align: center
+
+        Genesis setup of the switch management network
+
+   Management switch setup commands.  (for G8052)
+
+   -  Enable configuration of the management switch::
+
+         enable
+         configure terminal
 
    -  Enable IP interface mode for the management interface::
 
@@ -218,15 +272,15 @@ Hardware initialization
       the config.yml file (keyname: ipaddr-mgmt-switch-external:) and be in a
       *different* subnet than your cluster management subnet::
 
-        RS G8052(config-ip-if)# ip address 192.168.32.20 (example IP address)
-        RS G8052(config-ip-if)# ip netmask 255.255.255.0
-        RS G8052(config-ip-if)# vlan 1       (User selectable, ussually default vlan 1 is used)
+        RS G8052(config-ip-if)# ip address 10.0.48.20 (example IP address)
+        RS G8052(config-ip-if)# ip netmask 255.255.240.0
+        RS G8052(config-ip-if)# vlan 1       (User selectable, usually default vlan 1 is used)
         RS G8052(config-ip-if)# enable
         RS G8052(config-ip-if)# exit
 
    -  Optionally configure a default gateway and enable the gateway::
 
-        RS G8052(config)# ip gateway 1 address 192.168.32.1  (example ip address)
+        RS G8052(config)# ip gateway 1 address 10.0.48.1  (example ip address)
         RS G8052(config)# ip gateway 1 enable
 
    -  admin password. This must match the password specified in the
@@ -263,41 +317,39 @@ memory and disk space are recommended. A 4 core XEON class processor
 with 32 GB memory and 320 GB disk space is generally adequate for
 installations up to several racks.
 
-The deployer node requires internet access.  The interface associated with
-the default route is used by the deployer for configuring the cluster.  This requires that
-the default route be through the management switch.  This restriction will be removed in above
-future release of Cluster gensesis.
+The deployer node requires internet access.  This can be achieved through the
+interface used for connection to the management switch (assuming the management
+switch has a connection to the internet) or through another interface.
 
-**Set up the Deployer Node** (to be automated in the future)
+**Set up the Deployer Node**
 
 -  Deployer OS Requirements:
     - Ubuntu
         - Release 14.04LTS or 16.04LTS
         - SSH login enabled
-        - sudo priviledges
+        - sudo privileges
     - RHEL
-        - Release 7.x
+        - Release 7.2
         - Extra Packages for Enterprise Linux (EPEL) repository enabled
           (https://fedoraproject.org/wiki/EPEL)
         - SSH login enabled
-        - sudo priviledges
+        - sudo privileges
 -  Optionally, assign a static, public ip address to the BMC port to
    allow external control of the deployer node.
--  login into the deployer and install the vim, vlan and bridge-utils packages
+-  login into the deployer and install the vim, vlan, bridge-utils and fping packages
     - Ubuntu::
 
         $ sudo apt-get update
-        $ sudo apt-get install vim vlan bridge-utils
+        $ sudo apt-get install vim vlan bridge-utils fping
 
     - RHEL::
 
-        $ sudo yum install vim vlan bridge-utils
+        $ sudo yum install vim vlan bridge-utils fping
 
-**Note**: Genesis uses the port associated with the default route to access the management
-switch (ie eth0).  This must be defined in /etc/network/interfaces (Ubuntu) or the ifcfg-eth0
-file (RedHat).
+**Note**: The port connected to the management switch must be defined in
+/etc/network/interfaces (Ubuntu) or the ifcfg-eth# file (RedHat).
 
 ie::
 
-  auto eth0
+  auto eth0      # example device name
   iface eth0 inet manual

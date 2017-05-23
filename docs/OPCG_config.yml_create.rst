@@ -39,30 +39,13 @@ that define the overall cluster layout. Each rack in a cluster is
 assumed to have a management switch and one or two data switches.
 Note that keywords with a leading underscore can be changed by the end
 user as appropriate for your application. (e.g. "_rack1" could be changed to "base-rack")
-The *ipaddr-mgmt-switch* and
-the *ipaddr-data-switch* nested dictionaries define the number of racks
-and the names of the racks. For example, a cluster with 3 racks might be
-defined as::
 
-    ipaddr-mgmt-switch:
-        base-rack: 192.168.16.5
-        rack2: 192.168.16.6
-        rack3: 192.168.16.7
-    ipaddr-data-switch:
-        base-rack: 192.168.16.15
-        rack2: 192.168.16.20
-        rack3: 192.168.16.25
-
-Note that the rack names can be any valid YAML name. Although it is not
-necessary that the names of the racks in the ipaddr-mgmt-switch
-dictionary match the names in the ipaddr-data-switch dictionary, it is
-recommended that they do.
 
 The following keys must be included in the cluster definition section::
 
     ipaddr-mgmt-network: a.b.c.d/n
-	ipaddr-mgmt-client-network: a.b.e.f/n
-	vlan-mgmt-network: 16
+    ipaddr-mgmt-client-network: a.b.e.f/n
+    vlan-mgmt-network: 16
     vlan-mgmt-client-network: 20
     port-mgmt-network: 1
     ipaddr-mgmt-switch:
@@ -103,16 +86,17 @@ Notes:
 
 **Passive Data Switch Mode**:
 
-Data switches can be set to "passive" mode to allow deployment without
-supplying login credentials to the switch management interfaces. This mode
-requires the user to manually write switch MAC address tables to file and to
-configure the data switch in accordance with the defined networks. The client
-networks will still be configured by Cluster Genesis.
+Cluster Genesis can deal with data switches in "passive" mode to allow deployments
+without requiring access to the switch management interfaces. This mode
+requires the user to manually write switch MAC address tables to files and to
+configure the data switch in accordance with the defined networks. The node
+interfaces of the cluster will still be configured by Cluster Genesis.
 
 To configure passive switches simply omit 'userid-data-switch' from
 'config.yml'. The 'ipaddr-data-switch' dictionary still needs to be defined
 in order to be used as a switch identifier. In place of IP addresses anything
-may be used as long as each switch has a unique value.
+may be used as long as each switch has a unique value. These unique values will
+be used by Cluster Genesis to identify the files containing MAC address information.
 
 Passive data switch example configuration::
 

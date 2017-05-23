@@ -42,6 +42,7 @@ Welcome to Cluster Genesis User's Guide documentation!
    Appendix-G
    Appendix-H
    Appendix-I
+   Appendix-J
 
 Indices and tables
 ==================
