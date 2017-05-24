@@ -29,7 +29,7 @@ if argv_count > ARGV_MAX:
         raise Exception()
     except:
         print('Invalid argument count')
-        exit(1)
+        sys.exit(1)
 
 
 def abs_path(file):

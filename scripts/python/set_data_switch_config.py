@@ -347,7 +347,7 @@ class ConfigureDataSwitch(object):
                     'Failed: ' + msg + ' on ' + self.ipv4 +
                     ' - Error: ' +
                     stdout_.replace('\n', ' ').replace('\r', ''))
-                exit(1)
+                sys.exit(1)
             else:
                 self.log.info(
                     msg + ' on ' + self.ipv4 +
@@ -371,7 +371,7 @@ if __name__ == '__main__':
             raise Exception()
         except:
             LOG.error('Invalid argument count')
-            exit(1)
+            sys.exit(1)
 
     LOG.clear()
 

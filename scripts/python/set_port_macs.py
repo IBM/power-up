@@ -45,7 +45,7 @@ if __name__ == '__main__':
             raise Exception()
         except:
             log.error('Invalid argument count')
-            exit(1)
+            sys.exit(1)
 
     inv_file = sys.argv[1]
     if argv_count == ARGV_MAX:

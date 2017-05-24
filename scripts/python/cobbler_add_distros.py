@@ -179,7 +179,7 @@ if __name__ == '__main__':
             raise Exception()
         except:
             log.error('Invalid argument count')
-            exit(1)
+            sys.exit(1)
 
     log.clear()
 
