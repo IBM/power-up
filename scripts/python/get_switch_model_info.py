@@ -42,6 +42,9 @@ class GetSwitchInfoAssignClass(object):
     supported_data_switches = (
         ('MLNX-OS', 'Mellanox'),)
 
+    MGMT_SWITCH_TYPE = 'mgmt'
+    DATA_SWITCH_TYPE = 'data'
+
     ENABLE_REMOTE_CONFIG_MGMT = 'enable;configure terminal; %s'
     SHOW_VERSION_MTM = 'show version | include ^MTM'
     MODEL = 'Model'
@@ -106,7 +109,8 @@ class GetSwitchInfoAssignClass(object):
         if self.info_list:
             self.inv.update_switch_model_info(
                 self.inv.SwitchType.MGMT, self.info_list)
-            self.inv.update_switch_class(self.inv.SwitchType.MGMT, self.class_list)
+            self.inv.update_switch_class(
+                self.inv.SwitchType.MGMT, self.class_list)
 
     def update_data_switch_info(self):
         """Update data switch model information and assign class."""
@@ -152,7 +156,8 @@ class GetSwitchInfoAssignClass(object):
         if self.info_list:
             self.inv.update_switch_model_info(
                 self.inv.SwitchType.DATA, self.info_list)
-            self.inv.update_switch_class(self.inv.SwitchType.DATA, self.class_list)
+            self.inv.update_switch_class(
+                self.inv.SwitchType.DATA, self.class_list)
 
     def _set_switch_info_class(
             self, pattern, attr, output, supported_switches):
@@ -236,7 +241,7 @@ if __name__ == '__main__':
 
     LOG = Logger(__file__)
 
-    ARGV_MAX = 3
+    ARGV_MAX = 4
     ARGV_COUNT = len(sys.argv)
     if ARGV_COUNT > ARGV_MAX:
         try:
@@ -246,8 +251,21 @@ if __name__ == '__main__':
             sys.exit(1)
 
     INV_FILE = sys.argv[1]
-    LOG.set_level(sys.argv[2])
+    SWITCH_TYPE = sys.argv[2]
+    LOG.set_level(sys.argv[3])
 
-    switch_info = GetSwitchInfoAssignClass(LOG, INV_FILE)
-    switch_info.update_mgmt_switch_info()
-    switch_info.update_data_switch_info()
+    SWITCH = GetSwitchInfoAssignClass(LOG, INV_FILE)
+    if SWITCH_TYPE == SWITCH.MGMT_SWITCH_TYPE:
+        SWITCH.update_mgmt_switch_info()
+    elif SWITCH_TYPE == SWITCH.DATA_SWITCH_TYPE:
+        SWITCH.update_data_switch_info()
+    else:
+        try:
+            raise Exception()
+        except:
+            LOG.error(
+                "Invalid switch type '%s', expecting '%s' or '%s'" % (
+                    SWITCH_TYPE,
+                    SWITCH.MGMT_SWITCH_TYPE,
+                    SWITCH.DATA_SWITCH_TYPE))
+            sys.exit(1)

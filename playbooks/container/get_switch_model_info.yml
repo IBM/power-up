@@ -18,8 +18,9 @@
 - name: container/get_switch_model_info.yml
   hosts: deployer
   tasks:
-    - name: "Get switch model information and assign class definition"
+    - name: "Get {{ switch_type }} switch model information and assign class definition"
       command: "{{ python_executable }} \
                 {{ scripts_path }}/python/get_switch_model_info.py \
                 {{ inventory }} \
+                {{ switch_type }} \
                 {{ log_level }}"
