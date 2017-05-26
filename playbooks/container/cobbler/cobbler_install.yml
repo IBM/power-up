@@ -79,7 +79,7 @@
 
     - name: "Clone Cobbler github repo"
       git:
-        repo: git://github.com/cobbler/cobbler.git
+        repo: https://github.com/cobbler/cobbler.git
         dest: "/home/{{ user }}/cobbler"
         version: release26
 
