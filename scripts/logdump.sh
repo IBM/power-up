@@ -91,6 +91,12 @@ upload_test_data ()
     SSH_REMOTE_SAVE="${SSH_REMOTE_REPO}/${REMOTE_DIR}"
     BASE_REMOTE_DIR=$(basename ${LOCAL_DIR})
     WEB_LINK="${WEB_REMOTE_REPO}/tree/master/${REMOTE_DIR}/${BASE_REMOTE_DIR}"
+
+    if [ ! -f $SSH_PRIVATE_KEY ]; then
+        echo "No private ssh key found at \"$SSH_PRIVATE_KEY\", creating..."
+        ssh-keygen -t rsa -b 4096 -f $SSH_PRIVATE_KEY
+    fi
+
     ssh-copy-id -i $SSH_PRIVATE_KEY $SSH_REMOTE
     ssh -i $SSH_PRIVATE_KEY $SSH_REMOTE "mkdir -p ${SSH_REMOTE_SAVE}"
     scp -i $SSH_PRIVATE_KEY -r ${LOCAL_DIR} ${SSH_REMOTE}:${SSH_REMOTE_SAVE}/.
