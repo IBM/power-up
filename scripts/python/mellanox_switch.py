@@ -66,10 +66,10 @@ class MellanoxSwitch(object):
             else:
                 switch = PassiveSwitch(self.log, switch_ip)
                 scripts_path = os.path.abspath(__file__)
-                playbooks_path = (
+                passive_path = (
                     re.match('(.*cluster\-genesis).*', scripts_path).group(1) +
-                    '/playbooks/')
-                file_path = playbooks_path + switch_ip
+                    '/passive/')
+                file_path = passive_path + switch_ip
                 port_to_mac = switch.get_port_to_mac(file_path)
             switch_ip_to_mac_map[switch_ip] = port_to_mac
         return switch_ip_to_mac_map

@@ -622,6 +622,15 @@ class Inventory():
                     node[INV_USERID_IPMI],
                     node[INV_PASSWORD_IPMI])
 
+    def yield_ipmi_credential_sets(self):
+        credential_sets = []
+        for value in self.inv[INV_NODES_TEMPLATES].itervalues():
+            _set = (value[INV_USERID_IPMI], value[INV_PASSWORD_IPMI])
+            if _set not in credential_sets:
+                credential_sets.append(_set)
+        for _set in credential_sets:
+            yield _set
+
     def yield_template_ports(self, port_type):
         for template, value in self.inv[INV_NODES_TEMPLATES].items():
             if port_type in value[INV_PORTS]:
@@ -700,3 +709,9 @@ class Inventory():
         if INV_WRITE_SWITCH_MEMORY in self.inv and self.inv[INV_WRITE_SWITCH_MEMORY]:
             return True
         return False
+
+    def is_passive_mgmt_switches(self):
+        if (INV_USERID_MGMT_SWITCH in self.inv and
+                self.inv[INV_USERID_MGMT_SWITCH] is not None):
+            return False
+        return True

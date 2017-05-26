@@ -52,6 +52,16 @@ class EnableMgmtSwitch(object):
     def __init__(self, log, inv_file):
         inv = Inventory(log, inv_file)
         self.log = log
+        self.ext_label_dev = inv.get_mgmt_switch_external_dev_label()
+
+        if inv.is_passive_mgmt_switches():
+            if self.ext_label_dev:
+                self.log.info('Passive Management Switch(es) Detected')
+                print(self.ext_label_dev)
+                sys.exit(0)
+            else:
+                self.log.error('Management switch not found')
+                sys.exit(1)
 
         for self.ipv4 in inv.yield_mgmt_switch_ip():
             pass
@@ -64,7 +74,6 @@ class EnableMgmtSwitch(object):
         self.broadcast = str(netaddr.IPNetwork(mgmt_network).broadcast)
         self.mask = str(netaddr.IPNetwork(mgmt_network).netmask)
 
-        self.ext_label_dev = inv.get_mgmt_switch_external_dev_label()
         if self.ext_label_dev:
             self.log.debug(
                 'External dev label %s was specified' % self.ext_label_dev)

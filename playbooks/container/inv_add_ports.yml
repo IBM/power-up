@@ -15,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- name: "Gather facts from localhost"
+  hosts: localhost
+  gather_facts: yes
+
 - name: container/inv_add_ports.yml
   hosts: deployer
   vars:
@@ -22,65 +26,119 @@
     dhcp_leases_file: "/var/lib/misc/dnsmasq.leases"
 
   tasks:
-    - name: "User Information"
-      vars:
-        msg: |
-            The management swtich and deployer DHCP service will be polled in
-            order to build a table of {{ port_type }} MAC and IP addresses.
-            This process takes time and is expected to go through several
-            iterations before completion. A status table will be displayed
-            after roughly 5 minutes and upon completion.
-      debug:
-        msg: "{{ msg.split('\n') }}"
+    - block:
+        - name: "User Information"
+          vars:
+            msg: |
+                The management switch and deployer DHCP service will be polled
+                in order to build a table of {{ port_type }} MAC and IP
+                addresses. This process takes time and is expected to go
+                through several iterations before completion. A status table
+                will be displayed after roughly 5 minutes and upon completion.
+          debug:
+            msg: "{{ msg.split('\n') }}"
 
-    - name: "Attempting to Build {{ port_type }} MAC / DHCP Lease Table (1)"
-      command: "{{ python_executable }} \
-                {{ scripts_path }}/python/inv_add_ports.py \
-                {{ inventory }} {{ dhcp_leases_file }} {{port_type}} \
-                {{ log_level }}"
-      register: result
-      until: result.stdout.find("False") == -1
-      retries: 10
-      delay: 30
-      failed_when: result.rc != 0
+        - name: |
+            Attempting to Build {{ port_type }} MAC / DHCP Lease Table (1)
+          command: "{{ python_executable }} \
+                    {{ scripts_path }}/python/inv_add_ports.py \
+                    {{ inventory }} \
+                    {{ dhcp_leases_file }} \
+                    {{ port_type }} \
+                    {{ log_level }}"
+          register: result
+          until: result.stdout.find("False") == -1
+          retries: 10
+          delay: 30
+          failed_when: result.rc != 0
 
-    - name: "Print {{ port_type }} MAC / DHCP Lease Table (1)"
-      debug:
-        msg: "{{ result.stdout.split('\n') }}"
+        - name: "Print {{ port_type }} MAC / DHCP Lease Table (1)"
+          debug:
+            msg: "{{ result.stdout.split('\n') }}"
+
+        - block:
+            - name: |
+                Attempting to Build {{ port_type }} MAC / DHCP Lease Table (2)
+              command: "{{ python_executable }} \
+                        {{ scripts_path }}/python/inv_add_ports.py \
+                        {{ inventory }} \
+                        {{ dhcp_leases_file }} \
+                        {{ port_type }} \
+                        {{ log_level }}"
+              register: result2
+              until: result2.stdout.find("False") == -1
+              retries: 50
+              delay: 30
+
+          when: result.stdout.find("False") != -1
+          always:
+            - name: "Print {{ port_type }} MAC / DHCP Lease Table (2/3)"
+              debug:
+                msg: "{{ result2.stdout.split('\n') }}"
+
+          rescue:
+            - name: "Print {{ port_type }} MAC / DHCP Lease Table (2)"
+              debug:
+                msg: "{{ result2.stdout.split('\n') }}"
+
+            - name: "Wait for user"
+              pause:
+                prompt: |
+                    Incomplete table, please check port numbers & connections
+                    Press <enter> to continue
+
+            - name: |
+                Attempting to Build {{ port_type }} MAC / DHCP Lease Table (3)
+              command: "{{ python_executable }} \
+                        {{ scripts_path }}/python/inv_add_ports.py \
+                        {{ inventory }} \
+                        {{ dhcp_leases_file }} \
+                        {{ port_type }} \
+                        {{ log_level }}"
+              register: result2
+              until: result2.stdout.find("False") == -1
+              retries: 60
+              delay: 30
+
+      when: port_type != "passive"
+
+    - name: "Copy 'passive' directory into container"
+      copy:
+        src: "{{ hostvars['localhost']['project_path_local'] }}/passive"
+        dest: "{{ project_path }}"
 
     - block:
-        - name: "Attempting to Build {{ port_type }} MAC / DHCP Lease Table (2)"
+        - name: "Attempting to Build Passive Switch IPMI MAC / DHCP Lease Table"
           command: "{{ python_executable }} \
                     {{ scripts_path }}/python/inv_add_ports.py \
-                    {{ inventory }} {{ dhcp_leases_file }} {{port_type}} \
+                    {{ inventory }} {{ dhcp_leases_file }} ipmi \
                     {{ log_level }}"
-          register: result2
-          until: result2.stdout.find("False") == -1
-          retries: 50
-          delay: 30
+          register: result
 
-      when: result.stdout.find("False") != -1
-      always:
-        - name: "Print {{ port_type }} MAC / DHCP Lease Table (2/3)"
+        - name: "Print {{ port_type }} MAC / DHCP Lease Table (1)"
           debug:
-            msg: "{{ result2.stdout.split('\n') }}"
+            msg: "{{ result.stdout.split('\n') }}"
 
-      rescue:
-        - name: "Print {{ port_type }} MAC / DHCP Lease Table (2)"
-          debug:
-            msg: "{{ result2.stdout.split('\n') }}"
+        - name: "If table is incomplete force fail"
+          fail:
+            msg: "Incomplete! Please verify MAC address table is complete."
+          when: result.stdout.find("False") != -1
+      when: port_type == "passive"
 
-        - name: "Wait for user"
-          pause:
-            prompt: |
-                Incomplete table, please check port numbers & connections
-                Press <enter> to continue
-        - name: "Attempting to Build {{ port_type }} MAC / DHCP Lease Table (3)"
+    - block:
+        - name: "Attempting to Build Passive Switch PXE MAC / DHCP Lease Table"
           command: "{{ python_executable }} \
                     {{ scripts_path }}/python/inv_add_ports.py \
-                    {{ inventory }} {{ dhcp_leases_file }} {{port_type}} \
+                    {{ inventory }} {{ dhcp_leases_file }} pxe \
                     {{ log_level }}"
-          register: result2
-          until: result2.stdout.find("False") == -1
-          retries: 60
-          delay: 30
+          register: result
+
+        - name: "Print {{ port_type }} MAC / DHCP Lease Table (1)"
+          debug:
+            msg: "{{ result.stdout.split('\n') }}"
+
+        - name: "If table is incomplete force fail"
+          fail:
+            msg: "Incomplete! Please verify MAC address table is complete."
+          when: result.stdout.find("False") != -1
+      when: port_type == "passive"

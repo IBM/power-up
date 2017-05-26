@@ -16,7 +16,8 @@
 ccmd="complete -W 'log logc loga status deploy enable-mgmt-switch tear-down \
 config.yml ssh_keyscan gather_mac_addresses set_data_switch_config \
 configure_operating_systems lxc-create install_1 install_2 inventory \
-show_mgmt_switches --help post-deploy post-deploy-passive' gen"
+show_mgmt_switches --help post-deploy post-deploy-passive deploy-passive \
+deploy-passive-retry' gen"
 eval "$ccmd"
 P=`pwd`
 P=${P#*"cluster-genesis"}

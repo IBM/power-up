@@ -65,11 +65,12 @@ Templates are used to define multiple network configurations in the config.yml f
 These can be physical ports, bonded ports, Linux bridges or vLANS. Physical ports can be
 renamed to ease installation of additional software stack elements.
 
-Data switches can be set to "passive" mode to allow deployment without
-supplying login credentials to the switch management interfaces. This mode
-requires the user to manually write switch MAC address tables to file and to
-configure the data switch in accordance with the defined networks. The client
-networks will still be configured by Cluster Genesis.
+Management and/or Data switches can be set to "passive" mode to allow
+deployment without supplying login credentials to the switch management
+interfaces. This mode requires the user to manually write switch MAC address
+tables to file and to configure the management and/or data switch in accordance
+with the defined networks. The client networks will still be configured by
+Cluster Genesis.
 
 Compute Nodes
 ~~~~~~~~~~~~~

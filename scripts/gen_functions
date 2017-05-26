@@ -56,6 +56,76 @@ deploy (){
     ansible-playbook -i hosts install_2.yml -K
 }
 
+deploy-passive-1 (){
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i hosts enable_mgmt_switch.yml -K
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i hosts lxc-create.yml -K
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    echo;
+
+    ansible-playbook -i hosts install_1_passive.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    echo;
+
+    if [ ! -d "$GEN_PATH/passive" ]; then
+        mkdir "$GEN_PATH/passive"
+    fi
+}
+
+deploy-passive-2 (){
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i hosts container/ipmi_power_pxe.yml
+    ansible-playbook -i hosts pause.yml --extra-vars "minutes=10"
+    echo;
+    tput bold
+    echo "** User Action Required to Collect Mgmt Switch MAC Address Tables **"
+    tput sgr0
+    echo "All systems have been set to PXE boot and powered on. Please collect"
+    echo "MAC address tables from all mgmtswitches and write each table to"
+    echo "file in 'cluster-genesis/passive'. The files should be named to"
+    echo "match the unique values set in the 'config.yml' 'ipaddr-mgmt-switch'"
+    echo "dictionary."
+    echo;
+    tput bold
+    echo "Do not continue until all MAC table files are in place!"
+    tput sgr0
+    echo;
+    read -p "Enter to continue, (t) to terminate " resp
+    if [ "$resp" = "t" ]; then exit; fi
+
+    ansible-playbook -i hosts container/inv_add_ports.yml \
+        --extra-vars "port_type=passive"
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    echo;
+
+    ansible-playbook -i hosts container/inv_add_ipmi_data.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    ansible-playbook -i hosts install_2.yml -K
+}
+
 post-deploy(){
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i ./inventory.py ssh_keyscan.yml
@@ -91,6 +161,10 @@ post-deploy-passive(){
         if [ "$resp" = "t" ]; then exit; fi
     fi
 
+    if [ ! -d "$GEN_PATH/passive" ]; then
+        mkdir "$GEN_PATH/passive"
+    fi
+
     ansible-playbook -i ./inventory.py activate_client_interfaces.yml
     echo;
     tput bold
@@ -98,7 +172,7 @@ post-deploy-passive(){
     tput sgr0
     echo "All client interfaces have been activated. Please collect MAC"
     echo "address tables from all data switches and write each table to file"
-    echo "in 'cluster-genesis/playbooks'. The files should be named to match"
+    echo "in 'cluster-genesis/passive'. The files should be named to match"
     echo "the unique values set in the 'config.yml' 'ipaddr-data-switch'"
     echo "dictionary."
     echo;

@@ -56,6 +56,13 @@ case "$1" in
     'deploy')
     deploy $2;;
 
+    'deploy-passive')
+    deploy-passive-1 $2
+    deploy-passive-2 $2;;
+
+    'deploy-passive-retry')
+    deploy-passive-2 $2;;
+
     'enable-mgmt-switch')
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts enable_mgmt_switch.yml -K;;

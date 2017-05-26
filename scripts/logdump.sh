@@ -176,6 +176,9 @@ LXC_CONF_SAVE="${LOGS_DIR}/${TAG}deployer.lxc.conf"
 MGMT_SWITCH_SAVE="${LOGS_DIR}/${TAG}mgmt_switch"
 DATA_SWITCH_SAVE="${LOGS_DIR}/${TAG}data_switch"
 
+PASSIVE_SWITCH_MAC_TABLES_PATH="${PROJECT_DIR}/passive"
+PASSIVE_SWITCH_MAC_TABLES_SAVE="${LOGS_DIR}/passive"
+
 # Container File Pointers
 INV_CONTAINER_PATH="~/cluster-genesis/inventory.yml"
 INV_CONTAINER_SAVE="${LOGS_DIR}/${TAG}container.inventory.yml"
@@ -186,9 +189,9 @@ GENESIS_LOG_SAVE="${LOGS_DIR}/${TAG}container.log.txt"
 # Functions to save files
 save_local_file ()
 {
-    if [ -f $1 ]; then
+    if [ -f $1 ] || [ -d $1 ]; then
         echo "Saving $1 to $2"
-        cp -p $1 $2
+        cp -rp $1 $2
     else
         echo "File not found!: $1"
     fi
@@ -344,6 +347,7 @@ save_local_file $CONFIG_BACKUP_PATH $CONFIG_BACKUP_SAVE
 save_local_file $INV_DEPLOYER_PATH $INV_DEPLOYER_SAVE
 save_local_file $ANSIBLE_LOG_PATH $ANSIBLE_LOG_SAVE
 save_local_file $LXC_CONF_PATH $LXC_CONF_SAVE
+save_local_file $PASSIVE_SWITCH_MAC_TABLES_PATH $PASSIVE_SWITCH_MAC_TABLES_SAVE
 
 # Save off files in container
 save_container_file $INV_CONTAINER_PATH $INV_CONTAINER_SAVE

@@ -48,6 +48,13 @@ functions;
       Note that these playbooks can be run individually.  ie;
       gen enable-mgmt-switch. This can be useful when debugging or if you do not have time
       to complete the entire deploy process for instance.
+    - deploy-passive [<-p>]
+      This command performs the same functions as the deploy command, but does
+      not access the management switches.
+    - deploy-passive-retry [<-p>]
+      If deploy-passive fails due to incomplete MAC address table(s) this will
+      reset all servers (power off / set bootdev pxe / power on) to allow the
+      user another chance to collect MAC address tables.
     - enable-mgmt-switch
       Runs the enable-mgmt-switch ansible playbook.  Prepares the management
       switch for use by Genesis.
@@ -103,6 +110,6 @@ functions;
       node network interfaces, transfers SSH keys to client
       nodes, copies the inventory.yml file to select cluster nodes and runs
       bootstrap scripts on specified cluster nodes.
-    - post-deploy-passive
+    - post-deploy-passive [<-p>]
       This command performs the same functions as the post-deploy command,
-      but does not access the management switches.
+      but does not access the data switches.

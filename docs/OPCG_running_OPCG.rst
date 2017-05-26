@@ -90,6 +90,9 @@ Installing and Running the Genesis code. Step by Step Instructions
 
       $ gen deploy
 
+   *Note*: If running with passive management switch(es) follow special
+   instructions in :ref:`deploy-passive <deploy-passive>` instead.
+
 #. This will create the management neworks, install the container that runs most of the Genesis
    functions and then optionally launch the introspection OS and then install OS's on the cluster nodes.
    This process can take as little as 30 minutes or as much as mutliple hours depending on
@@ -114,52 +117,57 @@ Installing and Running the Genesis code. Step by Step Instructions
 
       $ gen status
 
-After Genesis completes the assignment of DHCP addresses to the cluster nodes BMC ports,
-Genesis will interrogate the management switches and read the MAC addresses associated with
-the BMC and PXE ports and initialize Cobbler to assign specific IP addresses to the interfaces
-holding those MAC addresses.
+   After Genesis completes the assignment of DHCP addresses to the cluster nodes BMC ports,
+   Genesis will interrogate the management switches and read the MAC addresses associated with
+   the BMC and PXE ports and initialize Cobbler to assign specific IP addresses to the interfaces
+   holding those MAC addresses.
 
-After Genesis has assigned IP addresses to the BMC ports of all cluster nodes, it will display a list of
-all nodes.  Genesis will wait up to 30 minutes for the PXE ports of all cluster nodes to
-reset and obtain an IP address.  After 30 minutes, if there are nodes which have
-still not requested a DHCP address, Genesis will pause to give you an opportunity to make fixes.
+   After Genesis has assigned IP addresses to the BMC ports of all cluster nodes, it will display a list of
+   all nodes.  Genesis will wait up to 30 minutes for the PXE ports of all cluster nodes to
+   reset and obtain an IP address.  After 30 minutes, if there are nodes which have
+   still not requested a DHCP address, Genesis will pause to give you an opportunity to make fixes.
 
-After all BMC and PXE ports have been discovered Genesis will begin operating system deployment.
+   After all BMC and PXE ports have been discovered Genesis will begin operating system deployment.
 
 #. Introspection
 
-If introspection is enabled then all client systems will be booted into the
-in-memory OS with ssh enabled. One of the last tasks of this phase of Cluster
-Genesis will print a table of all introspection hosts, including their
-IP addresses and login / ssh private key credentials. This list is maintained
-in the 'cluster-genesis/playbooks/hosts' file under the 'introspections' group.
-Genesis will pause after the introspection OS deployement to allow for customized
-updates to the cluster nodes.  Use ssh (future: or Ansible) to run custom scripts
-on the client nodes.
+   If introspection is enabled then all client systems will be booted into the
+   in-memory OS with ssh enabled. One of the last tasks of this phase of Cluster
+   Genesis will print a table of all introspection hosts, including their
+   IP addresses and login / ssh private key credentials. This list is maintained
+   in the 'cluster-genesis/playbooks/hosts' file under the 'introspections' group.
+   Genesis will pause after the introspection OS deployement to allow for customized
+   updates to the cluster nodes.  Use ssh (future: or Ansible) to run custom scripts
+   on the client nodes.
+
+   .. _deploy-passive-continue:
 
 #. To continue the Genesis process, press enter and/or enter the sudo password
 
-Again, you can monitor the progress of operating system installation from an
-additional SSH window::
+   Again, you can monitor the progress of operating system installation from an
+   additional SSH window::
 
      $ gen status
 
-It will usually take several minutes for all the nodes to load their OS.
-If any nodes do not appear in the cobbler status, see "Recovering from
-Genesis Issues" in the Appendices
+   It will usually take several minutes for all the nodes to load their OS.
+   If any nodes do not appear in the cobbler status, see "Recovering from
+   Genesis Issues" in the Appendices
 
-Genesis creates logs of it's activities. A file (log.txt) external to the Genesis container
-is written in the cluster-genesis directory.  This can be viewed::
+   Genesis creates logs of it's activities. A file (log.txt) external to the Genesis container
+   is written in the cluster-genesis directory.  This can be viewed::
 
      $ gen log
 
-An additional log file is created within the deployer container.
-This log file can be viewed::
+   An additional log file is created within the deployer container.
+   This log file can be viewed::
 
      $ gen logc
 
 
 **Configuring networks on the cluster nodes**
+
+*Note*: If running with passive data switch(es) follow special instructions in
+:ref:`post-deploy-passive <post-deploy-passive>` instead.
 
 After completion of OS installation, Genesis performs several additional activities such
 as setting up networking on the cluster nodes, setup SSH keys and copy to cluster nodes,
@@ -172,18 +180,72 @@ If data switches are configured with MLAG verify
   * The switch IPL ports are disabled or are not plugged in.
   * No port channels are defined.
 
-**Configuring networks on the cluster nodes with passive data switches**
 
-When prompted, it is advisable to clear the mac address table on the data switch(es).
-This step can be skipped if the operating systems have just been installed on the cluster nodes
-and the mac address timeout on the switches is short enough to insure that no mac addresses remain
-for the data switch ports connected to cluster nodes. If in doubt, check the acquired mac address
-file (see below) to insure that each data port for your cluster has only a single mac address entry.
+Passive Switch Mode Special Instructions
+----------------------------------------
 
-   $ gen post-deploy-passive
+.. _deploy-passive:
+
+**Deploying operating systems to your cluster nodes with passive management
+switches**
+
+When prompted, it is advisable to clear the mac address table on the management
+switch(es).::
+
+    $ gen deploy-passive
 
 When prompted, write each switch MAC address table to file in
-'cluster-genesis/playbooks'. The files should be named to match the unique
+'cluster-genesis/passive'. The files should be named to match the unique
+values set in the 'config.yml' 'ipaddr-mgmt-switch' dictionary. For example,
+take the following 'ipaddr-mgmt-switch' configuration::
+
+    ipaddr-mgmt-switch:
+        rack1: passive_mgmt_rack1
+        rack2: passive_mgmt_rack2
+
+The user would need to write two files:
+	1. 'cluster-genesis/passive/passive_mgmt_rack1'
+	2. 'cluster-genesis/passive/passive_mgmt_rack2'
+
+If the user has ssh access to the switch management interface writing the MAC
+address table to file can easily be accomplished by redirecting stdout. Here is
+an example of the syntax for a Lenovo G8052::
+
+    $ ssh <mgmt_switch_user>@<mgmt_switch_ip> \
+    'show mac-address-table' > ~/cluster-genesis/passive/passive_mgmt_rack1
+
+Note that this command would need to be run for each individual mgmt switch,
+writing to a seperate file for each. It is recommended to verify each file has
+a complete table for the appropriate interface configuration and only one mac
+address entry per interface.
+
+See :ref:`MAC address table file formatting rules <mac-table-file-rules>` below.
+
+After writing MAC address tables to file press enter to continue with OS
+installation. :ref:`Resume normal instructions <deploy-passive-continue>`.
+
+If deploy-passive fails due to incomplete MAC address table(s) use the
+following command to reset all servers (power off / set bootdev pxe / power on)
+and attempt to collect MAC address table(s) again when prompted::
+
+    $ gen deploy-passive-retry
+
+.. _post-deploy-passive:
+
+**Configuring networks on the cluster nodes with passive data switches**
+
+When prompted, it is advisable to clear the mac address table on the data
+switch(es). This step can be skipped if the operating systems have just been
+installed on the cluster nodes and the mac address timeout on the switches is
+short enough to insure that no mac addresses remain for the data switch ports
+connected to cluster nodes. If in doubt, check the acquired mac address file
+(see below) to insure that each data port for your cluster has only a single
+mac address entry.::
+
+    $ gen post-deploy-passive
+
+When prompted, write each switch MAC address table to file in
+'cluster-genesis/passive'. The files should be named to match the unique
 values set in the 'config.yml' 'ipaddr-data-switch' dictionary. For example,
 take the following 'ipaddr-data-switch' configuration::
 
@@ -193,9 +255,27 @@ take the following 'ipaddr-data-switch' configuration::
         rack3: passive3
 
 The user would need to write three files:
-1. 'cluster-genesis/playbooks/passive1'
-2. 'cluster-genesis/playbooks/passive2'
-3. 'cluster-genesis/playbooks/passive3'
+	1. 'cluster-genesis/passive/passive1'
+	2. 'cluster-genesis/passive/passive2'
+	3. 'cluster-genesis/passive/passive3'
+
+If the user has ssh access to the switch management interface writing the MAC
+address table to file can easily be accomplished by redirecting stdout. Here is
+an example of the syntax for a Mellanox SX1400::
+
+    $ ssh <data_switch_user>@<data_switch_ip> \
+    'cli en show\ mac-address-table' > ~/cluster-genesis/passive/passive1
+
+Note that this command would need to be run for each individual data switch,
+writing to a seperate file for each. It is recommended to verify each file has
+a complete table for the appropriate interface configuration and only one mac
+address entry per interface.
+
+See :ref:`MAC address table file formatting rules <mac-table-file-rules>` below.
+
+.. _mac-table-file-rules:
+
+**MAC Address Table Formatting Rules**
 
 Each file must be formatted according to the following rules:
 
@@ -210,9 +290,10 @@ Each file must be formatted according to the following rules:
       address" is one column, but "mac address  vlan" would be two).
     * If a header is not provided then only MAC address and Port columns are
       allowed.
-    * MAC addresses are written as six groups of two hexadecimal digits
-      separated by colons or dashes (e.g. 00:16:3e:bf:71:e7 or
-      00-16-3e-bf-71-e7).
+    * MAC addresses are written as (case-insensitive):
+      	- Six pairs of hex digits delimited by colons (:) [e.g. 01:23:45:67:89:ab]
+      	- Six pairs of hex digits delimited by hyphens (-) [e.g. 01-23-45-67-89-ab]
+      	- Three quads of hex digits delimited by periods (.) [e.g. 0123.4567.89ab]
     * Ports are written either as:
         - An integer
         - A string with a "/". The string up to and including the "/" will be
@@ -238,17 +319,6 @@ these rules. An example of a user generated "generic" file would be::
     6c:ae:8b:69:22:24    2
     70:e2:84:14:02:92    5
     70:e2:84:14:0f:57    1
-
-If the user has ssh access to the switch management interface writing the MAC
-address table to file can easily be accomplished by redirecting stdout. Here is
-an example of the syntax for a Mellanox SX1400::
-
-    $ ssh <data_switch_user>@<data_switch_ip> 'cli en show\ mac-address-table' > ~/cluster-genesis/playbooks/passive1
-
-Note that this command would need to be run for each individual data switch,
-writing to a seperate file for each. It is recommended to verify each file has
-a complete table for the appropriate interface configuration and only one mac address
-entry per interface.
 
 
 SSH Keys

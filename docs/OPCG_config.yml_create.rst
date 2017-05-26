@@ -84,13 +84,49 @@ Notes:
    supply a valid ipv4 address. a.b.c.d/n is used to represent any valid
    ipv4 address in CIDR format.
 
+**Passive Switch Mode**:
+
+Cluster Genesis can deal with management and/or data switches in "passive" mode
+to allow deployments without requiring access to the switch management
+interfaces. This mode requires the user to manually configure the switches and
+to write switch MAC address tables to files.
+
+Passive management switch mode and passive data switch mode can be configured
+independent of each other, but passive and active switches of the same
+classification cannot be mixed (i.e. all data switches must either be
+active or passive).
+
+**Passive Management Switch Mode**:
+
+Passive management switch mode requires the user to configure the management
+switch *before* starting a Cluster Genesis deploy. The client network must be
+isolated from any outside servers. Cluster Genesis will attempt to issue IPMI
+commands to any system BMC that is set to DHCP and has access to the client
+network.
+
+To configure passive switches simply omit 'userid-mgmt-switch' from
+'config.yml'. The 'ipaddr-mgmt-switch' dictionary still needs to be defined
+in order to be used as a switch identifier. In place of IP addresses anything
+may be used as long as each switch has a unique value. These unique values will
+be used by Cluster Genesis to identify the files containing MAC address information.
+
+Passive management switch example configuration::
+
+    ipaddr-mgmt-switch:
+        base-rack: passive_mgmt_1
+        rack2: passive_mgmt_2
+        rack3: passive_mgmt_3
+    ipaddr-data-switch:
+        base-rack: passive_data_1
+        rack2: passive_data_2
+        rack3: passive_data_3
+
+
 **Passive Data Switch Mode**:
 
-Cluster Genesis can deal with data switches in "passive" mode to allow deployments
-without requiring access to the switch management interfaces. This mode
-requires the user to manually write switch MAC address tables to files and to
-configure the data switch in accordance with the defined networks. The node
-interfaces of the cluster will still be configured by Cluster Genesis.
+Passive data switch mode requires the user to configure the data switch in
+accordance with the defined networks. The node interfaces of the cluster will
+still be configured by Cluster Genesis.
 
 To configure passive switches simply omit 'userid-data-switch' from
 'config.yml'. The 'ipaddr-data-switch' dictionary still needs to be defined
