@@ -15,10 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import allocate_ip_addresses
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import types
 import collections
 import unittest
+
+import allocate_ip_addresses
 
 DEBUG_TEST_CASES = False
 
@@ -140,8 +144,8 @@ class TestAllocateIPAddresses(unittest.TestCase):
                                            'net6-addr': '10.0.1.105'}]}
         if DEBUG_TEST_CASES:
             import json
-            print 'Output %s' % json.dumps(inv, indent=4)
-            print 'Expected_output %s' % json.dumps(expected_nodes, indent=4)
+            print('Output %s' % json.dumps(inv, indent=4))
+            print('Expected_output %s' % json.dumps(expected_nodes, indent=4))
             self.maxDiff = None
         self.assertEqual(inv['nodes'], expected_nodes)
 

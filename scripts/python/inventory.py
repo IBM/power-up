@@ -322,11 +322,14 @@ An example output of this generation is:
 }
 """
 
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import argparse
 import copy
 import json
-import netaddr
 import sys
+import netaddr
 import yaml
 
 # The key in on nodes in the source inventory file that contains
@@ -523,4 +526,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print main()
+    print(main())

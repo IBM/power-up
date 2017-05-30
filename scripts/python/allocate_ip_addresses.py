@@ -15,10 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
+import sys
 import argparse
 import netaddr
 from orderedattrdict import yamlutils
-import sys
 import yaml
 
 
@@ -34,7 +37,7 @@ def load_input(inventory_file):
 
 def save_inventory(inventory, inventory_file):
     stream = file(inventory_file, 'w')
-    yaml.dump(
+    yaml.safe_dump(
         inventory,
         stream,
         indent=4,
@@ -92,12 +95,13 @@ def allocate_ips_to_nodes(inventory, networks):
                 continue
             node_ip_key = '%s-addr' % node_net
             if node.get(node_ip_key) is not None:
-                print ('Node %(node_name)s already has IP address %(addr)s'
-                       ' assigned on network %(net)s.  This IP assignment'
-                       ' will not be changed.'
-                       ) % {'node_name': node.get('hostname'),
-                            'addr': node.get(node_ip_key),
-                            'net': node_net}
+                print(
+                    ('Node %(node_name)s already has IP address %(addr)s'
+                     ' assigned on network %(net)s.  This IP assignment'
+                     ' will not be changed.') %
+                    {'node_name': node.get('hostname'),
+                     'addr': node.get(node_ip_key),
+                     'net': node_net})
                 continue
             if 'manual_addr' in networks[node_net]:
                 ip = networks[node_net]['manual_addr']

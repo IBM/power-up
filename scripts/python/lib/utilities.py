@@ -1,4 +1,4 @@
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -13,5 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
 
 PATTERN_MAC = '[\da-fA-F]{2}:){5}[\da-fA-F]{2}'

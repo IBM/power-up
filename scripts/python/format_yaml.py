@@ -47,7 +47,7 @@ except:
     sys.exit(1)
 
 try:
-    yaml.dump(
+    yaml.safe_dump(
         CONTENT,
         open(YAML_OUT_FILE, 'w'),
         indent=4,

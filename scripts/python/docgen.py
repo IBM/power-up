@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -23,7 +23,7 @@ import yaml
 
 def load_yaml(yaml_file):
     try:
-        yaml_content = yaml.load(open(yaml_file))
+        yaml_content = yaml.safe_load(open(yaml_file))
     except:
         print('Could not load file: ' + yaml_file)
         sys.exit(1)

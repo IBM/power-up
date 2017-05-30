@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import sys
 import os.path
 import yaml
@@ -687,7 +690,7 @@ class Inventory():
                                             'host': node.get(INV_IPV4_PXE),
                                             'node_port_on_rack': node_port_on_rack,
                                             'switch': ip}
-                                print msg % msg_vars
+                                print(msg % msg_vars)
                                 success = False
             index += 1
         self._dump_inv_file()

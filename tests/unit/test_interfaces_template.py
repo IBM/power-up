@@ -15,9 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jinja2
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import os.path
 import unittest
+import jinja2
 
 
 TEMPLATE_FILE = (
@@ -106,14 +109,14 @@ class TestInterfacesTemplate(unittest.TestCase):
             rendered_lines = rendered_file.splitlines()
             for x in range(len(expected_lines)):
                 if expected_lines[x] != rendered_lines[x]:
-                    print 'Rendered_file'
-                    print rendered_file
+                    print('Rendered_file')
+                    print(rendered_file)
                     self.assertEqual(expected_lines[x], rendered_lines[x])
             # Line differences should fail above but if the difference is
             # a different number of lines then fail here:
             if len(expected_lines) != len(rendered_lines):
-                print 'Rendered_file'
-                print rendered_file
+                print('Rendered_file')
+                print(rendered_file)
                 self.fail('Expected vs rendered line count is different. '
                           'Expected: %s Rendered: %s' % (len(expected_lines),
                                                          len(rendered_lines)))

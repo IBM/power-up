@@ -15,10 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import copy
-import inventory as test_mod
-import mock
 import unittest
+
+import mock
+import inventory as test_mod
 
 TEST_PKG_MOD = 'inventory'
 DEBUG_TEST_CASES = False
@@ -267,8 +271,8 @@ class TestOSInterfacesInventory(unittest.TestCase):
             inventory, inventory_source, ip_to_node)
         if DEBUG_TEST_CASES:
             import json
-            print 'Output %s' % json.dumps(inventory, indent=4)
-            print 'Expected_output %s' % json.dumps(expected_output, indent=4)
+            print('Output %s' % json.dumps(inventory, indent=4))
+            print('Expected_output %s' % json.dumps(expected_output, indent=4))
         self.assertDictEqual(inventory, expected_output)
 
         # Now test again with nodes not having any IP addresses on networks

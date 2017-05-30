@@ -45,7 +45,7 @@ def get_container_info(lxc_list_output, container_name):
 
 def load_localhost(filename):
     try:
-        return yaml.load(open(filename))
+        return yaml.safe_load(open(filename))
     except:
         print('Could not load file: ' + filename)
         sys.exit(1)
