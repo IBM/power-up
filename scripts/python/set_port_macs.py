@@ -38,9 +38,7 @@ if __name__ == '__main__':
     """
     LOG = Logger(__file__)
 
-    ARGV_MAX = 3
-    ARGV_COUNT = len(sys.argv)
-    if ARGV_COUNT > ARGV_MAX:
+    if len(sys.argv) != 3:
         try:
             raise Exception()
         except:

@@ -22,15 +22,6 @@ import os.path
 import yaml
 from orderedattrdict.yamlutils import AttrDictYAMLLoader
 
-ARGV_MAX = 3
-ARGV_COUNT = len(sys.argv)
-if ARGV_COUNT > ARGV_MAX:
-    try:
-        raise Exception()
-    except:
-        print('Invalid argument count')
-        sys.exit(1)
-
 
 def abs_path(file_):
     return os.path.abspath(
@@ -39,23 +30,28 @@ def abs_path(file_):
         os.path.basename(file_))
 
 
-YAML_FILE = abs_path(sys.argv[1])
+if len(sys.argv) != 3:
+    try:
+        raise Exception()
+    except:
+        print('Invalid argument count')
+        sys.exit(1)
+
+YAML_IN_FILE = abs_path(sys.argv[1])
+YAML_OUT_FILE = abs_path(sys.argv[2])
 
 try:
-    CONTENT = yaml.load(open(YAML_FILE), Loader=AttrDictYAMLLoader)
+    CONTENT = yaml.load(open(YAML_IN_FILE), Loader=AttrDictYAMLLoader)
 except:
-    print('Could not load file: ' + YAML_FILE)
+    print('Could not load file: ' + YAML_IN_FILE)
     sys.exit(1)
-
-if len(sys.argv) == ARGV_MAX:
-    YAML_FILE = abs_path(sys.argv[2])
 
 try:
     yaml.dump(
         CONTENT,
-        open(YAML_FILE, 'w'),
+        open(YAML_OUT_FILE, 'w'),
         indent=4,
         default_flow_style=False)
 except:
-    print('Could not dump file: ' + YAML_FILE)
+    print('Could not dump file: ' + YAML_OUT_FILE)
     sys.exit(1)

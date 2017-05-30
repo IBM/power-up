@@ -93,8 +93,7 @@ if __name__ == '__main__':
     """
     LOG = Logger(__file__)
 
-    ARGV_COUNT = len(sys.argv)
-    if ARGV_COUNT != 5:
+    if len(sys.argv) != 5:
         try:
             raise Exception()
         except:
