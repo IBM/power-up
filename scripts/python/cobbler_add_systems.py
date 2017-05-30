@@ -214,7 +214,7 @@ if __name__ == '__main__':
             raise Exception()
         except:
             LOG.error('Invalid argument count')
-            exit(1)
+            sys.exit(1)
 
     INV_FILE = sys.argv[1]
     LOG.set_level(sys.argv[2])
