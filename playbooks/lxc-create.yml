@@ -21,6 +21,7 @@
     networks_only: False
   handlers:
     - include: handlers/restart_networking.yml
+  environment: "{{ deployment_environment }}"
   tasks:
     - name: "Print local project path"
       debug:

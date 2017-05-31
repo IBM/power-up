@@ -14,8 +14,9 @@ YAML files support data structures such as lists, dictionaries and
 scalars. A complete definition of the config.yml file along with
 detailed documentation of the elements used are given in appendix B.
 
-The config.yml file has 4 main sections. These are;
+The config.yml file has 5 main sections. These are;
 
+#. General Settings
 #. Cluster definition
 #. Network templates
 #. Node templates
@@ -31,14 +32,95 @@ Notes:
    spaces at the start of lines. Incorrect spacing can result in failure
    to load messages during genesis.
 
+General Settings
+----------------
+
+The top part of the config.yml file contains a group of key value pairs that
+define general settings.
+
+.. _config-file-version:
+
+**Config file version**::
+
+    version: 1.1
+
++----------------+-------------------------------+
+| Release Branch | Supported Config File Version |
++================+===============================+
+| release-0.9    | version: 1.0                  |
++----------------+-------------------------------+
+| release-1.x    | version: 1.1                  |
++----------------+-------------------------------+
+| release-2.x    | version: 2.0 (planned)        |
++----------------+-------------------------------+
+
+
+.. _config-file-log-level:
+
+**Defaul log level**::
+
+    log_level: debug
+
+    deployment-environment:
+        https_proxy: "http://192.168.1.2:3456"
+        http_proxy: "http://192.168.1.2.3456"
+        no_proxy: "localhost,127.0.0.1"
+
+
+.. _config-file-introspection:
+
+**Introspection**:
+
+Introspection consists of loading a lightweight in-memory OS (linux buildroot)
+on all client nodes prior to OS installation on disk. This feature can be
+enabled via the 'introspection-enabled' key in 'config.yml' to a boolean
+value. If omitted or set to 'false' the introspection components will not be
+run. Initially it is only supported on clusters with all ppc64el deployer and
+client nodes.::
+
+    introspection-enabled: true   # Introspection Mode Enabled
+    introspection-enabled: false  # Introspection Mode Disabled
+
+
+.. _config-file-write-switch:
+
+**Write switch configuration to flash memory**
+
+The manangement and data switches can automatically write the configuration
+to flash memory using the 'write-switch-memory' key.::
+
+    write-switch-memory: true   # Write Switch Memory Enabled
+    write-switch-memory: false  # Write Switch Memory Disabled
+
+
+.. _config-file-deployment-env:
+
+**Deployment Environment**
+
+The 'deployment-environment' key in 'config.yml' can be used to define
+environment variables (as key: values) to be set during deployment::
+
+    deployment-environment:
+        https_proxy: "http://192.168.1.2:3456"
+        http_proxy: "http://192.168.1.2.3456"
+        no_proxy: "localhost,127.0.0.1"
+
+This was implemented to enable http/https proxy configuration but could be used
+for anything that utilized environment variables. The 'deployment-environment'
+dictionary is copied into 'playbooks/group_vars/all' as
+'deployment_environment' (note the "-" is changed to "_").
+
+
+
 Cluster definition
 -------------------
 
-The top part of the config.yml file contains a group of key value pairs
+The next section of the config.yml file contains a group of key value pairs
 that define the overall cluster layout. Each rack in a cluster is
 assumed to have a management switch and one or two data switches.
 Note that keywords with a leading underscore can be changed by the end
-user as appropriate for your application. (e.g. "_rack1" could be changed to "base-rack")
+user as appropriate for your application. (e.g. "_rack1" could be changed to
+"base-rack")
 
 
 The following keys must be included in the cluster definition section::
@@ -145,27 +227,6 @@ Passive data switch example configuration::
         rack2: passive2
         rack3: passive3
 
-**Introspection**:
-
-Introspection consists of loading a lightweight in-memory OS (linux buildroot)
-on all client nodes prior to OS installation on disk. This feature can be
-enabled via the 'introspection-enabled' key in 'config.yml' to a boolean
-value. If omitted or set to 'false' the introspection components will not be
-run. Initially it is only supported on clusters with all ppc64el deployer and
-client nodes.::
-
-    introspection-enabled: true   # Introspection Mode Enabled
-    introspection-enabled: false  # Introspection Mode Disabled
-
-**Write switch configuration to flash memory**
-
-The manangement and data switches can automatically write the configuration
-to flash memory using the 'write-switch-memory' key.::
-
-    write-switch-memory: true   # Write Switch Memory Enabled
-    write-switch-memory: false  # Write Switch Memory Disabled
-
-For complete description of the key value pairs, see appendix A.
 
 Network Templates
 -----------------

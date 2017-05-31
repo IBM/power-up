@@ -18,6 +18,7 @@
 - name: lxc-update.yml
   hosts: localhost
   gather_facts: yes
+  environment: "{{ deployment_environment }}"
   vars:
     os_image_links:
       - name: ubuntu-14.04.5-server-amd64
@@ -86,6 +87,7 @@
       with_items: "{{ image_list_unique }}"
 
 - hosts: deployer
+  environment: "{{ deployment_environment }}"
   vars:
     scripts_path_local: "{{ hostvars['localhost']['scripts_path_local'] }}"
     images_local: "{{ hostvars['localhost']['project_path_local'] }}/os_images"

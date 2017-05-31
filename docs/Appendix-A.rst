@@ -40,6 +40,7 @@ functions;
       Genesis will prompt you if you want to continue after each playbook runs.  The
       playbooks run are;
 
+        - setup
         - enable-mgmt-switch
         - lxc-create
         - install_1

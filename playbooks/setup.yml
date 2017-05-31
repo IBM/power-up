@@ -28,15 +28,34 @@
         file: "{{ config_local }}"
 
     - block:
-      - name: "Print Log Level in {{ config_local }}"
-        debug:
-          msg: "Log Level: {{ config_file.log_level }}"
+        - name: "Print Log Level in {{ config_local }}"
+          debug:
+            msg: "Log Level: {{ config_file.log_level }}"
 
-      - name: "Update default Log Level"
-        replace:
-          dest: "{{ project_path_local }}/playbooks/group_vars/all"
-          regexp: '^(log_level:).*$'
-          replace: '\1 {{ config_file.log_level }}'
+        - name: "Update default Log Level"
+          replace:
+            dest: "{{ project_path_local }}/playbooks/group_vars/all"
+            regexp: '^(log_level:).*$'
+            replace: '\1 {{ config_file.log_level }}'
       when:
         - config_file.log_level is defined
         - config_file.log_level is not none
+
+    - block:
+        - name: "Print deployment-environment in {{ config_local }}"
+          debug:
+            msg: >
+                deployment_environment:
+                {{ config_file['deployment-environment'] }}
+
+        - name: "Add deployment-environment to group_vars/all"
+          vars:
+            output:
+                deployment_environment:
+                    "{{ config_file['deployment-environment'] }}"
+          lineinfile:
+            dest: "{{ project_path_local }}/playbooks/group_vars/all"
+            line: "{{ output | to_nice_yaml }}"
+      when:
+        - config_file['deployment-environment'] is defined
+        - config_file['deployment-environment'] is not none

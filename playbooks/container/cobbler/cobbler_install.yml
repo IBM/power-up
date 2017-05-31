@@ -21,6 +21,7 @@
 
 - name: container/cobbler/cobbler_install.yml
   hosts: deployer
+  environment: "{{ deployment_environment }}"
   tasks:
 
     - name: "Install aptitude to enable apt upgrade safe "
@@ -270,6 +271,15 @@
         - {regexp: 'manage_dhcp: 0', line: 'manage_dhcp: 1'}
         - {regexp: 'manage_dns: 0', line: 'manage_dns: 1'}
         - {regexp: 'pxe_just_once: 0', line: 'pxe_just_once: 1'}
+      become: yes
+      become_method: sudo
+
+    - name: "Update cobbler server proxy settings"
+      replace:
+          dest: /etc/cobbler/settings
+          regexp: 'proxy_url_ext: ""'
+          replace: "proxy_url_ext: {{ deployment_environment.http_proxy }}"
+      when: deployment_environment.http_proxy is defined
       become: yes
       become_method: sudo
 
