@@ -35,7 +35,10 @@ class SSH(object):
     def __init__(self, log):
         self.log = log
 
-    def exec_cmd(self, ip_addr, username, password, cmd):
+    def exec_cmd(self, ip_addr, username, password, cmd,
+                 ssh_log=None, look_for_keys=True, key_filename=None):
+        if ssh_log is not None:
+            self.SSH_LOG = ssh_log
         if self.log.get_level() == Logger.DEBUG:
             paramiko.util.log_to_file(self.SSH_LOG)
         ssh = paramiko.SSHClient()
@@ -46,7 +49,9 @@ class SSH(object):
                 ip_addr,
                 port=self.SWITCH_PORT,
                 username=username,
-                password=password)
+                password=password,
+                look_for_keys=look_for_keys,
+                key_filename=key_filename)
         except (
                 paramiko.BadHostKeyException,
                 paramiko.AuthenticationException,
@@ -64,4 +69,67 @@ class SSH(object):
         stderr_ = stderr.read()
         status = stdout.channel.recv_exit_status()
         ssh.close()
+        return status, stdout_, stderr_
+
+
+class SSH_CONNECTION(paramiko.SSHClient):
+    """Returns a connected paramiko SSHClient
+    Use send_cmd to run paramiko exec_command with additional error handling
+    Application must close the connection with paramiko close()
+
+    Args:
+        host (string): host ip address or name (paramiko hostname)
+        log (Logger object): Logging.
+        ssh_log (string): filepath for paramiko log
+        see paramiko documentation for other args
+    """
+
+    def __init__(self, host, log=None, ssh_log=None, username=None,
+                 password=None, look_for_keys=True, key_filename=None):
+        paramiko.SSHClient.__init__(self)
+        self.host = host
+        self.log = log
+        self.ssh_log = ssh_log
+        if ssh_log is not None:
+            paramiko.util.log_to_file(ssh_log)
+        elif log is not None:
+            if self.log.get_level() == Logger.DEBUG:
+                ssh_log = FILE_PATH[:FILE_PATH.rfind('/')]
+                ssh_log += '/ssh_paramiko.log'
+                paramiko.util.log_to_file(ssh_log)
+        if key_filename is None:
+            self.load_system_host_keys()
+        self.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            self.connect(
+                host,
+                username=username,
+                password=password,
+                look_for_keys=look_for_keys,
+                key_filename=key_filename)
+        except (
+                paramiko.BadHostKeyException,
+                paramiko.AuthenticationException,
+                paramiko.SSHException,
+                socket.error,
+                BaseException) as exc:
+            if log is not None:
+                self.log.error('%s: %s' % (host, str(exc)))
+            else:
+                print('%s: %s' % (host, str(exc)))
+            sys.exit(1)
+
+    def send_cmd(self, cmd):
+        try:
+            _, stdout, stderr = self.exec_command(cmd)
+        except paramiko.SSHException as exc:
+            if self.log is not None:
+                self.log.error('%s: %s' % (self.host, str(exc)))
+            else:
+                print('%s: %s' % (self.host, str(exc)))
+            sys.exit(1)
+        stdout_ = stdout.read()
+        stderr_ = stderr.read()
+        status = stdout.channel.recv_exit_status()
         return status, stdout_, stderr_

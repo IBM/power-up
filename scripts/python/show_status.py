@@ -22,10 +22,10 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import os
 import sys
 import subprocess
-import paramiko
 
 from lib import inventory
 from lib.logger import Logger
+from lib.ssh import SSH_CONNECTION
 from lib import genesis
 
 GEN_PATH = genesis.gen_path
@@ -33,6 +33,8 @@ GEN_CONTAINER_NAME = genesis.container_name
 GEN_CONTAINER_RUNNING = genesis.container_running
 GEN_CONTAINER_ADDR = genesis.container_addr
 HOME_DIR = os.path.expanduser('~')
+
+FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 def main(log, inv_file):
@@ -67,33 +69,36 @@ def main(log, inv_file):
 
     if GEN_CONTAINER_RUNNING:
         if os.path.isfile(HOME_DIR + '/.ssh/id_rsa_ansible-generated'):
-            cont = paramiko.SSHClient()
-            cont.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            key = paramiko.RSAKey.from_private_key_file(
-                HOME_DIR + '/.ssh/id_rsa_ansible-generated')
-            cont.connect(hostname=GEN_CONTAINER_ADDR, username='deployer',
-                         pkey=key)
-            _, stdout, _ = cont.exec_command('ps aux|grep cobbler')
-            cobbler_running = stdout.read()
+            key_filename = HOME_DIR + '/.ssh/id_rsa_ansible-generated'
+            ssh_log_filename = FILE_PATH + '/gen_ssh.log'
+            ssh_cont = SSH_CONNECTION(
+                GEN_CONTAINER_ADDR,
+                log=log,
+                ssh_log=ssh_log_filename,
+                username='deployer',
+                look_for_keys=False,
+                key_filename=key_filename)
+
+            _, cobbler_running, _ = ssh_cont.send_cmd(
+                'ps aux|grep cobbler')
             if 'root' in cobbler_running:
                 print('cobbler is running')
-                _, stdout, _ = cont.exec_command(
+                _, cobbler_status, _ = ssh_cont.send_cmd(
                     'sudo cobbler status')
-                cobbler_status = stdout.read()
                 print(cobbler_status)
             else:
                 print('cobbler is not running')
 
-            _, stdout, _ = cont.exec_command('ps aux|grep dnsmasq')
-            dnsmasq_running = stdout.read()
+            _, dnsmasq_running, _ = ssh_cont.send_cmd(
+                'ps aux|grep dnsmasq')
             if 'root' in dnsmasq_running:
                 print('dnsmasq is running')
-                _, stdout, _ = cont.exec_command(
+                _, dnsmasq_status, _ = ssh_cont.send_cmd(
                     'cat /var/lib/misc/dnsmasq.leases')
-                dnsmasq_status = stdout.read()
                 print(dnsmasq_status)
             else:
                 print('dnsmasq is not running')
+            ssh_cont.close()
         else:
             print('\nContainer ssh key not available\n')
             log.info('Container ssh key not available')
@@ -116,7 +121,7 @@ def get_int_input(prompt_str, minn, maxx):
     while 1:
         try:
             input = int(raw_input(prompt_str))
-            if not minn <= input <= maxx:
+            if not (minn <= input <= maxx):
                 raise ValueError()
             else:
                 break
@@ -139,7 +144,9 @@ if __name__ == '__main__':
 
     LOG = Logger(__file__)
 
-    if len(sys.argv) != 3:
+    ARGV_MAX = 3
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:

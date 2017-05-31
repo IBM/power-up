@@ -20,36 +20,27 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 import os.path
-import subprocess
 import netaddr
+import subprocess
 
+from lib.ssh import SSH
 from lib import inventory
 from lib.logger import Logger
-from lib.ssh import SSH
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-class SSH_(SSH):
-    SSH_LOG = FILE_PATH + '__ssh.log'
-
-
 def main(log, inv_file):
     inv = inventory.Inventory(log, inv_file)
-
     userid = inv.get_userid_mgmt_switch()
     password = inv.get_password_mgmt_switch()
-
     mgmt_network_port = inv.get_port_mgmt_network()
     mgmt_network_gen = inv.get_ipaddr_mgmt_network()
-
     mgmt_network_ext = inv.get_mgmt_switch_external_dev_ip()
     mgmt_network_ext_prefix = inv.get_mgmt_switch_external_prefix()
     mgmt_network_ext = mgmt_network_ext + '/' + mgmt_network_ext_prefix
-
     mgmt_network_ext = netaddr.IPNetwork(mgmt_network_ext)
     mgmt_network_ext_cidr = str(mgmt_network_ext.cidr)
-
     output = subprocess.check_output(['bash', '-c', 'ip route'])
     if mgmt_network_ext_cidr in output:
         key_addr = 'addr_ext'
@@ -73,32 +64,34 @@ def main(log, inv_file):
               switches_m[index]['addr_ext'] + ',  Genesis address: ' +
               switches_m[index]['addr_gen'])
         index += 1
-    if not len(switches_m) == 1:
-        switch = get_int_input("\n\nSelect a switch: ", 1, len(switches_m))
+    if not (len(switches_m) == 1):
+        sw = get_int_input("\n\nSelect a switch: ", 1, len(switches_m))
     else:
-        switch = 1
+        sw = 1
 
     print()
-    ssh_i = SSH_(log)
-    _, mgmt_interfaces, _ = ssh_i.exec_cmd(
-        switches_m[switch][key_addr],
+    ssh_log = FILE_PATH + '/gen_ssh.log'
+
+# the G8052 misbehaves & closes it's SSH connection
+# after every paramiko 'exec_command', so using SSH
+# with commands strung together
+
+    ssh = SSH(log)
+    cmd = 'show interface ip;show vlan;show interface port %s;' \
+        % (str(mgmt_network_port))
+    _, switch_info, _ = ssh.exec_cmd(
+        switches_m[sw][key_addr],
         userid,
         password,
-        'show interface ip;')
-
-    print_lines(mgmt_interfaces, ['Interface information:', 'IP4'])
-
-    print()
-    _, mgmt_port, _ = ssh_i.exec_cmd(
-        switches_m[switch][key_addr],
-        userid, password, 'show interface port %s;' % str(mgmt_network_port))
-
-    print_lines(mgmt_port, ['Current port', 'VLANs'])
-
-    _, vlans, _ = ssh_i.exec_cmd(
-        switches_m[switch][key_addr], userid, password, 'show vlan;')
+        cmd,
+        ssh_log=ssh_log,
+        look_for_keys=False)
+    print_lines(switch_info, ['Interface information:', 'IP4'])
     print('\n\nVLAN information: ')
-    print_lines(vlans, ['-  ------  -', 'VLAN'])
+    print_lines(switch_info, ['-  ------  -', ' VLAN '])
+    print()
+    print('Deployer port: ')
+    print_lines(switch_info, ['Current port', 'VLANs'])
     print()
 
 
@@ -109,7 +102,7 @@ def print_lines(str, line_list):
     index = 0
     for _ in range(len(str)):
         for substr in line_list:
-            if substr in str[index] or substr == '*':
+            if (substr in str[index] or substr == '*'):
                 print(str[index])
         index += 1
 
@@ -118,7 +111,7 @@ def get_int_input(prompt_str, minn, maxx):
     while 1:
         try:
             input = int(raw_input(prompt_str))
-            if not minn <= input <= maxx:
+            if not (minn <= input <= maxx):
                 raise ValueError()
             else:
                 break
@@ -141,7 +134,9 @@ if __name__ == '__main__':
 
     LOG = Logger(__file__)
 
-    if len(sys.argv) != 3:
+    ARGV_MAX = 3
+    ARGV_COUNT = len(sys.argv)
+    if ARGV_COUNT > ARGV_MAX:
         try:
             raise Exception()
         except:
