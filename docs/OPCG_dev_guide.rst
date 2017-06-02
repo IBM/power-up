@@ -119,7 +119,7 @@ various linters.
 
 To run tox first install python dependencies::
 
-    cluster-genesis$ ./scripts/install.py
+    cluster-genesis$ ./scripts/install.sh
 
 To run all tox test environments::
 
