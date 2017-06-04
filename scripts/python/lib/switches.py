@@ -37,7 +37,11 @@ class Switch(object):
         password (string): Switch management interface login password.
         port (int): Switch management interface SSH port. Defaults to 22.
     """
-    _mac_regex = re.compile('([\dA-F]{2}:){5}([\dA-F]{2})', re.I)
+
+    _mac_iee802 = '([\dA-F]{2}[\.:-]){5}([\dA-F]{2})'
+    _mac_cisco = '([\dA-F]{4}\.){2}[\dA-F]{4}'
+    _mac_all = "%s|%s" % (_mac_iee802, _mac_cisco)
+    _mac_regex = re.compile(_mac_all, re.I)
 
     _show_macs_cmd = '\"show mac-address-table\"'
     _clear_macs_cmd = '\"clear mac-address-table dynamic\"'
@@ -135,6 +139,12 @@ class PassiveSwitch(Switch):
 
         for line in mac_line_list:
             mac = line[mac_index].lower()
+            mac = mac.replace("-", ":")
+            mac = mac.replace(".", ":")
+            for i in [2, 5, 8, 11, 14]:
+                if mac[i] != ":":
+                    mac = mac[:i] + ":" + mac[i:]
+
             if "/" in line[port_index]:
                 port = line[port_index].split("/", 1)[1]
             else:
