@@ -130,15 +130,12 @@ List test environments::
     cluster-genesis$ tox -l
     py27
     bashate
-    flake8
-    pylint
+    pep8
     ansible-lint
-    commit_message_validate
-    verify_copyright
 
-Run only 'flake8' test environment::
+Run only 'pep8' test environment::
 
-    cluster-genesis$ tox -e flake8
+    cluster-genesis$ tox -e pep8
 
 Unit Test
 ~~~~~~~~~
@@ -160,14 +157,13 @@ Linters are required to run cleanly before a commit is submitted. The following
 linters are used:
 
 - Bash: bashate
-- Python: flake8/pylint
+- Python: pep8/flake8
 - Ansible: ansible-lint
 
 Linters can be run through tox::
 
     cluster-genesis$ tox -e bashate
-    cluster-genesis$ tox -e flake8
-    cluster-genesis$ tox -e pylint
+    cluster-genesis$ tox -e pep8
     cluster-genesis$ tox -e ansible-lint
 
 Or called directly (again, be mindful of your python environment!)
