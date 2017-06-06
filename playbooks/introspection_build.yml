@@ -58,6 +58,7 @@
         - 'add_key.sh'
         - 'patch_source.sh'
         - 'setup.sh'
+        - 'overlayfs/etc/init.d/S60dhcpcd'
 
     - name: "Install buildroot  packages"
       apt:
