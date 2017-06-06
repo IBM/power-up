@@ -29,3 +29,4 @@
 - include: container/ipmi_power_on.yml
 - include: pause.yml minutes=5 message="Power-on Nodes"
 - include: container/ipmi_set_bootdev.yml bootdev=default persistent=True
+- include: wait_for_clients_ping.yml

@@ -1,4 +1,4 @@
----
+#!/usr/bin/env python
 # Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,10 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: container/ipmi_power_off.yml
-- include: container/cobbler/cobbler_set_netboot_enabled.yml
-- include: container/ipmi_set_bootdev.yml bootdev=network persistent=False
-- include: container/ipmi_power_on.yml
-- include: pause.yml minutes=5 message="Power-on Nodes"
-- include: container/ipmi_set_bootdev.yml bootdev=default persistent=True
-- include: wait_for_clients_ping.yml
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
+from inventory import load_input_file
+from inventory import get_host_ip_to_node
+
+inventory_source = load_input_file()
+ip_to_node = get_host_ip_to_node(inventory_source)
+
+for ip, value in ip_to_node.items():
+    print(ip + ",", end='')
