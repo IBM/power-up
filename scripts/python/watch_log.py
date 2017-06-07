@@ -77,11 +77,19 @@ class WatchLog(object):
 
 
 def get_ip(string):
-    return re.search(PATTERN_IP, string).group()
+    ip_result = re.search(PATTERN_IP, string)
+    if ip_result:
+        return ip_result.group()
+    else:
+        return None
 
 
 def get_mac(string):
-    return re.search(PATTERN_MAC, string, re.I).group()
+    mac_result = re.search(PATTERN_MAC, string, re.I)
+    if mac_result:
+        return mac_result.group()
+    else:
+        return None
 
 
 if __name__ == '__main__':
