@@ -19,9 +19,7 @@
   when: introspection_enabled
 - include: lxc-update.yml
 - include: container/inv_add_switches.yml
-- include: container/get_switch_model_info.yml switch_type=mgmt
 - include: container/set_mgmt_switch_config.yml
-- include: container/get_switch_model_info.yml switch_type=data
 - include: container/cobbler/cobbler_install.yml
 - include: container/inv_add_ports.yml port_type=ipmi
 - include: container/cobbler/cobbler_add_introspection.yml
