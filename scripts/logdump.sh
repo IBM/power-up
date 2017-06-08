@@ -128,10 +128,25 @@ DATE=$(date +%Y-%m-%dT%H%M%z)
 # Get hostname
 HOST=$(hostname -s)
 
+# Create DIR is user didn't set with arg
+if [ -z $DIR ]; then
+    DIR="logdump.$HOST.$DATE"
+fi
+
 # Get cluster-genesis top level directory
 PROJECT_DIR=$(git rev-parse --show-toplevel)
-
 PLAYBOOKS="${PROJECT_DIR}/playbooks"
+
+# Create Directories
+if [ ! -d "${PROJECT_DIR}/logdumps" ]; then
+    mkdir "${PROJECT_DIR}/logdumps"
+fi
+LOGS_DIR="${PROJECT_DIR}/logdumps/${DIR}"
+mkdir $LOGS_DIR
+
+# Save logdump.sh stdout and stderr to file
+exec >  >(tee -ia ${LOGS_DIR}/logdump.log)
+exec 2> >(tee -ia ${LOGS_DIR}/logdump.log >&2)
 
 # Get container SSH connection info from ansible hosts file
 SSH_USER=$(grep -oh "ansible_user=[^ ]*" "${PLAYBOOKS}/hosts" | \
@@ -146,18 +161,6 @@ MGMT_SWITCH_SSH_USER=$(awk '/userid-mgmt-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
 DATA_SWITCH_SSH_USER=$(awk '/userid-data-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
-
-# Create DIR is user didn't set with arg
-if [ -z $DIR ]; then
-    DIR="logdump.$HOST.$DATE"
-fi
-
-# Create Directories
-if [ ! -d "${PROJECT_DIR}/logdumps" ]; then
-    mkdir "${PROJECT_DIR}/logdumps"
-fi
-LOGS_DIR="${PROJECT_DIR}/logdumps/${DIR}"
-mkdir $LOGS_DIR
 
 # Local Deployer File Pointers
 DEPLOYER_INFO_SAVE="${LOGS_DIR}/${TAG}deployer.info.txt"
