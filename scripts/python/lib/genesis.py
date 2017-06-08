@@ -34,7 +34,7 @@ def get_container_info(lxc_list_output, container_name):
     container_addr = ''
     container_running = False
     for line in lxc_list_output:
-        if container_name in line:
+        if container_name + ' ' in line:
             if 'RUNNING' in line:
                 container_running = True
                 line = line.split(',')
@@ -58,6 +58,6 @@ lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
 container_addr = ''
 container_running = False
 
-if container_name in lxc_ls_output:
+if container_name + ' ' in lxc_ls_output:
     container_addr, container_running = get_container_info(
         lxc_ls_output, container_name)

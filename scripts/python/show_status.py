@@ -62,7 +62,7 @@ def main(log, inv_file):
 
     print('Container Status: \n')
     output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
-    if GEN_CONTAINER_NAME in output:
+    if GEN_CONTAINER_NAME + ' ' in output:
         print(output)
     else:
         print('    ' + GEN_CONTAINER_NAME + ' container does not exist\n')
