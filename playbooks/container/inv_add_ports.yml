@@ -102,10 +102,16 @@
 
       when: port_type != "passive"
 
+    - name: "Check if 'passive' directory exists"
+      stat:
+        path: "{{ hostvars['localhost']['project_path_local'] }}/passive"
+      register: passive_dir
+
     - name: "Copy 'passive' directory into container"
       copy:
         src: "{{ hostvars['localhost']['project_path_local'] }}/passive"
         dest: "{{ project_path }}"
+      when: passive_dir.stat.exists
 
     - block:
         - name: "Attempting to Build Passive Switch IPMI MAC / DHCP Lease Table"
