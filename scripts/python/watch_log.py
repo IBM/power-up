@@ -45,16 +45,16 @@ class WatchLog(object):
             fds.close()
 
     def get_list(self, pattern, count):
-        return_list = []
+        return_list = {}
 
         with open(self.log_file, 'r') as fds:
-            for item in self.yield_tail_matches(fds, pattern):
-                return_list.append(item)
-                self.log.info('Found Introspection Host IP: %s' % item)
+            for mac, ip in self.yield_tail_matches(fds, pattern):
+                return_list[mac] = ip
+                self.log.info('Found Introspection Host IP: %s' % ip)
                 if len(return_list) >= count:
                     break
 
-        return return_list
+        return return_list.values()
 
     def yield_tail_matches(self, log_file, pattern):
         pxelinux_sent_ips = []
@@ -73,7 +73,7 @@ class WatchLog(object):
                     dhcp_releases.append(get_mac(line))
             elif 'DHCPACK' in line:
                 if get_mac(line) in dhcp_releases:
-                    yield get_ip(line)
+                    yield (get_mac(line), get_ip(line))
 
 
 def get_ip(string):
