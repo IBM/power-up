@@ -36,3 +36,4 @@ reboot_wait_interval: 660
 reboot_delay_time: 300
 
 introspection_enabled: false
+deployment_environment: {}

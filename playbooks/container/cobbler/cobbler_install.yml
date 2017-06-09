@@ -67,7 +67,7 @@
         - syslinux
       become: yes
       become_method: sudo
-      when: ansible_architecture == "x86_64"
+      when: hostvars['localhost']['ansible_architecture'] == "x86_64"
 
     - name: "Install ppc64le specific software packages"
       apt:
@@ -76,7 +76,7 @@
         - syslinux-common
       become: yes
       become_method: sudo
-      when: ansible_architecture == "ppc64le"
+      when: hostvars['localhost']['ansible_architecture'] == "ppc64le"
 
     - name: "Clone Cobbler github repo"
       git:
