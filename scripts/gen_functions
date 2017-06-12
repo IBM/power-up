@@ -65,6 +65,14 @@ deploy (){
 
 deploy-passive-1 (){
     cd "$GEN_PLAY_PATH"
+    ansible-playbook -i hosts setup.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts enable_mgmt_switch.yml -K
     echo;
     if [ "$1" = "-p" ]; then
