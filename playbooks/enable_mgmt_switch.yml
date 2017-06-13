@@ -15,7 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: container/enable_mgmt_switch.yml
+- include: verify_sudo_pass.yml
+
+- name: enable_mgmt_switch.yml
   hosts: localhost
   tasks:
     - name: "Create empty log file with proper permissions"

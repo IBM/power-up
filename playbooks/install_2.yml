@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- include: verify_sudo_pass.yml
 - include: container/ipmi_power_off.yml
 - include: introspection_remove_hosts.yml
   when: introspection_enabled
