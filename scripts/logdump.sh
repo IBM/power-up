@@ -156,11 +156,25 @@ SSH_HOST=$(grep -oh "ansible_host=[^ ]*" "${PLAYBOOKS}/hosts" | \
 SSH_KEY=$(grep -oh "ansible_ssh_private_key_file=[^ ]*" \
     "${PLAYBOOKS}/hosts" | awk -F = '{print $2}')
 
-# Get mgmt and data switch SSH userids
-MGMT_SWITCH_SSH_USER=$(awk '/userid-mgmt-switch:/{print $2}' \
+# Get mgmt switch SSH userids
+MGMT_SWITCH_SSH_USER=$(awk '/^userid-mgmt-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
-DATA_SWITCH_SSH_USER=$(awk '/userid-data-switch:/{print $2}' \
+# If no uncomment key exists get _first_ commented key
+if [ -z $MGMT_SWITCH_SSH_USER ]; then
+    MGMT_SWITCH_SSH_USER=$(awk '/userid-mgmt-switch:/{print $2}' \
+        ${PROJECT_DIR}/config.yml)
+    MGMT_SWITCH_SSH_USER=(${MGMT_SWITCH_SSH_USER[@]})
+fi
+
+# Get data switch SSH userids
+DATA_SWITCH_SSH_USER=$(awk '/^userid-data-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
+# If no uncomment key exists get _first_ commented key
+if [ -z $DATA_SWITCH_SSH_USER ]; then
+    DATA_SWITCH_SSH_USER=$(awk '/userid-data-switch:/{print $2}' \
+        ${PROJECT_DIR}/config.yml)
+    DATA_SWITCH_SSH_USER=(${DATA_SWITCH_SSH_USER[@]})
+fi
 
 # Local Deployer File Pointers
 DEPLOYER_INFO_SAVE="${LOGS_DIR}/${TAG}deployer.info.txt"
@@ -274,7 +288,9 @@ get_config_key ()
             continue
         fi
         if [ "$FOUND" = true ]; then
-            if [[ $line == $"    "* ]]; then
+            if [[ $line =~ ^[[:space:]]*# ]]; then
+                continue
+            elif [[ $line == $"    "* ]]; then
                 TEST=$(awk '{split($0, a); print a[2]}' <<< $line)
                 if [ ! -z $TEST ]; then
                     config_value[$INDEX]=$TEST
