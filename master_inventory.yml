@@ -26,8 +26,8 @@ version: 1.1
 
 log_level: debug
 deployment-environment:
-    https_proxy: "http://192.168.1.2:3456"
-    http_proxy: "http://192.168.1.2.3456"
+    https_proxy: "http://192.168.1.2:3128"
+    http_proxy: "http://192.168.1.2:3128"
     no_proxy: "localhost,127.0.0.1"
 ipaddr-mgmt-network: 192.168.16.0/20   # 4096 addresses
 ipaddr-mgmt-switch:
