@@ -191,7 +191,7 @@ class Inventory():
                 enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
             _dict = AttrDict()
             _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index + 1)
-            if value == list:
+            if type(value) == list:  # copy list
                 _dict[INV_IPV4_ADDR] = value.copy()
             else:
                 _dict[INV_IPV4_ADDR] = value
