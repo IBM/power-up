@@ -98,6 +98,10 @@ INV_CLASS = 'class'
 
 
 class Inventory():
+
+    class SwitchClassType(Enum):
+        LENOVO, MELLANOX = range(2)
+
     class SwitchType(Enum):
         MGMT, DATA = range(2)
 
@@ -216,6 +220,34 @@ class Inventory():
                 self.log.error('Invalid switch type')
                 sys.exit(1)
         return type
+
+    def get_mgmt_switch_name(self):
+        switch_class = None
+        for switch in self.inv[INV_SWITCHES][INV_MGMT]:
+            if switch_class is None:
+                switch_class = switch[INV_CLASS]
+            elif switch_class != switch[INV_CLASS]:
+                try:
+                    raise Exception()
+                except:
+                    self.log.error('Only one management switch model is supported')
+                    sys.exit(1)
+
+        return switch_class
+
+    def get_data_switch_name(self):
+        switch_class = None
+        for switch in self.inv[INV_SWITCHES][INV_DATA]:
+            if switch_class is None:
+                switch_class = switch[INV_CLASS]
+            elif switch_class != switch[INV_CLASS]:
+                try:
+                    raise Exception()
+                except:
+                    self.log.error('Only one data switch model is supported')
+                    sys.exit(1)
+
+        return switch_class
 
     def yield_switches(self, switch_type):
         if switch_type == self.SwitchType.MGMT:

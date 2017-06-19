@@ -1,0 +1,2 @@
+class SwitchException(Exception):
+    pass
