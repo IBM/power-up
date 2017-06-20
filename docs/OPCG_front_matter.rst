@@ -33,7 +33,7 @@ Revision History
 | 1.1    | 24 Feb 2017   | Release 1.1 with LAG and            |    |
 |        |               | MLAG support                        |    |
 +--------+---------------+-------------------------------------+----+
-| 1.2    | 11 Apr 2017   | Release 1.2 with introspection      |    |
+| 1.2    | 14 Apr 2017   | Release 1.2 with introspection      |    |
 |        |               | and support for 4 ports and 2 bonds |    |
 +--------+---------------+-------------------------------------+----+
 

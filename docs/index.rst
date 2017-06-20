@@ -6,8 +6,8 @@
 Welcome to Cluster Genesis User's Guide documentation!
 ======================================================
 
-:Version: 1.2
-:Date: 2017-04-12
+:Version: 1.3b1
+:Date: 2017-06-20
 :Document Owner:
     OpenPOWER Cluster Genesis Team
 :Authors:
@@ -15,10 +15,10 @@ Welcome to Cluster Genesis User's Guide documentation!
     Rolf Brudeseth,
     Jay Carman,
     Ray Harrington,
+    Doug Lehr
     Hoa Ngo,
     Nilesh Shah,
     Jorge Yanez,
-    Doug Lehr
 
 
 .. toctree::

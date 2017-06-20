@@ -57,7 +57,7 @@ define general settings.
 
 .. _config-file-log-level:
 
-**Defaul log level**::
+**Default log level**::
 
     log_level: debug
 

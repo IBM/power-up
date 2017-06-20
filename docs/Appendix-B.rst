@@ -1,3 +1,6 @@
+.. highlight:: yaml
+
+.. _AppendixB:
 
 Appendix - B The System Configuration File
 ===========================================
@@ -9,74 +12,102 @@ the fields and the YAML file format are documented below.
 config.yml Field Definitions (incomplete)
 -------------------------------------------
 
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| Keyword                 | Description                                                                                  | Format         | Example           |
-+=========================+==============================================================================================+================+===================+
-| version                 | See :ref:`config file version<config-file-version>`.                                         | x.x            | 1.1               |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| log_level               | See :ref:`config file default log level<config-file-log-level>`. When omitted log_level      | (string)       | DEBUG             |
-|                         | defaults to "DEBUG".                                                                         |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| introspection-enabled   | Enable introspection mode. See :ref:`config file introspection<config-file-introspection>`.  | (boolean)      | true              |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| write-switch-memory     | Enable automatic writing of switch configuration to flash memory. See                        | (boolean)      | true              |
-|                         | :ref:`config file write switch configuration to flash memory<config-file-write-switch>`      |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| deployment-environment  | Set environment varaibles to be set during deployment. See                                   | (dictionary)   |                   |
-|                         | :ref:`config file deployment environment<config-file-deployment-env>`.                       |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| ipaddr-mgmt-network     | Management network address in CIDR format This is the network that the PXE and IPMI ports    | a.b.c.d/n      | 192.168.16.0/20   |
-|                         | are on. The IPMI ports and the Mgmt/PXE ports of all nodes in the system must be accessible  |                |                   |
-|                         | on this subnet. The management ports of all management switches and data switches must be on |                |                   |
-|                         | a different subnet.                                                                          |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| redundant-network       | Indicates the configuration of the data network. The data network can be redundant, in which | n              | 0                 |
-|                         | case there are redundant top of rack (leaf) switches and bonded node ports, or               |                |                   |
-|                         | non-redundant, in which case there is a single top of rack switch. 0,1 indicates             |                |                   |
-|                         | non-redundant, redundant                                                                     |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| userid-default          | Default userid to be set for all cluster node host OS access                                 |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| password-default        | Default password to be set for all cluster node OS access                                    |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| ipaddr-mgmt-switch      | List of static ipv4 addresses of the management interface of the management switches in each | a.b.c.d        | 192.168.80.32     |
-|                         | rack or cell. The ip addresses of the management interfaces of all management switches must  |                |                   |
-|                         | be manually configured on the management switch before genesis begins. The OpenPOWER cluster |                |                   |
-|                         | genesis will look for management switches at the specified address. Usually, one management  |                |                   |
-|                         | switch would be physically located in each rack or with each cell. All of the management     |                |                   |
-|                         | interfaces for the management switch and the data switches must reside in one subnet. This   |                |                   |
-|                         | subnet must be different than the subnet used for the cluster management network.            |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| userid-mgmt-switch      | Userid of the management switch's management port. User ID's of the management ports of all  |                |                   |
-|                         | management switches must be manually configured on the management switch before genesis      |                |                   |
-|                         | begins. During genesis, all management switches are assumed to have the same userid and      |                |                   |
-|                         | password. If not specified, the default userid will be used.                                 |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| password-mgmt-switch    | Pasword of the management switch's management port. Passwords of the mangement ports of all  |                |                   |
-|                         | management switches must be manually configured on the management switch before genesis      |                |                   |
-|                         | begins. During genesis, all management switches are assumed to have the same userid and      |                |                   |
-|                         | password.                                                                                    |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| ipaddr-mgmt-aggr-switch | ipv4 address of the aggregation management switch. The management network is expected to be  |                |                   |
-|                         | in a typical access-aggregation layout with an access switch in each rack, all connected to  |                |                   |
-|                         | an aggregation switch.                                                                       |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| ipaddr-data-switch      | This is a list of ipv4 addresses of the management port of the data switches. This address   | a.b.c.d        | 192.168.80.36     |
-|                         | must be manually configured on the data switches before genesis begins. If the data network  |                |                   |
-|                         | is redundant, a 2\ :sup:`nd` data switch is looked for at the next sequential address. Users |                |                   |
-|                         | should also plan to allocate one or more additional ip addresses for each pair of data       |                |                   |
-|                         | switches. These addresses are used by the switches for inter-switch communication. All of    |                |                   |
-|                         | the management interfaces for the management switches and the data switches must reside in   |                |                   |
-|                         | one subnet. This subnet must be different than the subnet used for the cluster management    |                |                   |
-|                         | network.                                                                                     |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| userid-data-switch      | User ID of the management port of the data switch. This userid must be manually configured   | userid         | joeuser           |
-|                         | on the data switch(es) prior to genesis.                                                     |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-| password-data-switch    | Password for the management port of the data switch. This password must be manually          | password       | passw0rd          |
-|                         | configured on the data switch(es) prior to genesis.                                          |                |                   |
-+-------------------------+----------------------------------------------------------------------------------------------+----------------+-------------------+
-
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| Keyword                        | Description                                                                                  | Required/  | Format            | Example           |
+|                                |                                                                                              | Optional   |                   |                   |
++================================+==============================================================================================+============+===================+===================+
+| cidr-mgmt-switch-external-dev  | If the *label-mgmt-switch-external-dev* key is not present in the config file and there is   | O          |                   |                   |
+|                                | not an existing route to the addresses listed in *ipaddr-mgmt-switch-ext*, Genesis will      |            |                   |                   |
+|                                | temporarily configure this address on each 'up' interface on the deployer node               |            |                   |                   |
+|                                | in turn looking for one which can communicate with the management switch(es).                |            |                   |                   |
+|                                | After Genesis configures the management switch with the address it will use,                 |            |                   |                   |
+|                                | it will remove this interface adddress.                                                      |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| deployment-environment         | Set deployer environment variables to be set during deployment. See                          | O          | (dictionary)      |                   |
+|                                | :ref:`config file deployment environment<config-file-deployment-env>`.                       |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| introspection-enabled          | Enable introspection mode. See :ref:`config file introspection<config-file-introspection>`.  | O          |(boolean)          | true              |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+ 
+| ipaddr-data-switch             | This is a list of ipv4 addresses of the management ports of the data switches. This address  | R          | (string)          | 192.168.80.36     |
+|                                | must be manually configured on the data switches before genesis begins. Users                |            |                   |                   |
+|                                | should also plan to allocate one or more additional ip addresses for each pair of data       |            |                   |                   |
+|                                | switches. These addresses are used by the switches for inter-switch communication. All of    |            |                   |                   |
+|                                | the management interfaces for the management switches and the data switches must reside in   |            |                   |                   |
+|                                | one subnet. This subnet must be different than the subnet used for the cluster management    |            |                   |                   |
+|                                | network.                                                                                     |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| ipaddr-mgmt-client-network     | Cluster node management network address in CIDR format. This is the network that the PXE     | R          | (string)          | 192.168.16.0/20   |
+|                                | and BMC ports will reside in. This network will reside in the vlan specified by the          |            |                   |                   |
+|                                | vlan-mgmt-client-network key. Note that the management ports of all switches will reside in  |            |                   |                   |
+|                                | a different subnet and vlan.                                                                 |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| ipaddr-mgmt-switch             | List of IP v4 address to be used for the interface Genesis will create on the management     | R          | (dictionary)      | 192.168.16.20     |
+|                                | switches in the cluster.  These will be in the vlan specified by the vlan-mgmt-network       |            |                   |                   |
+|                                | key. The subnet mask to be used on the created interface is defined by the                   |            |                   |                   |
+|                                | ipaddr-mgmt-network key. Depending on the switch, this interface may be able to exist        |            |                   |                   |
+|                                | on the same physical port as the interface on which ipaddr-mgmt-switch-ext is defined.       |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| ipaddr-mgmt-switch-ext         | List of externally accessible ipv4 addresses of the management interfaces for the            | R          | (dictionary)      | 10.0.1.2          |
+|                                | management switches in the cluster. Here, externally is used to indicate that these          |            |                   |                   |
+|                                | addresses are visible from outside the cluster (ie on the user's intranet) and available     |            |                   |                   |
+|                                | for monitoring or other management purposes. These ip addresses must be manually             |            |                   |                   |
+|                                | configured on the management switches before genesis begins. The OpenPOWER cluster           |            |                   |                   |
+|                                | genesis will look for management switches at the specified addresses. Genesis will           |            |                   |                   |
+|                                | create an additional interface on the management switch in the vlan specified by the         |            |                   |                   |
+|                                | vlan-mgmt-network key in the config.yml file. Usually, one management switch would           |            |                   |                   |
+|                                | be physically located in each rack or with each cell. Note that all of the management        |            |                   |                   |
+|                                | interfaces for the management switch and the data switches must reside in one subnet. This   |            |                   |                   |
+|                                | subnet must be different than the subnet used for the cluster node network.                  |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| log_level                      | Sets the level for Genesis logging.  Valid levels are DEBUG, INFO, WARNING, ERROR and        | O          | (string)          | DEBUG             |
+|                                | CRITICAL.  See :ref:`config file default log level<config-file-log-level>`. When             |            |                   |                   |
+|                                | omitted, log_level defaults to "DEBUG".                                                      |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| label-mgmt-switch-external-dev | This is the device name of the physical port on the deployer which connects                  | O          | (string)          | enp1s0f0          |
+|                                | to the management switch.  If included in the config file, Genesis will not try to           |            |                   |                   |
+|                                | auto-detect the port to use to communicate to the management switch, but instead will use    |            |                   |                   |
+|                                | this port during intial set up of the management switch.                                     |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| os-disk                        | Sets the disk to be used for OS installation.  This key can be set individually for          | O          | (string) or list  | /dev/sda          |
+|                                | each compute template. If not set, Genesis will install the OS on the first available        |            |                   |                   |
+|                                | disk (the first disk enumerated by the OS).  If a list of two disks is set,                  |            |                   |                   |
+|                                | Genesis will set configure the installation for RAID-1 software mirroring.                   |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| password-default               | Default password to be set for all cluster node OS access                                    | R          | (string)          |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| password-mgmt-switch           | Pasword of the management switch's management port. Passwords of the mangement ports of all  | R          | (string)          |                   |
+|                                | management switches must be manually configured on the management switch before genesis      |            |                   |                   |
+|                                | begins. During genesis, all management switches are assumed to have the same userid and      |            |                   |                   |
+|                                | password.                                                                                    |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| port-mgmt-data-network:        | This key is used to hold the port numbers on the cluster management switches which           | R          | (dictionary)      |                   |
+|                                | connect to management ports of data switches. These ports will have there PVID (native       |            |                   |                   |
+|                                | vlan) set to the value specified by the vlan-mgmt-client-network key.                        |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| userid-data-switch             | User ID of the management port of the data switch. This userid must be manually configured   | R          | (string)          | joeuser           |
+|                                | on the data switch(es) prior to genesis.                                                     |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| userid-default                 | Default userid to be set for all cluster node host OS access                                 | R          | (string)          |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| userid-mgmt-switch             | Userid of the management switch's management port. User ID's of the management ports of all  | R          | (string)          |                   |
+|                                | management switches must be manually configured on the management switch before genesis      |            |                   |                   |
+|                                | begins. During genesis, all management switches are assumed to have the same userid and      |            |                   |                   |
+|                                | password. If not specified, the default userid will be used.                                 |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| password-data-switch           | Password for the management port of the data switch. This password must be manually          | R          | (string)          | passw0rd          |
+|                                | configured on the data switch(es) prior to genesis.                                          |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| version                        | See :ref:`config file version<config-file-version>`.                                         | R          | x.x               | 1.1               |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| vlan-mgmt-network              | This key specifies the vlan on the management switch(es) which contains the                  |            |                   |                   |
+|                                | management interfaces of all switches in the cluster.                                        |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| vlan-mgmt-client-network       | This key specifies the vlan on the management switch(es) which contains the                  |            |                   |                   |
+|                                | BMC and PXE ports for all nodes in the cluster.                                              |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
+| write-switch-memory            | Enable automatic writing of switch configuration to flash memory. See                        | O          | (boolean)         | true              |
+|                                | :ref:`config file write switch configuration to flash memory<config-file-write-switch>`      |            |                   |                   |
++--------------------------------+----------------------------------------------------------------------------------------------+------------+-------------------+-------------------+
 
 config.yml YAML File format:
 ----------------------------

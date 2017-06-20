@@ -1,7 +1,9 @@
+.. _developerguide:
+
 Developer Guide
 ===============
 
-Cluster Genesis is developed by a team of IBM engineers.
+Cluster Genesis development is overseen by a team of IBM engineers.
 
 Git Repository Model
 --------------------
@@ -17,68 +19,8 @@ Coding Style
 Code should be implemented in accordance with
 `PEP 8 -- Style Guide for Python Code <https://www.python.org/dev/peps/pep-0008/>`_.
 
-Imports
-~~~~~~~
-
-Future, system and project import blocks should be listed in order and
-separated with empty lines.
-
-Dependencies and ordering should be verified further with *pylint*.
-
-All modules should contain *__future__* imports to simplify the inevitable
-Python3 migration.
-
-Example::
-
-    from __future__ import nested_scopes, generators, division, absolute_import, \
-        with_statement, print_function, unicode_literals
-
-    import sys
-    import os.path
-    from enum import Enum
-
-    from lib.logger import Logger
-
-Docstring
-~~~~~~~~~
-
-- Required docstrings
-    - Module
-    - Class
-    - Public method
-
-- Recommended docstrings
-    - Private method
-
-- Docstring should contain
-    - Subject
-    - Body
-    - Args
-    - Raises
-    - Returns
-
-- Optional docstring content
-    - Todo
-
-Each docstring block should be followed by an empty line.
-
-*Method* docstring example::
-
-    def _set_switch_info_class(
-            self, pattern, attr, output, supported_switches):
-        """Add model and class information to switch structure.
-
-        Check whether switch is supported.
-
-        Args:
-            pattern (string): Command response pattern.
-            attr (string): Attribute key.
-            output (string): Command output.
-            supported_switches (tuple of tuples): Supported switches.
-
-        Returns:
-            (boolean): Whether switch is supported based on given attribute.
-        """
+It is requested that modules contain appropriate *__future__* imports to simplify
+future migration to Python3.
 
 Commit Message Rules
 --------------------
@@ -104,7 +46,8 @@ Commit Message Rules
     - Lines must not exceed 72 characters
     - Periods must be followed by single space
 
-Commit message rules are enforced within a tox environment::
+Your Commit message can be validated within the tox environment
+(see below for setup of the tox environment)::
 
     cluster-genesis$ tox -e commit_message_validate
 
@@ -120,6 +63,10 @@ various linters.
 To run tox first install python dependencies::
 
     cluster-genesis$ ./scripts/install.sh
+
+Install tox::
+
+    cluster-genesis$ pip install tox
 
 To run all tox test environments::
 
