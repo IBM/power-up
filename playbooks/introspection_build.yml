@@ -60,6 +60,23 @@
         - 'setup.sh'
         - 'overlayfs/etc/init.d/S60dhcpcd'
 
+    - name: "RHEL/CentOS: Fix selinuxfs being mounted read-write in the chroot"
+      mount:
+        name: /sys/fs/selinux
+        state: mounted
+        src: selinuxfs
+        fstype: selinuxfs
+        opts: remount,ro
+      when: hostvars['localhost']['ansible_distribution'] in ['RedHat','CentOS']
+      become: yes
+      become_method: sudo
+
+    - name: "Update apt cache and upgrade (safe)"
+      apt:
+        update_cache: yes
+      become: yes
+      become_method: sudo
+
     - name: "Install buildroot  packages"
       apt:
         name: "{{ item }}"

@@ -75,9 +75,13 @@ case "$1" in
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts lxc-create.yml -K;;
 
+    'install_introspection')
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i hosts install_introspection.yml;;
+
     'install_1')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts install_1.yml;;
+    ansible-playbook -i hosts install_1.yml -K;;
 
     'install_2')
     cd "$GEN_PLAY_PATH"

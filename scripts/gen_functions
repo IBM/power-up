@@ -52,7 +52,15 @@ deploy (){
     fi
     echo;
 
-    ansible-playbook -i hosts install_1.yml
+    ansible-playbook -i hosts install_introspection.yml
+    echo;
+    if [ "$1" = "-p" ]; then
+        read -p "Enter to continue, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    fi
+    echo;
+
+    ansible-playbook -i hosts install_1.yml -K
     echo;
     if [ "$1" = "-p" ]; then
         read -p "Enter to continue, (t) to terminate " resp
