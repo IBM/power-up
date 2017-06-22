@@ -44,13 +44,13 @@ else
     exit 1
 fi
 
-sudo -H pip install --upgrade pip
-sudo -H pip install --upgrade setuptools
-sudo -H pip install --upgrade wheel
+sudo -E -H pip install --upgrade pip
+sudo -E -H pip install --upgrade setuptools
+sudo -E -H pip install --upgrade wheel
 if [[ $VERSION_ID == "14.04" || $ID == "rhel" ]]; then
-    sudo -H pip install lxc-python2
+    sudo -E -H pip install lxc-python2
 fi
-sudo -H pip install virtualenv
+sudo -E -H pip install virtualenv
 virtualenv --no-wheel --system-site-packages deployenv
 source deployenv/bin/activate
 pip install 'ansible~=2.3.0.0' orderedattrdict pyroute2
