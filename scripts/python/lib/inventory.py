@@ -715,3 +715,9 @@ class Inventory():
                 self.inv[INV_USERID_MGMT_SWITCH] is not None):
             return False
         return True
+
+    def is_passive_data_switches(self):
+        if (INV_USERID_DATA_SWITCH in self.inv and
+                self.inv[INV_USERID_DATA_SWITCH] is not None):
+            return False
+        return True

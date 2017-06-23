@@ -122,6 +122,8 @@ deploy-passive-2 (){
     read -p "Enter to continue, (t) to terminate " resp
     if [ "$resp" = "t" ]; then exit; fi
 
+    verify_passive_mac_table_files mgmt
+
     ansible-playbook -i hosts container/inv_add_ports.yml \
         --extra-vars "port_type=passive"
     echo;
@@ -198,6 +200,8 @@ post-deploy-passive(){
     read -p "Enter to continue, (t) to terminate " resp
     if [ "$resp" = "t" ]; then exit; fi
 
+    verify_passive_mac_table_files data
+
     ansible-playbook -i hosts set_port_macs.yml
     echo;
     if [ "$1" = "-p" ]; then
@@ -239,4 +243,22 @@ inventory(){
     else
         echo "No ssh key found"
     fi
+}
+
+verify_passive_mac_table_files(){
+    switch_type=$1
+    echo;
+    while true; do
+        if ${GEN_SCRIPTS_PATH}/python/validate_mac_table_files.py \
+                ${GEN_PATH}/config.yml $switch_type DEBUG; then
+            break
+        fi
+        echo;
+        tput bold
+        echo "** Error: Switch MAC Address Table File Verification Failed! **"
+        tput sgr0
+        echo "Please address errors printed above. "
+        read -p "Enter to try file verification again, (t) to terminate " resp
+        if [ "$resp" = "t" ]; then exit; fi
+    done
 }
