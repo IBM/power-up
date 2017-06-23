@@ -192,7 +192,7 @@ class Inventory():
             _dict = AttrDict()
             _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index + 1)
             if type(value) == list:  # copy list
-                _dict[INV_IPV4_ADDR] = value.copy()
+                _dict[INV_IPV4_ADDR] = list(value)
             else:
                 _dict[INV_IPV4_ADDR] = value
             _dict[INV_RACK_ID] = key
