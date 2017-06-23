@@ -32,12 +32,17 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 def main(log, inv_file):
     inv = inventory.Inventory(log, inv_file)
-    userid = inv.get_userid_mgmt_switch()
-    password = inv.get_password_mgmt_switch()
-    mgmt_network_port = inv.get_port_mgmt_network()
-    mgmt_network_gen = inv.get_ipaddr_mgmt_network()
-    mgmt_network_ext = inv.get_mgmt_switch_external_dev_ip()
-    mgmt_network_ext_prefix = inv.get_mgmt_switch_external_prefix()
+
+    try:
+        userid = inv.get_userid_mgmt_switch()
+        password = inv.get_password_mgmt_switch()
+        mgmt_network_port = inv.get_port_mgmt_network()
+        mgmt_network_gen = inv.get_ipaddr_mgmt_network()
+        mgmt_network_ext = inv.get_mgmt_switch_external_dev_ip()
+        mgmt_network_ext_prefix = inv.get_mgmt_switch_external_prefix()
+    except KeyError:
+        print('Running management switch passive mode ')
+        sys.exit(0)
     mgmt_network_ext = mgmt_network_ext + '/' + mgmt_network_ext_prefix
     mgmt_network_ext = netaddr.IPNetwork(mgmt_network_ext)
     mgmt_network_ext_cidr = str(mgmt_network_ext.cidr)
