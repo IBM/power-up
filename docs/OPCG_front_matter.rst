@@ -1,5 +1,5 @@
 
-	
+
 .. .. sectnum::
 ..    :depth: 3
 
@@ -35,6 +35,9 @@ Revision History
 +--------+---------------+-------------------------------------+----+
 | 1.2    | 14 Apr 2017   | Release 1.2 with introspection      |    |
 |        |               | and support for 4 ports and 2 bonds |    |
++--------+---------------+-------------------------------------+----+
+| 1.3    | 26 Jun 2017   | Release 1.3 Passive switch mode     |    |
+|        |               | and improved introspection support. |    |
 +--------+---------------+-------------------------------------+----+
 
 
