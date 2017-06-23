@@ -102,6 +102,25 @@ deploy-passive-1 (){
 }
 
 deploy-passive-2 (){
+    echo;
+    tput bold
+    echo "** PXE Interfaces Will Be Activated Next **"
+    tput sgr0
+    echo "The next playbook will activate all client node PXE interfaces. Once"
+    echo "interfaces are active the management switch MAC address table(s)"
+    echo "will need to be collected by someone with authorization to login to "
+    echo "the switch management interface. The client node interfaces should
+    echo "remain active for approximately one hour. The switch MAC address
+    echo "table aging time could be increased to allow more time."
+    echo;
+    tput bold
+    echo "When you are prepared to collect the management switch MAC address"
+    echo "table(s) continue and wait for the next prompt."
+    tput sgr0
+    echo;
+    read -p "Enter to continue, (t) to terminate " resp
+    if [ "$resp" = "t" ]; then exit; fi
+
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts container/ipmi_power_pxe.yml
     ansible-playbook -i hosts pause.yml --extra-vars "minutes=10"
@@ -181,6 +200,28 @@ post-deploy-passive(){
     if [ ! -d "$GEN_PATH/passive" ]; then
         mkdir "$GEN_PATH/passive"
     fi
+
+    echo;
+    tput bold
+    echo "** Data Network Interfaces Will Be Activated Next **"
+    tput sgr0
+    echo "The next playbook will activate all client node data network"
+    echo "interfaces. Once interfaces are active the data switch MAC"
+    echo "address table(s) will need to be collected by someone with"
+    echo "authorization to login to the switch management interface. Depending"
+    echo "on the switch MAC address table aging time configuration there may"
+    echo "only be a short window of opportunity to collect a complete table."
+    echo "A typical default aging time is 5 minutes. This could be increased"
+    echo "to allow more time between activating data interfaces and collecting"
+    echo "the table."
+    echo;
+    tput bold
+    echo "When you are prepared to collect the data switch MAC address"
+    echo "table(s) continue and wait for the next prompt."
+    tput sgr0
+    echo;
+    read -p "Enter to continue, (t) to terminate " resp
+    if [ "$resp" = "t" ]; then exit; fi
 
     ansible-playbook -i ./inventory.py activate_client_interfaces.yml
     echo;
