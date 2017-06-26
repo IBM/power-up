@@ -68,7 +68,7 @@ class GetMgmtSwitchConfig(object):
                              BRIDGE_MIB, DOT_1D_TP_FDB_PORT, PATTERN_MAC),
                         str(var_bind))
                     mac = match.group(1)
-                    port = int(match.group(3))
+                    port = str(match.group(3))
                     _dict[port] = mac
                     self.log.info(
                         'Rack: %s - MAC: %s - port: %d' % (rack, mac, port))

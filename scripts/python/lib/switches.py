@@ -146,9 +146,9 @@ class PassiveSwitch(Switch):
                     mac = mac[:i] + ":" + mac[i:]
 
             if "/" in line[port_index]:
-                port = line[port_index].split("/", 1)[1]
+                port = str(line[port_index].split("/", 1)[1])
             else:
-                port = line[port_index]
+                port = str(line[port_index])
 
             if port in port_to_mac:
                 port_to_mac[port].append(mac)
