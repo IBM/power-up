@@ -27,6 +27,7 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 gen_path = FILE_PATH[:16 + FILE_PATH.find(genesis_dir)]
 gen_scripts_path = gen_path + 'scripts'
 gen_play_path = gen_path + 'playbooks'
+gen_passive_path = gen_path + 'passive'
 
 
 def get_container_info(lxc_list_output, container_name):

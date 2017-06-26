@@ -21,17 +21,17 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 
-from lib import Lenovo
-from lib import Mellanox
+from lib import lenovo
+from lib import mellanox
 
 
 class SwitchFactory(object):
     """Common switch configuration."""
-    def __init__(self, log, switch_type, ip_addr, userid, password):
+    def __init__(self, log, switch_type, ip_addr=None, userid=None, password=None, mode=None, outfile=None):
         pass
 
     @staticmethod
-    def factory(log, switch_type, ip_addr, userid, password):
+    def factory(log, switch_type, ip_addr=None, userid=None, password=None, mode='passive', outfile='switch_cmds.txt'):
         """Return management switch model object.
 
         Args:
@@ -43,9 +43,9 @@ class SwitchFactory(object):
             Exception: If management switch class is invalid.
         """
         if switch_type == 'lenovo':
-            return Lenovo.switch.factory(log, ip_addr, userid, password)
+            return lenovo.switch.factory(log, ip_addr, userid, password, mode, outfile)
         if switch_type == 'mellanox':
-            return Mellanox.switch.factory(log, ip_addr, userid, password)
+            return mellanox.switch.factory(log, ip_addr, userid, password, mode, outfile)
         try:
             raise Exception()
         except:

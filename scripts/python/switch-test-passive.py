@@ -33,12 +33,25 @@ def print_dict(dict):
 
 
 def main(log):
-    sw = SwitchFactory.factory(log, 'lenovo', '192.168.32.20', 'admin', 'admin', mode='active')
+    sw = SwitchFactory.factory(log, 'lenovo', ip_addr='192.168.32.20', mode='passive', outfile='switch2_cmds.txt')
+
+    sw.set_switchport_mode('trunk', 18)
+
     vlan_info = sw.show_vlans()
+    print('vlan info: ')
     print(vlan_info)
+    print()
+
+    print('MAC address table: ')
     print(sw.show_mac_address_table())
+    print()
+
+    print('MAC address table dictionary: ')
     print_dict(sw.show_mac_address_table(format='dict'))
+    print()
+
     print('Is pingable: ' + str(sw.is_pingable()))
+
     sw.set_switchport_mode('trunk', 18)
     resp = sw.is_port_in_trunk_mode(18)
     print('Port 18 is in trunk mode: ' + str(resp))
@@ -47,7 +60,6 @@ def main(log):
     print('Port 45 native vlan: ' + str(sw.show_native_vlan(45)))
     sw.set_switchport_native_vlan(16, 45)
     print('Port 45 native vlan: ' + str(sw.show_native_vlan(45)))
-
     sys.exit(0)
 
     sw2 = SwitchFactory.factory(log, 'mellanox', '192.168.16.25', 'admin', 'admin')

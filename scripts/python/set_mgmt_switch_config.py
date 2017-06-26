@@ -37,19 +37,19 @@ class ConfigureMgmtSwitch(object):
     INFO = b'info'
     SSH_LOG = 'mgmt-switch-ssh.log'
 
-    SHOW_VLAN = 'show vlan %d'
-    SHOW_INTERFACE_TRUNK = 'show interface trunk | include %d'
-    SHOW_VLANS = 'show interface port %d | include VLANs'
-
-    ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
-    SET_VLAN = 'vlan %d'
-    ADD_VLAN_TO_TRUNK_PORT = (
-        'interface port %d'
-        ';switchport mode trunk'
-        ';switchport trunk allowed vlan add %d')
-    ADD_VLAN_TO_ACCESS_PORT = (
-        'interface port %d'
-        ';switchport access vlan %d')
+#    SHOW_VLAN = 'show vlan %d'
+#    SHOW_INTERFACE_TRUNK = 'show interface trunk | include %d'
+#    SHOW_VLANS = 'show interface port %d | include VLANs'
+#
+#    ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
+#    SET_VLAN = 'vlan %d'
+#    ADD_VLAN_TO_TRUNK_PORT = (
+#        'interface port %d'
+#        ';switchport mode trunk'
+#        ';switchport trunk allowed vlan add %d')
+#    ADD_VLAN_TO_ACCESS_PORT = (
+#        'interface port %d'
+#        ';switchport access vlan %d')
 
     def __init__(self, log, inv_file):
         inv = Inventory(log, inv_file)
@@ -63,7 +63,13 @@ class ConfigureMgmtSwitch(object):
         self.userid = inv.get_userid_mgmt_switch()
         self.password = inv.get_password_mgmt_switch()
         self.switch_name = inv.get_mgmt_switch_name()
-        self.switch = SwitchFactory.factory(log, self.switch_name, self.ipv4, self.userid, self.password)
+        self.switch = SwitchFactory.factory(
+            log,
+            self.switch_name,
+            self.ipv4,
+            self.userid,
+            self.password,
+            mode='active')
 
         # Check that management port is in trunc mode
         if self.switch.is_port_in_trunk_mode(self.mgmt_port):
@@ -84,15 +90,16 @@ class ConfigureMgmtSwitch(object):
                 (self.vlan_mgmt, self.mgmt_port))
             sys.exit(1)
 
-        # Add management data port to management VLAN
+        # Set native vlan for management connections to data switch
         for mgmt_data_port in inv.yield_ports_mgmt_data_network():
-            if self.switch.is_vlan_allowed_for_port(self.vlan_mgmt, mgmt_data_port):
+            if self.vlan_mgmt == self.show_native_vlan(mgmt_data_port):
                 self.log.info(
-                    'Management VLAN %s is already added to access port %s' %
+                    'Management VLAN %s is already set foR access port %s' %
                     (self.vlan_mgmt, mgmt_data_port))
             else:
                 try:
-                    self.switch.set_native_vlan_for_port(self.vlan_mgmt, mgmt_data_port)
+                    self.switch.set_switchport_native_vlan(
+                        self.vlan_mgmt, mgmt_data_port)
                 except SwitchException as se:
                     self.log.error(se.message)
                     sys.exit(1)
@@ -116,7 +123,7 @@ class ConfigureMgmtSwitch(object):
                 (self.vlan_mgmt_client, self.mgmt_port))
         else:
             try:
-                self.switch.set_native_vlan_for_port(self, self.mgmt_port, self.vlan_mgmt_client)
+                self.switch.add_vlan_to_trunk_port(self, self.vlan_mgmt_client, self.mgmt_port)
             except SwitchException as se:
                 self.log.error(se.message)
                 sys.exit(1)
@@ -131,12 +138,12 @@ class ConfigureMgmtSwitch(object):
                 sys.exit(1)
 
             # Add management client VLAN to port
-            if self.switch.is_vlan_allowed_for_port(self.vlan_mgmt_client, port):
+            if self.vlan_mgmt_client == self.switch.show_native_vlan(port):
                 self.log.info(
                     'Management VLAN %s is already added to access port %s' %
                     (self.vlan_mgmt_client, port))
             else:
-                self.switch.set_native_vlan_for_port(self, self.vlan_mgmt_client, port)
+                self.switch.set_switchport_native_vlan(self, self.vlan_mgmt_client, port)
 
         if inv.is_write_switch_memory():
             switch_mem = WriteSwitchMemory(LOG, INV_FILE)
