@@ -527,6 +527,7 @@ class Inventory():
             for rack, ipmi_ports in value[INV_PORTS][INV_IPMI].items():
                 _list = []
                 for port_index, ipmi_port in enumerate(ipmi_ports):
+                    ipmi_port = str(ipmi_port)
                     for mgmt_port in mgmt_switch_config[rack]:
                         if ipmi_port in mgmt_port.keys():
                             if mgmt_port[ipmi_port] in dhcp_mac_ip:
@@ -575,6 +576,7 @@ class Inventory():
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for rack, pxe_ports in value[INV_PORTS][INV_PXE].items():
                 for port_index, pxe_port in enumerate(pxe_ports):
+                    pxe_port = str(pxe_port)
                     for mgmt_port in mgmt_switch_config[rack]:
                         if pxe_port in mgmt_port.keys():
                             if mgmt_port[pxe_port] in dhcp_mac_ip:
@@ -643,7 +645,7 @@ class Inventory():
         if self.inv[INV_NODES] is not None:
             for key, value in self.inv[INV_NODES].items():
                 for node in value:
-                    if node['port-' + port_type] == port:
+                    if node['port-' + port_type] in [port, str(port)]:
                         if (('mac-' + port_type) in node and
                                 ('ipv4-' + port_type) in node):
                             return (node['mac-' + port_type],

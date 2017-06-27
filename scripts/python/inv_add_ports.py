@@ -54,7 +54,7 @@ class InventoryAddPorts(object):
                 for port, macs in port_macs.items():
                     _dict = AttrDict()
                     for mac in macs:
-                        port_ = int(port)
+                        port_ = str(port)
                         _dict[port_] = mac
                         mac_port.append(_dict)
                 mgmt_sw_cfg[rack] = mac_port

@@ -71,6 +71,6 @@ class GetMgmtSwitchConfig(object):
                     port = str(match.group(3))
                     _dict[port] = mac
                     self.log.info(
-                        'Rack: %s - MAC: %s - port: %d' % (rack, mac, port))
+                        'Rack: %s - MAC: %s - port: %s' % (rack, mac, port))
                     self.mac_port.append(_dict)
         return self.mac_port
