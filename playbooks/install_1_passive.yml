@@ -18,4 +18,4 @@
 - include: lxc-update.yml
 - include: container/inv_add_switches.yml
 - include: container/cobbler/cobbler_install.yml
-- include: pause.yml minutes=5
+- include: pause.yml minutes=1

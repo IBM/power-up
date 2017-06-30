@@ -599,6 +599,13 @@ class Inventory():
                 count += 1
         return count
 
+    def get_expected_node_count(self):
+        count = 0
+        for template, rack, ports in self.yield_template_ports(INV_IPMI):
+            for port in ports:
+                count += 1
+        return count
+
     def yield_node_ipmi(self):
         for key, value in self.inv[INV_NODES].items():
             for node in value:
