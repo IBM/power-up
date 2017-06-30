@@ -21,6 +21,7 @@ import os.path
 import yaml
 import subprocess
 import sys
+import re
 
 genesis_dir = 'cluster-genesis'
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -28,20 +29,6 @@ gen_path = FILE_PATH[:16 + FILE_PATH.find(genesis_dir)]
 gen_scripts_path = gen_path + 'scripts'
 gen_play_path = gen_path + 'playbooks'
 gen_passive_path = gen_path + 'passive'
-
-
-def get_container_info(lxc_list_output, container_name):
-    lxc_list_output = lxc_list_output.splitlines()
-    container_addr = ''
-    container_running = False
-    for line in lxc_list_output:
-        if container_name in line:
-            if 'RUNNING' in line:
-                container_running = True
-                line = line.split(',')
-                container_addr = line[1]
-                container_addr = container_addr.lstrip()
-    return container_addr, container_running
 
 
 def load_localhost(filename):
@@ -52,13 +39,21 @@ def load_localhost(filename):
         sys.exit(1)
 
 
+def container_running():
+    cont_running = False
+    lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
+    cont_running = re.search('^%s' % container_name, lxc_ls_output, re.MULTILINE)
+    if cont_running:
+        cont_running = True
+    return cont_running
+
+
+def container_addr():
+    cont_address = None
+    lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
+    cont_address = re.search('(\S+),\s+(\S+),', lxc_ls_output, re.MULTILINE).group(2)
+    return cont_address
+
+
 localhost_content = load_localhost(gen_path + "playbooks/host_vars/localhost")
 container_name = localhost_content['container_name']
-
-lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
-container_addr = ''
-container_running = False
-
-if container_name in lxc_ls_output:
-    container_addr, container_running = get_container_info(
-        lxc_ls_output, container_name)

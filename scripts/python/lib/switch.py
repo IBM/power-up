@@ -27,11 +27,11 @@ from lib import mellanox
 
 class SwitchFactory(object):
     """Common switch configuration."""
-    def __init__(self, log, switch_type, ip_addr=None, userid=None, password=None, mode=None, outfile=None):
+    def __init__(self, log, switch_type, host=None, userid=None, password=None, mode=None, outfile=None):
         pass
 
     @staticmethod
-    def factory(log, switch_type, ip_addr=None, userid=None, password=None, mode='passive', outfile='switch_cmds.txt'):
+    def factory(log, switch_type, host=None, userid=None, password=None, mode='passive', outfile='switch_cmds.txt'):
         """Return management switch model object.
 
         Args:
@@ -43,9 +43,9 @@ class SwitchFactory(object):
             Exception: If management switch class is invalid.
         """
         if switch_type == 'lenovo':
-            return lenovo.switch.factory(log, ip_addr, userid, password, mode, outfile)
+            return lenovo.switch.factory(log, host, userid, password, mode, outfile)
         if switch_type == 'mellanox':
-            return mellanox.switch.factory(log, ip_addr, userid, password, mode, outfile)
+            return mellanox.switch.factory(log, host, userid, password, mode, outfile)
         try:
             raise Exception()
         except:

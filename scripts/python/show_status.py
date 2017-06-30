@@ -30,8 +30,8 @@ from lib import genesis
 
 GEN_PATH = genesis.gen_path
 GEN_CONTAINER_NAME = genesis.container_name
-GEN_CONTAINER_RUNNING = genesis.container_running
-GEN_CONTAINER_ADDR = genesis.container_addr
+GEN_CONTAINER_RUNNING = genesis.container_running()
+GEN_CONTAINER_ADDR = genesis.container_addr()
 HOME_DIR = os.path.expanduser('~')
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -102,6 +102,8 @@ def main(log, inv_file):
         else:
             print('\nContainer ssh key not available\n')
             log.info('Container ssh key not available')
+    else:
+        print('Container not running {}'.format(GEN_CONTAINER_RUNNING))
 
 
 def print_lines(str, line_list):

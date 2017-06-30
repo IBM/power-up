@@ -20,48 +20,27 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 import os.path
-import re
 import netaddr
-from pyroute2 import IPRoute
 
 from lib.inventory import Inventory
 from lib.logger import Logger
-from lib.ssh import SSH
+from lib.switch import SwitchFactory
+from lib.switch_exception import SwitchException
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 class EnableMgmtSwitch(object):
-    ENABLE_REMOTE_CONFIG = 'enable\nconfigure terminal\n%s'
-    SET_VLAN = 'vlan %d'
-    ADD_VLAN_TO_TRUNK_PORT = (
-        'interface port %d'
-        '\nswitchport mode trunk'
-        '\nswitchport trunk allowed vlan add %d')
-    SHOW_INTERFACE_IP = 'show interface ip'
-    SET_INTERFACE_IPADDR = 'interface ip %d\nip address %s'
-    SET_INTERFACE_MASK = 'interface ip %d\nip netmask %s'
-    SET_INTERFACE_VLAN = 'interface ip %d\n' + SET_VLAN
-    ENABLE_INTERFACE = 'interface ip %d\nenable'
-
+    switch_type = 'lenovo'
     MAX_INTF = 128
-    BRIDGE = 'bridge'
-    LOCAL = 'lo'
-    UP_STATE = 'up'
 
     def __init__(self, log, inv_file):
         inv = Inventory(log, inv_file)
         self.log = log
-        self.ext_label_dev = inv.get_mgmt_switch_external_dev_label()
 
         if inv.is_passive_mgmt_switches():
-            if self.ext_label_dev:
-                self.log.info('Passive Management Switch(es) Detected')
-                print(self.ext_label_dev)
-                sys.exit(0)
-            else:
-                self.log.error('Management switch not found')
-                sys.exit(1)
+            self.log.info('Mode set for passive Management Switch(es)')
+            sys.exit(0)
 
         for self.ipv4 in inv.yield_mgmt_switch_ip():
             pass
@@ -74,11 +53,6 @@ class EnableMgmtSwitch(object):
         self.broadcast = str(netaddr.IPNetwork(mgmt_network).broadcast)
         self.mask = str(netaddr.IPNetwork(mgmt_network).netmask)
 
-        if self.ext_label_dev:
-            self.log.debug(
-                'External dev label %s was specified' % self.ext_label_dev)
-        else:
-            self.log.debug('External dev label was not specified')
         self.ext_ip_dev = inv.get_mgmt_switch_external_dev_ip()
         self.ext_prefix = inv.get_mgmt_switch_external_prefix()
         for self.ext_ip_switch in inv.yield_mgmt_switch_external_switch_ip():
@@ -88,253 +62,34 @@ class EnableMgmtSwitch(object):
             self.ext_ip_dev + '/' + self.ext_prefix).broadcast)
         self.ext_mask = str(netaddr.IPNetwork(
             self.ext_ip_dev + '/' + self.ext_prefix).netmask)
+        # self.vlan_client = inv.get_vlan_mgmt_client_network()
 
-        self.ipr = IPRoute()
-        for link in self.ipr.get_links():
-            kind = None
+        sw = SwitchFactory.factory(log, self.switch_type, self.ext_ip_switch, self.userid, self.password, mode='active')
+
+        if not sw.is_pingable():
+            self.log.error('Management switch at address %s is not responding to pings' % self.ext_ip_switch)
+            sys.exit(1)
+        try:
+            print('ipv4: ' + self.ipv4 + ' ' + self.mask + ' ' + str(self.vlan_mgmt))
+            sw.configure_mgmt_interface(self.ipv4, self.mask, self.vlan_mgmt)
+        except SwitchException as exc:
+            print(exc)
+            self.log.error(exc)
+
+        try:
+            sw.add_vlan_to_trunk_port(self.vlan_mgmt, self.port_mgmt)
+            print('Adding vlan %d to port %d' % (self.vlan_mgmt, self.port_mgmt))
+        except SwitchException as exc:
+            print(exc)
+            self.log.error(exc)
+
+        for port in inv.yield_ports_mgmt_data_network():
             try:
-                self.label = (link.get_attr('IFLA_IFNAME'))
-                kind = (link.get_attr('IFLA_LINKINFO').get_attr(
-                    'IFLA_INFO_KIND'))
-            except:
-                pass
-            if kind == self.BRIDGE:
-                if self.ipr.get_addr(
-                        label=self.label, broadcast=self.broadcast):
-                    self.log.info(
-                        'Bridge %s on management subnet %s found' %
-                        (self.label, mgmt_network))
-                    if self._ping(self.ipv4, self.label):
-                        self.log.info(
-                            'Management switch found on %s' %
-                            self.label)
-                        sys.exit(0)
-                    else:
-                        self.log.debug(
-                            'Management switch not found on %s' %
-                            self.label)
-
-        if self.ext_label_dev:
-            self.dev = self.ipr.link_lookup(ifname=self.ext_label_dev)[0]
-            self._add_ip()
-            self._configure_switch()
-            self._del_ip()
-
-            # Print to stdout for Ansible playbook to register
-            print(self.ext_label_dev)
-        else:
-            switch_found = False
-            for link in self.ipr.get_links():
-                kind = None
-                try:
-                    self.label = (link.get_attr('IFLA_IFNAME'))
-                    kind = (link.get_attr('IFLA_LINKINFO').get_attr(
-                        'IFLA_INFO_KIND'))
-                except:
-                    pass
-                if self.label != self.LOCAL and not kind:
-                    self.dev = self.ipr.link_lookup(ifname=self.label)[0]
-                    self._add_ip()
-
-                    if self._ping(self.ext_ip_switch, self.label):
-                        switch_found = True
-                        self.log.info(
-                            'Management switch found on %s' %
-                            self.label)
-                        self._configure_switch()
-                    else:
-                        self.log.debug(
-                            'Management switch not found on %s' % self.label)
-
-                    self._del_ip()
-
-                    if switch_found:
-                        break
-
-            if not switch_found:
-                self.log.error('Management switch not found')
-                sys.exit(1)
-
-            # Print to stdout for Ansible playbook to register
-            print(self.label)
-
-    def __del__(self):
-        self._del_ip()
-
-    def _add_ip(self):
-        if self.ext_label_dev:
-            label = self.ext_label_dev
-        else:
-            label = self.label
-        if self.ipr.get_addr(label=label, address=self.ext_ip_dev):
-            self._is_add_ext_ip = False
-            self.log.debug(
-                '%s was already configured on %s' %
-                (self.ext_ip_dev, label))
-        else:
-            self._is_add_ext_ip = True
-            self.log.debug(
-                'Add %s to interface %s' % (self.ext_ip_dev, label))
-            self.ipr.addr(
-                'add',
-                index=self.dev,
-                address=self.ext_ip_dev,
-                mask=int(self.ext_prefix),
-                broadcast=self.ext_broadcast)
-
-    def _del_ip(self):
-        if self.ext_label_dev:
-            label = self.ext_label_dev
-        else:
-            label = self.label
-        if self._is_add_ext_ip:
-            self.log.debug(
-                'Delete %s from interface %s' % (self.ext_ip_dev, label))
-            self.ipr.addr(
-                'delete',
-                index=self.dev,
-                address=self.ext_ip_dev,
-                mask=int(self.ext_prefix),
-                broadcast=self.ext_broadcast)
-            self._is_add_ext_ip = False
-
-    def _get_available_interface(self, interfaces):
-        intf = 0
-        while intf < self.MAX_INTF:
-            intf += 1
-            match = re.search(
-                r'^%d:\s+IP4\s+' % intf,
-                interfaces,
-                re.MULTILINE)
-            if match:
-                continue
-            return intf
-
-        self.log.error('No available switch interface was found')
-        sys.exit(1)
-
-    def _configure_interface(self, intf):
-        self._send_cmd(
-            self.ext_ip_switch,
-            self.SET_INTERFACE_IPADDR % (intf, self.ipv4),
-            'Set IP %s on interface %d' % (self.ipv4, intf),
-            False)
-
-        self._send_cmd(
-            self.ext_ip_switch,
-            self.SET_INTERFACE_MASK % (intf, self.mask),
-            'Set mask %s on interface %d' % (self.mask, intf),
-            False)
-
-        self._send_cmd(
-            self.ext_ip_switch,
-            self.SET_INTERFACE_VLAN % (intf, self.vlan_mgmt),
-            'Set VLAN %d on interface %d' % (self.vlan_mgmt, intf),
-            False)
-
-        self._send_cmd(
-            self.ext_ip_switch,
-            self.ENABLE_INTERFACE % intf,
-            'Enable interface %d' % intf,
-            False)
-
-    def _check_interface(self, intf, interfaces):
-        match = re.search(
-            r'^%d:\s+IP4\s+\S+\s+(\S+)\s+(\S+),\s+vlan\s(\S+),\s+(\S+)' % intf,
-            interfaces,
-            re.MULTILINE)
-        if not match:
-            self.log.error('Misconfigured switch interface %d' % intf)
-            sys.exit(1)
-        mask = match.group(1)
-        broadcast = match.group(2)
-        vlan = match.group(3)
-        state = match.group(4)
-
-        if mask != self.mask:
-            self.log.error(
-                'Invalid switch mask %s for interface %d' %
-                (mask, intf))
-            sys.exit(1)
-        if vlan != str(self.vlan_mgmt):
-            self.log.error(
-                'Invalid switch VLAN %s for interface %d' %
-                (vlan, intf))
-            sys.exit(1)
-        if broadcast != str(self.broadcast):
-            self.log.error(
-                'Invalid switch broadcast %s for interface %d' %
-                (broadcast, intf))
-            sys.exit(1)
-        if state != self.UP_STATE:
-            self.log.error(
-                'Switch interface %d is %s' % (intf, state))
-            sys.exit(1)
-
-    def _configure_switch(self):
-        self._send_cmd(
-            self.ext_ip_switch,
-            self.SET_VLAN % self.vlan_mgmt,
-            'Create vlan %d' % self.vlan_mgmt,
-            False)
-
-        interfaces = str(self._send_cmd(
-            self.ext_ip_switch, self.SHOW_INTERFACE_IP, '', False))
-        match = re.search(
-            r'^(\d+):\s+IP4\s+%s\s+' % self.ipv4,
-            self._send_cmd(
-                self.ext_ip_switch, self.SHOW_INTERFACE_IP, '', False),
-            re.MULTILINE)
-        if match:
-            intf = int(match.group(1))
-            self.log.info('Switch interface %d was found' % intf)
-            self._check_interface(intf, interfaces)
-        else:
-            intf = self._get_available_interface(interfaces)
-            self._configure_interface(intf)
-            self.log.info('Switch interface %s created' % intf)
-
-        self._send_cmd(
-            self.ext_ip_switch,
-            self.ADD_VLAN_TO_TRUNK_PORT % (self.port_mgmt, self.vlan_mgmt),
-            'Set port %d to trunk mode and add vlan %d' %
-            (self.port_mgmt, self.vlan_mgmt),
-            False)
-
-    def _ping(self, ipaddr, dev):
-        if os.system('ping -c 1 -I %s %s > /dev/null' % (dev, ipaddr)):
-            self.log.info(
-                'Ping via %s to management switch at %s failed' %
-                (dev, ipaddr))
-            return False
-        self.log.info(
-            'Ping via %s to management switch at %s passed' %
-            (dev, ipaddr))
-        return True
-
-    def _send_cmd(self, ipaddr, cmd, msg, status_check=True):
-        ssh = SSH(self.log)
-        self.log.debug('Switch cmd: ' + repr(cmd))
-        status, stdout_, _ = ssh.exec_cmd(
-            ipaddr,
-            self.userid,
-            self.password,
-            self.ENABLE_REMOTE_CONFIG % cmd)
-        if status:
-            if status_check:
-                self.log.error(
-                    'Failed: ' + msg + ' on ' + ipaddr +
-                    ' - Error: ' +
-                    stdout_.replace('\n', ' ').replace('\r', ''))
-                sys.exit(1)
-            else:
-                if msg:
-                    self.log.info(
-                        msg + ' on ' + ipaddr)
-        else:
-            if msg:
-                self.log.info(msg + ' on ' + ipaddr)
-        return stdout_
+                print('Setting Native vlan to %s for port %s' % (self.vlan_mgmt, port))
+                sw.set_switchport_native_vlan(self.vlan_mgmt, port)
+            except SwitchException as exc:
+                print(exc)
+                self.log.error(exc)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,9 @@
+
+Vlan    Mac Address         Type         Port
+----    -----------         ----         ------------
+1       7C:FE:90:A5:1A:B0   Dynamic      Eth1/17
+1       7C:FE:90:A5:1A:B1   Dynamic      Po6
+1       7C:FE:90:A5:1C:A0   Dynamic      Po6
+1       7C:FE:90:A5:24:30   Dynamic      Eth1/15
+1       7C:FE:90:A5:24:31   Dynamic      Po6
+1       7C:FE:90:A5:1A:B6   Dynamic      Eth1/17
