@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- include: verify_sudo_pass.yml
 - include: container/ipmi_power_off.yml
 - include: introspection_remove_hosts.yml
   when: introspection_enabled
@@ -28,3 +29,4 @@
 - include: container/ipmi_power_on.yml
 - include: pause.yml minutes=5 message="Power-on Nodes"
 - include: container/ipmi_set_bootdev.yml bootdev=default persistent=True
+- include: wait_for_clients_ping.yml

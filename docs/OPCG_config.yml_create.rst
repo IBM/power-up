@@ -57,14 +57,9 @@ define general settings.
 
 .. _config-file-log-level:
 
-**Defaul log level**::
+**Default log level**::
 
     log_level: debug
-
-    deployment-environment:
-        https_proxy: "http://192.168.1.2:3456"
-        http_proxy: "http://192.168.1.2.3456"
-        no_proxy: "localhost,127.0.0.1"
 
 
 .. _config-file-introspection:
@@ -101,8 +96,8 @@ The 'deployment-environment' key in 'config.yml' can be used to define
 environment variables (as key: values) to be set during deployment::
 
     deployment-environment:
-        https_proxy: "http://192.168.1.2:3456"
-        http_proxy: "http://192.168.1.2.3456"
+        https_proxy: "http://192.168.1.2:3128"
+        http_proxy: "http://192.168.1.2:3128"
         no_proxy: "localhost,127.0.0.1"
 
 This was implemented to enable http/https proxy configuration but could be used

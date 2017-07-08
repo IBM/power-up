@@ -42,9 +42,9 @@ class SwitchFactory(object):
         Raises:
             Exception: If management switch class is invalid.
         """
-        if switch_type == 'lenovo':
+        if switch_type in 'lenovo Lenovo LENOVO':
             return lenovo.switch.factory(log, host, userid, password, mode, outfile)
-        if switch_type == 'mellanox':
+        if switch_type in 'mellanox Mellanox MELLANOX':
             return mellanox.switch.factory(log, host, userid, password, mode, outfile)
         try:
             raise Exception()

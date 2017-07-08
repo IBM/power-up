@@ -31,7 +31,6 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 class EnableMgmtSwitch(object):
-    switch_type = 'lenovo'
     MAX_INTF = 128
 
     def __init__(self, log, inv_file):
@@ -48,7 +47,7 @@ class EnableMgmtSwitch(object):
         self.port_mgmt = inv.get_port_mgmt_network()
         self.userid = inv.get_userid_mgmt_switch()
         self.password = inv.get_password_mgmt_switch()
-
+        self.switch_class = inv.get_mgmt_switch_class()
         mgmt_network = inv.get_ipaddr_mgmt_network()
         self.broadcast = str(netaddr.IPNetwork(mgmt_network).broadcast)
         self.mask = str(netaddr.IPNetwork(mgmt_network).netmask)
@@ -64,7 +63,13 @@ class EnableMgmtSwitch(object):
             self.ext_ip_dev + '/' + self.ext_prefix).netmask)
         # self.vlan_client = inv.get_vlan_mgmt_client_network()
 
-        sw = SwitchFactory.factory(log, self.switch_type, self.ext_ip_switch, self.userid, self.password, mode='active')
+        sw = SwitchFactory.factory(
+            log,
+            self.switch_class,
+            self.ext_ip_switch,
+            self.userid,
+            self.password,
+            mode='active')
 
         if not sw.is_pingable():
             self.log.error('Management switch at address %s is not responding to pings' % self.ext_ip_switch)

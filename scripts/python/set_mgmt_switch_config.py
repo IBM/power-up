@@ -21,7 +21,7 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import sys
 import os.path
 
-from lib.SwitchException import SwitchException
+from lib.switch_exception import SwitchException
 from lib.switch import SwitchFactory
 from lib.inventory import Inventory
 from lib.logger import Logger
@@ -92,9 +92,9 @@ class ConfigureMgmtSwitch(object):
 
         # Set native vlan for management connections to data switch
         for mgmt_data_port in inv.yield_ports_mgmt_data_network():
-            if self.vlan_mgmt == self.show_native_vlan(mgmt_data_port):
+            if self.vlan_mgmt == self.switch.show_native_vlan(mgmt_data_port):
                 self.log.info(
-                    'Management VLAN %s is already set foR access port %s' %
+                    'Management VLAN %s is already set for access port %s' %
                     (self.vlan_mgmt, mgmt_data_port))
             else:
                 try:
@@ -111,7 +111,7 @@ class ConfigureMgmtSwitch(object):
                 (self.vlan_mgmt_client))
         else:
             try:
-                self.switch.create_vlan(self, self.vlan_mgmt_client)
+                self.switch.create_vlan(self.vlan_mgmt_client)
             except SwitchException as se:
                 self.log.error(se.message)
                 sys.exit(1)
@@ -123,7 +123,7 @@ class ConfigureMgmtSwitch(object):
                 (self.vlan_mgmt_client, self.mgmt_port))
         else:
             try:
-                self.switch.add_vlan_to_trunk_port(self, self.vlan_mgmt_client, self.mgmt_port)
+                self.switch.add_vlan_to_trunk_port(self.vlan_mgmt_client, self.mgmt_port)
             except SwitchException as se:
                 self.log.error(se.message)
                 sys.exit(1)
@@ -143,7 +143,7 @@ class ConfigureMgmtSwitch(object):
                     'Management VLAN %s is already added to access port %s' %
                     (self.vlan_mgmt_client, port))
             else:
-                self.switch.set_switchport_native_vlan(self, self.vlan_mgmt_client, port)
+                self.switch.set_switchport_native_vlan(self.vlan_mgmt_client, port)
 
         if inv.is_write_switch_memory():
             switch_mem = WriteSwitchMemory(LOG, INV_FILE)

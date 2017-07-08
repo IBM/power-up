@@ -69,15 +69,19 @@ case "$1" in
 
     'enable-mgmt-switch')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts enable_mgmt_switch.yml -K;;
+    ansible-playbook -i hosts enable_mgmt_switch.yml;;
 
     'lxc-create')
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts lxc-create.yml -K;;
 
+    'install_introspection')
+    cd "$GEN_PLAY_PATH"
+    ansible-playbook -i hosts install_introspection.yml;;
+
     'install_1')
     cd "$GEN_PLAY_PATH"
-    ansible-playbook -i hosts install_1.yml;;
+    ansible-playbook -i hosts install_1.yml -K;;
 
     'install_2')
     cd "$GEN_PLAY_PATH"

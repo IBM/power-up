@@ -25,6 +25,7 @@ import re
 
 genesis_dir = 'cluster-genesis'
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
+home = FILE_PATH[:FILE_PATH.find(genesis_dir)]
 gen_path = FILE_PATH[:16 + FILE_PATH.find(genesis_dir)]
 gen_scripts_path = gen_path + 'scripts'
 gen_play_path = gen_path + 'playbooks'
@@ -51,9 +52,14 @@ def container_running():
 def container_addr():
     cont_address = None
     lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
-    cont_address = re.search('(\S+),\s+(\S+),', lxc_ls_output, re.MULTILINE).group(2)
-    return cont_address
+    cont_address = re.search('(\S+),\s+(\S+),', lxc_ls_output, re.MULTILINE)
+    if cont_address is None:
+        return None
+    return cont_address.group(2)
 
 
-localhost_content = load_localhost(gen_path + "playbooks/host_vars/localhost")
-container_name = localhost_content['container_name']
+if os.path.isfile(gen_path + "playbooks/host_vars/localhost"):
+    localhost_content = load_localhost(gen_path + "playbooks/host_vars/localhost")
+    container_name = localhost_content['container_name']
+    ssh_key_private = localhost_content['ssh_key_private']
+    ssh_key_private = home + '.ssh/' + re.search('.+\.ssh/(.+)', ssh_key_private).group(1)

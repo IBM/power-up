@@ -15,7 +15,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: lxc-update.yml
-- include: container/inv_add_switches.yml
-- include: container/cobbler/cobbler_install.yml
-- include: pause.yml minutes=1
+- include: introspection_build.yml
+  when: introspection_enabled

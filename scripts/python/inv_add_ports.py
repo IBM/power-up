@@ -54,7 +54,7 @@ class InventoryAddPorts(object):
                 for port, macs in port_macs.items():
                     _dict = AttrDict()
                     for mac in macs:
-                        port_ = int(port)
+                        port_ = str(port)
                         _dict[port_] = mac
                         mac_port.append(_dict)
                 mgmt_sw_cfg[rack] = mac_port
@@ -97,8 +97,8 @@ class InventoryAddPorts(object):
                         'Type: %s Rack: %s Port: %02d MAC: %s IP: %s' %
                         (template, port_type, rack, port, result[0],
                          result[1]))
-                elif port in mgmt_sw_cfg_mac_lists[rack]:
-                    for mac in mgmt_sw_cfg_mac_lists[rack][port]:
+                elif str(port) in mgmt_sw_cfg_mac_lists[rack]:
+                    for mac in mgmt_sw_cfg_mac_lists[rack][str(port)]:
                         if mac in dhcp_mac_ip:
                             ipaddr = dhcp_mac_ip[mac]
                             self.table.append(

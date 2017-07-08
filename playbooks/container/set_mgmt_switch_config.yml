@@ -1,5 +1,5 @@
 ---
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -28,5 +28,10 @@
     - name: "Set management switch configuration"
       command: "{{ python_executable }} \
                 {{ scripts_path }}/python/set_mgmt_switch_config.py \
-                {{ inventory }} {{ log_level }}"
-      when: hostvars['localhost']['ipaddr_mgmt_client_network'].stdout != ""
+                {{ inventory }} \
+                {{ log_level }}"
+
+#      command: "{{ python_executable }} \
+#                {{ scripts_path }}/python/set_mgmt_switch_config.py \
+#                {{ inventory }} {{ log_level }}"
+#      when: hostvars['localhost']['ipaddr_mgmt_client_network'].stdout != ""

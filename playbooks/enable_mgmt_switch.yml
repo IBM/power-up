@@ -15,31 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: container/enable_mgmt_switch.yml
+- include: verify_sudo_pass.yml
+
+- name: enable_mgmt_switch.yml
   hosts: localhost
   tasks:
-    - name: "Create empty log file with proper permissions"
-      file:
-        path: "{{ project_path_local }}/log.txt"
-        state: touch
-        mode: 0644
-
     - name: "Enable management switch"
       register: mgmt_network_interface
       command: "{{ python_executable_local }} \
                 {{ scripts_path_local }}/python/enable_mgmt_switch.py \
                 {{ config_local }} {{ log_level }}"
-      become: yes
-      become_method: sudo
-
-    - block:
-      - name: "Print management network interface"
-        debug:
-          msg: "Management network interface - {{ mgmt_network_interface.stdout }}"
-
-      - name: "Update mgmt_network_interface in host_vars/localhost"
-        replace:
-          dest: "{{ project_path_local }}/playbooks/host_vars/localhost"
-          regexp: '^(mgmt_network_interface:).*$'
-          replace: '\1 {{ mgmt_network_interface.stdout }}'
-      when: mgmt_network_interface.stdout != ""

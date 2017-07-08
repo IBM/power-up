@@ -128,10 +128,25 @@ DATE=$(date +%Y-%m-%dT%H%M%z)
 # Get hostname
 HOST=$(hostname -s)
 
+# Create DIR is user didn't set with arg
+if [ -z $DIR ]; then
+    DIR="logdump.$HOST.$DATE"
+fi
+
 # Get cluster-genesis top level directory
 PROJECT_DIR=$(git rev-parse --show-toplevel)
-
 PLAYBOOKS="${PROJECT_DIR}/playbooks"
+
+# Create Directories
+if [ ! -d "${PROJECT_DIR}/logdumps" ]; then
+    mkdir "${PROJECT_DIR}/logdumps"
+fi
+LOGS_DIR="${PROJECT_DIR}/logdumps/${DIR}"
+mkdir $LOGS_DIR
+
+# Save logdump.sh stdout and stderr to file
+exec >  >(tee -ia ${LOGS_DIR}/logdump.log)
+exec 2> >(tee -ia ${LOGS_DIR}/logdump.log >&2)
 
 # Get container SSH connection info from ansible hosts file
 SSH_USER=$(grep -oh "ansible_user=[^ ]*" "${PLAYBOOKS}/hosts" | \
@@ -141,23 +156,25 @@ SSH_HOST=$(grep -oh "ansible_host=[^ ]*" "${PLAYBOOKS}/hosts" | \
 SSH_KEY=$(grep -oh "ansible_ssh_private_key_file=[^ ]*" \
     "${PLAYBOOKS}/hosts" | awk -F = '{print $2}')
 
-# Get mgmt and data switch SSH userids
-MGMT_SWITCH_SSH_USER=$(awk '/userid-mgmt-switch:/{print $2}' \
+# Get mgmt switch SSH userids
+MGMT_SWITCH_SSH_USER=$(awk '/^userid-mgmt-switch:/{print $2}' \
     ${PROJECT_DIR}/config.yml)
-DATA_SWITCH_SSH_USER=$(awk '/userid-data-switch:/{print $2}' \
-    ${PROJECT_DIR}/config.yml)
-
-# Create DIR is user didn't set with arg
-if [ -z $DIR ]; then
-    DIR="logdump.$HOST.$DATE"
+# If no uncomment key exists get _first_ commented key
+if [ -z $MGMT_SWITCH_SSH_USER ]; then
+    MGMT_SWITCH_SSH_USER=$(awk '/userid-mgmt-switch:/{print $2}' \
+        ${PROJECT_DIR}/config.yml)
+    MGMT_SWITCH_SSH_USER=(${MGMT_SWITCH_SSH_USER[@]})
 fi
 
-# Create Directories
-if [ ! -d "${PROJECT_DIR}/logdumps" ]; then
-    mkdir "${PROJECT_DIR}/logdumps"
+# Get data switch SSH userids
+DATA_SWITCH_SSH_USER=$(awk '/^userid-data-switch:/{print $2}' \
+    ${PROJECT_DIR}/config.yml)
+# If no uncomment key exists get _first_ commented key
+if [ -z $DATA_SWITCH_SSH_USER ]; then
+    DATA_SWITCH_SSH_USER=$(awk '/userid-data-switch:/{print $2}' \
+        ${PROJECT_DIR}/config.yml)
+    DATA_SWITCH_SSH_USER=(${DATA_SWITCH_SSH_USER[@]})
 fi
-LOGS_DIR="${PROJECT_DIR}/logdumps/${DIR}"
-mkdir $LOGS_DIR
 
 # Local Deployer File Pointers
 DEPLOYER_INFO_SAVE="${LOGS_DIR}/${TAG}deployer.info.txt"
@@ -271,7 +288,9 @@ get_config_key ()
             continue
         fi
         if [ "$FOUND" = true ]; then
-            if [[ $line == $"    "* ]]; then
+            if [[ $line =~ ^[[:space:]]*# ]]; then
+                continue
+            elif [[ $line == $"    "* ]]; then
                 TEST=$(awk '{split($0, a); print a[2]}' <<< $line)
                 if [ ! -z $TEST ]; then
                     config_value[$INDEX]=$TEST

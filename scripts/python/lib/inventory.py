@@ -44,6 +44,7 @@ INV_USERID_DEFAULT = 'userid-default'
 INV_PASSWORD_DEFAULT = 'password-default'
 INV_USERID_MGMT_SWITCH = 'userid-mgmt-switch'
 INV_PASSWORD_MGMT_SWITCH = 'password-mgmt-switch'
+INV_CLASS_MGMT_SWITCH = 'class-mgmt-switch'
 INV_USERID_DATA_SWITCH = 'userid-data-switch'
 INV_PASSWORD_DATA_SWITCH = 'password-data-switch'
 INV_WRITE_SWITCH_MEMORY = 'write-switch-memory'
@@ -161,6 +162,12 @@ class Inventory():
         else:
             password = None
 
+        if (INV_CLASS_MGMT_SWITCH in self.inv and
+                self.inv[INV_CLASS_MGMT_SWITCH] is not None):
+            _class = self.inv[INV_CLASS_MGMT_SWITCH]
+        else:
+            _class = None
+
         _list = []
         for index, (key, value) in (
                 enumerate(self.inv[INV_IPADDR_MGMT_SWITCH].items())):
@@ -170,6 +177,7 @@ class Inventory():
             _dict[INV_RACK_ID] = key
             _dict[INV_USERID] = userid
             _dict[INV_PASSWORD] = password
+            _dict[INV_CLASS] = _class
             _list.append(_dict)
         inv = AttrDict()
         inv[INV_MGMT] = _list
@@ -195,8 +203,8 @@ class Inventory():
                 enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
             _dict = AttrDict()
             _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index + 1)
-            if value == list:
-                _dict[INV_IPV4_ADDR] = value.copy()
+            if type(value) == list:  # copy list
+                _dict[INV_IPV4_ADDR] = list(value)
             else:
                 _dict[INV_IPV4_ADDR] = value
             _dict[INV_RACK_ID] = key
@@ -234,6 +242,17 @@ class Inventory():
                     sys.exit(1)
 
         return switch_class
+
+    def get_mgmt_switch_class(self):
+        switch_class = None
+        try:
+            switch_class = self.inv[INV_CLASS_MGMT_SWITCH]
+            if switch_class:
+                return switch_class
+            raise Exception()
+        except:
+            self.log.error('Management switch class is unspecified or not supported')
+            sys.exit(1)
 
     def get_data_switch_name(self):
         switch_class = None
@@ -559,6 +578,7 @@ class Inventory():
             for rack, ipmi_ports in value[INV_PORTS][INV_IPMI].items():
                 _list = []
                 for port_index, ipmi_port in enumerate(ipmi_ports):
+                    ipmi_port = str(ipmi_port)
                     for mgmt_port in mgmt_switch_config[rack]:
                         if ipmi_port in mgmt_port.keys():
                             if mgmt_port[ipmi_port] in dhcp_mac_ip:
@@ -607,6 +627,7 @@ class Inventory():
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for rack, pxe_ports in value[INV_PORTS][INV_PXE].items():
                 for port_index, pxe_port in enumerate(pxe_ports):
+                    pxe_port = str(pxe_port)
                     for mgmt_port in mgmt_switch_config[rack]:
                         if pxe_port in mgmt_port.keys():
                             if mgmt_port[pxe_port] in dhcp_mac_ip:
@@ -626,6 +647,13 @@ class Inventory():
         count = 0
         for key, value in self.inv[INV_NODES].items():
             for index, node in enumerate(value):
+                count += 1
+        return count
+
+    def get_expected_node_count(self):
+        count = 0
+        for template, rack, ports in self.yield_template_ports(INV_IPMI):
+            for port in ports:
                 count += 1
         return count
 
@@ -675,7 +703,7 @@ class Inventory():
         if self.inv[INV_NODES] is not None:
             for key, value in self.inv[INV_NODES].items():
                 for node in value:
-                    if node['port-' + port_type] == port:
+                    if node['port-' + port_type] in [port, str(port)]:
                         if (('mac-' + port_type) in node and
                                 ('ipv4-' + port_type) in node):
                             return (node['mac-' + port_type],
@@ -745,5 +773,11 @@ class Inventory():
     def is_passive_mgmt_switches(self):
         if (INV_USERID_MGMT_SWITCH in self.inv and
                 self.inv[INV_USERID_MGMT_SWITCH] is not None):
+            return False
+        return True
+
+    def is_passive_data_switches(self):
+        if (INV_USERID_DATA_SWITCH in self.inv and
+                self.inv[INV_USERID_DATA_SWITCH] is not None):
             return False
         return True

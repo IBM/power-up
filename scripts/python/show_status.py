@@ -32,6 +32,7 @@ GEN_PATH = genesis.gen_path
 GEN_CONTAINER_NAME = genesis.container_name
 GEN_CONTAINER_RUNNING = genesis.container_running()
 GEN_CONTAINER_ADDR = genesis.container_addr()
+GEN_CONTAINER_SSH_KEY_PRIVATE = genesis.ssh_key_private
 HOME_DIR = os.path.expanduser('~')
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -62,14 +63,13 @@ def main(log, inv_file):
 
     print('Container Status: \n')
     output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
-    if GEN_CONTAINER_NAME in output:
+    if GEN_CONTAINER_NAME + ' ' in output:
         print(output)
     else:
         print('    ' + GEN_CONTAINER_NAME + ' container does not exist\n')
 
     if GEN_CONTAINER_RUNNING:
-        if os.path.isfile(HOME_DIR + '/.ssh/id_rsa_ansible-generated'):
-            key_filename = HOME_DIR + '/.ssh/id_rsa_ansible-generated'
+        if os.path.isfile(GEN_CONTAINER_SSH_KEY_PRIVATE):
             ssh_log_filename = FILE_PATH + '/gen_ssh.log'
             ssh_cont = SSH_CONNECTION(
                 GEN_CONTAINER_ADDR,
@@ -77,7 +77,7 @@ def main(log, inv_file):
                 ssh_log=ssh_log_filename,
                 username='deployer',
                 look_for_keys=False,
-                key_filename=key_filename)
+                key_filename=GEN_CONTAINER_SSH_KEY_PRIVATE)
 
             _, cobbler_running, _ = ssh_cont.send_cmd(
                 'ps aux|grep cobbler')

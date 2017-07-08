@@ -25,12 +25,13 @@ version: 1.1
 
 log_level: debug
 introspection-enabled: false  # only supported for ppc64 deployer & clients
+deployer-gateway: true  # deployer will be configured as the default gateway for all client nodes
 deployment-environment:
-    https_proxy: "http://192.168.1.2:3456"
-    http_proxy: "http://192.168.1.2.3456"
+    https_proxy: "http://192.168.1.2:3128"
+    http_proxy: "http://192.168.1.2:3128"
     no_proxy: "localhost,127.0.0.1"
-ipaddr-mgmt-network: 192.168.16.0/20
-ipaddr-mgmt-client-network: 192.168.20.0/24
+ipaddr-mgmt-network: 192.168.16.0/24
+ipaddr-mgmt-client-network: 192.168.20.0/20
 vlan-mgmt-network: 16
 vlan-mgmt-client-network: 20
 port-mgmt-network: 1
@@ -81,6 +82,7 @@ password-default: passw0rd
 # password-default-crypted: $6$STFB8U/AyA$sVhg5a/2RvDiXof9EhADVcUm/7Tq8T4m0dcdHLFZkOr.pCjJr2eH8RS56W7ZUWw6Zsm2sKrkcS4Xc8910JMOw.
 userid-mgmt-switch: user        # applied to all mgmt switches
 password-mgmt-switch: passw0rd  # applied to all mgmt switches
+class-mgmt-switch: lenovo
 userid-data-switch: user
 password-data-switch: passw0rd
 # Rack information is optional (not required to be present)

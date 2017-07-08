@@ -15,7 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- include: lxc-update.yml
-- include: container/inv_add_switches.yml
-- include: container/cobbler/cobbler_install.yml
-- include: pause.yml minutes=1
+- name: verify_sudo_pass.yml
+  hosts: localhost
+  tasks:
+    - name: "Verify sudo password"
+      command: whoami
+      become: yes
+      become_method: sudo

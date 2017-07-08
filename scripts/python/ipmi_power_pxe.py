@@ -22,6 +22,7 @@ import sys
 import time
 from pyghmi.ipmi import command as ipmi_command
 from pyghmi import exceptions as pyghmi_exception
+from tabulate import tabulate
 
 from lib.inventory import Inventory
 from lib.ipmi_power import IpmiPower
@@ -40,25 +41,54 @@ class IpmiPowerPXE(object):
         dhcp_leases = GetDhcpLeases(dhcp_leases_path, self.log)
         bmc_leases = dhcp_leases.get_mac_ip()
         bmc_list = []
+        unsuccessful_ip_list = []
         for mac, ipv4 in bmc_leases.items():
             bmc = {}
             bmc['ipv4'] = ipv4
-            bmc['rack_id'] = 'unknown'
+            bmc['rack_id'] = 'passive'
             for userid, password in inv.yield_ipmi_credential_sets():
                 bmc['userid'] = userid
                 bmc['password'] = password
 
                 self.log.debug(
-                    'Trying IP: %s  userid: %s  password: %s' %
-                    (ipv4, userid, password))
+                    'Attempting IPMI connection to IP: %s  userid: %s  '
+                    'password: %s' % (ipv4, userid, password))
 
                 try:
                     _rc, _ = self.ipmi_power.is_power_off(bmc)
                 except SystemExit:
                     continue
 
+                self.log.info(
+                    'Successful IPMI connection to IP: %s  userid: %s  '
+                    'password: %s' % (ipv4, userid, password))
                 bmc_list.append(bmc)
                 break
+            else:
+                self.log.warning(
+                    'Unsuccessful IPMI connection to IP: %s' % ipv4)
+                bmc.pop('userid')
+                bmc.pop('password')
+                unsuccessful_ip_list.append(bmc)
+
+        if len(bmc_list) > 0:
+            print("-" * 47)
+            print("Successful IPMI connections:")
+            print("-" * 47)
+            print(tabulate(bmc_list, headers="keys"))
+
+        if len(bmc_list) < inv.get_expected_node_count():
+            msg = ('\nFAIL: %d BMC(s) defined in config.yml but only %d IPMI '
+                   'connection(s) found!' %
+                   (inv.get_expected_node_count(), len(bmc_list)))
+            self.log.error(msg)
+            print(msg)
+            if len(unsuccessful_ip_list) > 0:
+                print("-" * 54)
+                print("IPs with DHCP leases but IPMI connection unsuccessful:")
+                print("-" * 54)
+                print(tabulate(unsuccessful_ip_list, headers="keys"))
+            sys.exit
 
         # Power off
         for bmc in bmc_list:
