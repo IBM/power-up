@@ -79,21 +79,19 @@ class Lenovo(switch_common.SwitchCommon):
     SHOW_NATIVE_VLAN = (
         'show interface trunk | include %d')
     SET_SWITCHPORT_MODE = (
-        ENABLE_REMOTE_CONFIG %
         'no prompting'
         ';interface port %d'
         ';switchport mode %s'
         ';exit'
         ';prompting')
-    SET_INTERFACE_IPADDR = (
-        ENABLE_REMOTE_CONFIG % 'interface ip %d;ip address %s')
-    SET_INTERFACE_MASK = ENABLE_REMOTE_CONFIG % 'interface ip %d;ip netmask %s'
+    SET_INTERFACE_IPADDR = 'interface ip %d;ip address %s'
+    SET_INTERFACE_MASK = 'interface ip %d;ip netmask %s'
     SET_VLAN = 'vlan %d'
-    SET_INTERFACE_VLAN = ENABLE_REMOTE_CONFIG % 'interface ip %d;' + SET_VLAN
-    ENABLE_INTERFACE = ENABLE_REMOTE_CONFIG % 'interface ip %d;enable'
-    REMOVE_MGMT_IFC = ENABLE_REMOTE_CONFIG % 'no interface ip %d'
+    SET_INTERFACE_VLAN = 'interface ip %d;' + SET_VLAN
+    ENABLE_INTERFACE = 'interface ip %d;enable'
+    REMOVE_IFC = 'no interface ip %d'
     SHOW_INTERFACE_IP = 'show interface ip '
-    UP_STATE_MGMT_IFC = 'up'
+    UP_STATE_IFC = 'up'
     MAX_INTF = 128
 
     def __init__(self, log, host=None, userid=None, password=None, mode=None, outfile=None):
@@ -124,9 +122,7 @@ class Lenovo(switch_common.SwitchCommon):
         return int(vlan)
 
     def add_vlan_to_trunk_port(self, vlan, port):
-        self.send_cmd(
-            self.ENABLE_REMOTE_CONFIG %
-            (self.ADD_VLAN_TO_TRUNK_PORT % (port, vlan)))
+        self.send_cmd(self.ADD_VLAN_TO_TRUNK_PORT % (port, vlan))
         if self.is_vlan_allowed_for_port(vlan, port):
             self.log.info(
                 'Management VLAN %s is allowed for port %s' %
@@ -137,9 +133,7 @@ class Lenovo(switch_common.SwitchCommon):
                 (vlan, port))
 
     def set_switchport_native_vlan(self, vlan, port):
-        self.send_cmd(
-            self.ENABLE_REMOTE_CONFIG %
-            (self.SET_NATIVE_VLAN % (port, vlan)))
+        self.send_cmd(self.SET_NATIVE_VLAN % (port, vlan))
         if self.mode == 'passive':
             return
         if vlan == self.show_native_vlan(port):
@@ -168,8 +162,8 @@ class Lenovo(switch_common.SwitchCommon):
                 'Failed setting port %s to %s mode' %
                 (port, mode))
 
-    def remove_mgmt_interface(self, intf):
-        self.send_cmd(self.REMOVE_MGMT_IFC % intf)
+    def remove_interface(self, intf):
+        self.send_cmd(self.REMOVE_IFC % intf)
 
     def _check_interface(self, intf, interfaces, host, netmask, vlan):
         match = re.search(
@@ -193,7 +187,7 @@ class Lenovo(switch_common.SwitchCommon):
                 'Invalid switch VLAN %s for interface %d' %
                 (vlan, intf))
             return False
-        if state != self.UP_STATE_MGMT_IFC:
+        if state != self.UP_STATE_IFC:
             self.log.error(
                 'Switch interface %d is %s' % (intf, state))
             return False
@@ -212,7 +206,7 @@ class Lenovo(switch_common.SwitchCommon):
                 continue
             return intf
 
-    def configure_mgmt_interface(self, host, netmask, vlan=None, intf=None):
+    def configure_interface(self, host, netmask, vlan=None, intf=None):
         """Configures a management interface. Minimally, this method will
         configure (overwrite if necessary) the specified interface.
         A better behaved implementation will check if host ip is already in
@@ -231,7 +225,7 @@ class Lenovo(switch_common.SwitchCommon):
         raises:
             SwitchException if unable to program interface
         """
-        interfaces = self.show_mgmt_interfaces()
+        interfaces = self.show_interfaces()
         match = re.search(
             r'^(\d+):\s+IP4\s+(%s)\s+(\S+)\s+\S+\s+vlan (\d+)' % host,
             interfaces, re.MULTILINE)
@@ -253,13 +247,13 @@ class Lenovo(switch_common.SwitchCommon):
         self.send_cmd(self.SET_INTERFACE_MASK % (intf, netmask))
         self.send_cmd(self.SET_INTERFACE_VLAN % (intf, vlan))
         self.send_cmd(self.ENABLE_INTERFACE % intf)
-        interfaces = self.show_mgmt_interfaces()
+        interfaces = self.show_interfaces()
         if not self._check_interface(intf, interfaces, host, netmask, vlan):
             raise SwitchException(
                 'Failed configuraing management interface ip %s' % intf)
         return
 
-    def show_mgmt_interfaces(self):
+    def show_interfaces(self):
         ifc_info = self.send_cmd(self.SHOW_INTERFACE_IP)
         return ifc_info
 

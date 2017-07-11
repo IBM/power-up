@@ -22,14 +22,24 @@ import sys
 
 from lib import inventory
 from lib.logger import Logger
-import mellanox_switch
+from lib.switch import SwitchFactory
 
 
 def main(log, inv_file):
 
     inv = inventory.Inventory(log, inv_file)
-    switch = mellanox_switch.MellanoxSwitch(log)
-    switch.clear_mac_address_table(inv)
+    userid = inv.get_userid_data_switch()
+    password = inv.get_password_data_switch()
+    switch_name = inv.get_data_switch_name()
+    for ipv4 in inv.yield_data_switch_ip():
+        switch = SwitchFactory.factory(
+            log,
+            switch_name,
+            ipv4,
+            userid,
+            password,
+            mode='active')
+        switch.clear_mac_address_table()
 
 
 if __name__ == '__main__':

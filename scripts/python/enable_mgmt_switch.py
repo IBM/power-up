@@ -76,7 +76,7 @@ class EnableMgmtSwitch(object):
             sys.exit(1)
         try:
             print('ipv4: ' + self.ipv4 + ' ' + self.mask + ' ' + str(self.vlan_mgmt))
-            sw.configure_mgmt_interface(self.ipv4, self.mask, self.vlan_mgmt)
+            sw.configure_interface(self.ipv4, self.mask, self.vlan_mgmt)
         except SwitchException as exc:
             print(exc)
             self.log.error(exc)

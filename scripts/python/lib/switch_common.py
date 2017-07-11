@@ -33,10 +33,8 @@ class SwitchCommon(object):
     SHOW_VLANS = 'show vlan'
     CREATE_VLAN = 'vlan %d'
     DELETE_VLAN = 'no vlan %d'
-    CLEAR_MAC_ADDRESS_TABLE = (
-        ENABLE_REMOTE_CONFIG %
-        'clear mac-address-table')
-    SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table;'
+    CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table'
+    SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table'
 
     def __init__(self, log, host=None, userid=None, password=None, mode=None, outfile=None):
         pass
@@ -50,9 +48,7 @@ class SwitchCommon(object):
     def create_vlan(self, vlan):
         if self.mode == 'passive':
             return
-        self.send_cmd(
-            self.ENABLE_REMOTE_CONFIG %
-            (self.CREATE_VLAN % (vlan)))
+        self.send_cmd(self.CREATE_VLAN % (vlan))
         if self.is_vlan_created(vlan):
             self.log.info(
                 'Created management client VLAN %s' %
@@ -65,9 +61,7 @@ class SwitchCommon(object):
     def delete_vlan(self, vlan):
         if self.mode == 'passive':
             return
-        self.send_cmd(
-            self.ENABLE_REMOTE_CONFIG %
-            (self.DELETE_VLAN % (vlan)))
+        self.send_cmd(self.DELETE_VLAN % (vlan))
         if self.is_vlan_created(vlan):
             self.log.warning(
                 'Failed deleting VLAN %s' %
@@ -143,6 +137,10 @@ class SwitchCommon(object):
             f.write(cmd + '\n')
             f.close()
             return
+
+        if self.ENABLE_REMOTE_CONFIG:
+            cmd = self.ENABLE_REMOTE_CONFIG % (cmd)
+
         ssh = SSH(self.log)
         __, data, _ = ssh.exec_cmd(
             self.host,

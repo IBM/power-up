@@ -45,6 +45,7 @@ INV_PASSWORD_DEFAULT = 'password-default'
 INV_USERID_MGMT_SWITCH = 'userid-mgmt-switch'
 INV_PASSWORD_MGMT_SWITCH = 'password-mgmt-switch'
 INV_CLASS_MGMT_SWITCH = 'class-mgmt-switch'
+INV_CLASS_DATA_SWITCH = 'class-data-switch'
 INV_USERID_DATA_SWITCH = 'userid-data-switch'
 INV_PASSWORD_DATA_SWITCH = 'password-data-switch'
 INV_WRITE_SWITCH_MEMORY = 'write-switch-memory'
@@ -198,6 +199,12 @@ class Inventory():
         else:
             password = None
 
+        if (INV_CLASS_DATA_SWITCH in self.inv and
+                self.inv[INV_CLASS_DATA_SWITCH] is not None):
+            _class = self.inv[INV_CLASS_DATA_SWITCH]
+        else:
+            _class = None
+
         _list = []
         for index, (key, value) in (
                 enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
@@ -210,6 +217,7 @@ class Inventory():
             _dict[INV_RACK_ID] = key
             _dict[INV_USERID] = userid
             _dict[INV_PASSWORD] = password
+            _dict[INV_CLASS] = _class
             _list.append(_dict)
         inv[INV_DATA] = _list
 
@@ -355,13 +363,23 @@ class Inventory():
         for ipv4 in self.inv[INV_IPADDR_MGMT_SWITCH_EXTERNAL].values():
             yield ipv4
 
-    def yield_data_vlans(self):
+    def get_userid_data_switch(self):
+        return self.inv[INV_USERID_DATA_SWITCH]
+
+    def get_password_data_switch(self):
+        return self.inv[INV_PASSWORD_DATA_SWITCH]
+
+    def yield_data_switch_ip(self):
+        for rack_list in self.inv[INV_IPADDR_DATA_SWITCH].values():
+            for ipv4 in rack_list:
+                yield ipv4
+
+    def yield_data_vlans(self, userid, password):
         _dict = AttrDict()
         __dict = AttrDict()
         vlan_list = []
         vlan_dict = AttrDict()
-        userid = self.inv[INV_USERID_DATA_SWITCH]
-        password = self.inv[INV_PASSWORD_DATA_SWITCH]
+
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for _key, _value in value.items():
                 if _key == INV_PORTS:
@@ -398,7 +416,7 @@ class Inventory():
                 value[INV_PASSWORD_DATA_SWITCH],
                 value['vlan'])
 
-    def yield_data_switch_ports(self):
+    def yield_data_switch_ports(self, userid, password):
         _dict = AttrDict()
         __dict = AttrDict()
         ___dict = AttrDict()
@@ -406,8 +424,7 @@ class Inventory():
         _dict['mtu'] = AttrDict()
         _dict['bonds'] = AttrDict()
         mtu = None
-        userid = self.inv[INV_USERID_DATA_SWITCH]
-        password = self.inv[INV_PASSWORD_DATA_SWITCH]
+
         for key, value in self.inv[INV_NODES_TEMPLATES].items():
             for _key, _value in value.items():
                 if _key == INV_PORTS:
@@ -490,8 +507,6 @@ class Inventory():
         for key, value in ___dict.items():
             yield (
                 key,
-                value[INV_USERID_DATA_SWITCH],
-                value[INV_PASSWORD_DATA_SWITCH],
                 value['port_vlan'],
                 value['port_mtu'],
                 value['port_bonds'])
@@ -716,7 +731,7 @@ class Inventory():
         self.inv[INV_NODES][key][index][field] = value
         self._dump_inv_file()
 
-    def add_data_switch_port_macs(self, switch_to_port_to_macs):
+    def add_data_switch_port_macs(self, switch_ipv4, switch_ports_to_MACs):
         # Get map of rack IP to rack ID.
         ip_to_rack_id = {}
         for rack_id, rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].iteritems():
@@ -725,45 +740,42 @@ class Inventory():
                     ip_to_rack_id[ip] = rack_id
             else:
                 ip_to_rack_id[rack_ip] = rack_id
-        print(ip_to_rack_id)
-        print(switch_to_port_to_macs)
 
         # Get list of all nodes
         nodes = [node for sublist in self.inv['nodes'].values() for node
                  in sublist]
         success = True
         index = 0
-        for ip, switch_ports_to_MACs in switch_to_port_to_macs.iteritems():
-            rack_id = ip_to_rack_id[ip]
-            for node in nodes:
-                if node['rack-id'] != rack_id:
-                    continue
-                node_template = self.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                for port_name in node_template['ports'].keys():
-                    if port_name not in INV_MANAGEMENT_PORTS:
-                        if (not self.is_mlag() or
-                                (self.is_mlag() and index == 0 and port_name == INV_ETH10) or
-                                (self.is_mlag() and index == 1 and port_name == INV_ETH11) or
-                                (self.is_mlag() and index == 0 and port_name == INV_ETH12) or
-                                (self.is_mlag() and index == 1 and port_name == INV_ETH13)):
-                            node_port_on_rack = str(node.get(INV_PORT_PATTERN %
-                                                    port_name, ''))
-                            macs = switch_ports_to_MACs.get(node_port_on_rack, [])
-                            if macs:
-                                mac_key = INV_MAC_PATTERN % port_name
-                                node[mac_key] = macs[0]
-                            else:
-                                msg = ('Unable to find a MAC address for '
-                                       '%(port_name)s of host %(host)s plugged '
-                                       'into port %(node_port_on_rack)s of switch '
-                                       '%(switch)s')
-                                msg_vars = {'port_name': port_name,
-                                            'host': node.get(INV_IPV4_PXE),
-                                            'node_port_on_rack': node_port_on_rack,
-                                            'switch': ip}
-                                print(msg % msg_vars)
-                                success = False
-            index += 1
+        rack_id = ip_to_rack_id[switch_ipv4]
+        for node in nodes:
+            if node['rack-id'] != rack_id:
+                continue
+            node_template = self.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
+            for port_name in node_template['ports'].keys():
+                if port_name not in INV_MANAGEMENT_PORTS:
+                    if (not self.is_mlag() or
+                            (self.is_mlag() and index == 0 and port_name == INV_ETH10) or
+                            (self.is_mlag() and index == 1 and port_name == INV_ETH11) or
+                            (self.is_mlag() and index == 0 and port_name == INV_ETH12) or
+                            (self.is_mlag() and index == 1 and port_name == INV_ETH13)):
+                        node_port_on_rack = str(node.get(INV_PORT_PATTERN %
+                                                port_name, ''))
+                        macs = switch_ports_to_MACs.get(node_port_on_rack, [])
+                        if macs:
+                            mac_key = INV_MAC_PATTERN % port_name
+                            node[mac_key] = macs[0]
+                        else:
+                            msg = ('Unable to find a MAC address for '
+                                   '%(port_name)s of host %(host)s plugged '
+                                   'into port %(node_port_on_rack)s of switch '
+                                   '%(switch)s')
+                            msg_vars = {'port_name': port_name,
+                                        'host': node.get(INV_IPV4_PXE),
+                                        'node_port_on_rack': node_port_on_rack,
+                                        'switch': ip}
+                            print(msg % msg_vars)
+                            success = False
+        index += 1
         self._dump_inv_file()
         return success
 

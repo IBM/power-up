@@ -136,7 +136,7 @@ def main(log):
     print('Port 18 in trunk mode: ' + str(sw.is_port_in_trunk_mode(18)))
 
     # test configure specific interface
-    ifc_info = sw.show_mgmt_interfaces()
+    ifc_info = sw.show_interfaces()
     print(ifc_info)
 
 #    if '55: ' in ifc_info:
@@ -144,25 +144,25 @@ def main(log):
 #        exit(1)
 #    print('Configure mgmt interface 55: ')
 #    try:
-#        sw.configure_mgmt_interface('192.168.17.17', '255.255.255.0', vlan=17, intf=55)
-#        print(sw.show_mgmt_interfaces())
-#        sw.remove_mgmt_interface(55)
+#        sw.configure_interface('192.168.17.17', '255.255.255.0', vlan=17, intf=55)
+#        print(sw.show_interfaces())
+#        sw.remove_interface(55)
 #    except (SwitchException) as exc:
 #        print(exc)
 #
 #    # test configure next available interface
 #    print('Finding next available interface')
-#    ifc_info = sw.show_mgmt_interfaces()
+#    ifc_info = sw.show_interfaces()
 #    ifc = _get_available_interface(ifc_info)
 #    print('Next available interface %d' % ifc)
 #    try:
-#        sw.configure_mgmt_interface('192.168.18.18', '255.255.255.0', vlan=18)
-#        print(sw.show_mgmt_interfaces())
-#        sw.remove_mgmt_interface(ifc)
-#        print(sw.show_mgmt_interfaces())
+#        sw.configure_interface('192.168.18.18', '255.255.255.0', vlan=18)
+#        print(sw.show_interfaces())
+#        sw.remove_interface(ifc)
+#        print(sw.show_interfaces())
 #    except (SwitchException) as exc:
 #        print(exc)
-#        sw.remove_mgmt_interface(ifc)
+#        sw.remove_interface(ifc)
 
     # Test add vlan to port
     print('Is vlan 16 "allowed" for port 18": ' + str(sw.is_vlan_allowed_for_port(16, 18)))
