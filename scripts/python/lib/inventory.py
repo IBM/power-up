@@ -580,46 +580,47 @@ class Inventory():
                 for port_index, ipmi_port in enumerate(ipmi_ports):
                     ipmi_port = str(ipmi_port)
                     for mgmt_port in mgmt_switch_config[rack]:
-                        if ipmi_port in mgmt_port.keys():
-                            if mgmt_port[ipmi_port] in dhcp_mac_ip:
-                                node_dict = AttrDict()
-                                if (INV_HOSTNAME not in value or
-                                        value[INV_HOSTNAME] is None):
-                                    node_dict[INV_HOSTNAME] = key
-                                else:
-                                    node_dict[INV_HOSTNAME] = \
-                                        value[INV_HOSTNAME]
-                                index += 1
-                                node_dict[INV_HOSTNAME] += '-' + str(index)
-                                node_dict[INV_USERID_IPMI] = \
-                                    self.inv[INV_NODES_TEMPLATES][key][INV_USERID_IPMI]
-                                node_dict[INV_PASSWORD_IPMI] = \
-                                    self.inv[INV_NODES_TEMPLATES][key][INV_PASSWORD_IPMI]
-                                node_dict[INV_PORT_IPMI] = ipmi_port
-                                node_dict[INV_PORT_PXE] = \
-                                    value[INV_PORTS][INV_PXE][rack][port_index]
-                                if INV_ETH10 in value[INV_PORTS]:
-                                    node_dict[INV_PORT_ETH10] = \
-                                        value[INV_PORTS][INV_ETH10][rack][port_index]
-                                if INV_ETH11 in value[INV_PORTS]:
-                                    node_dict[INV_PORT_ETH11] = \
-                                        value[INV_PORTS][INV_ETH11][rack][port_index]
-                                if INV_ETH12 in value[INV_PORTS]:
-                                    node_dict[INV_PORT_ETH12] = \
-                                        value[INV_PORTS][INV_ETH12][rack][port_index]
-                                if INV_ETH13 in value[INV_PORTS]:
-                                    node_dict[INV_PORT_ETH13] = \
-                                        value[INV_PORTS][INV_ETH13][rack][port_index]
-                                node_dict[INV_MAC_IPMI] = mgmt_port[ipmi_port]
-                                node_dict[INV_IPV4_IPMI] = \
-                                    dhcp_mac_ip[mgmt_port[ipmi_port]]
-                                node_dict[INV_RACK_ID] = rack
-                                node_dict[INV_TEMPLATE] = key
-                                if INV_OS_DISK in value:
-                                    node_dict[INV_OS_DISK] = value[INV_OS_DISK]
-                                _list.append(node_dict)
-                                _dict[key] = _list
-                                self.inv[INV_NODES] = _dict
+                        if ipmi_port == mgmt_port:
+                            for mac in mgmt_switch_config[rack][mgmt_port]:
+                                if mac in dhcp_mac_ip:
+                                    node_dict = AttrDict()
+                                    if (INV_HOSTNAME not in value or
+                                            value[INV_HOSTNAME] is None):
+                                        node_dict[INV_HOSTNAME] = key
+                                    else:
+                                        node_dict[INV_HOSTNAME] = \
+                                            value[INV_HOSTNAME]
+                                    index += 1
+                                    node_dict[INV_HOSTNAME] += '-' + str(index)
+                                    node_dict[INV_USERID_IPMI] = \
+                                        self.inv[INV_NODES_TEMPLATES][key][INV_USERID_IPMI]
+                                    node_dict[INV_PASSWORD_IPMI] = \
+                                        self.inv[INV_NODES_TEMPLATES][key][INV_PASSWORD_IPMI]
+                                    node_dict[INV_PORT_IPMI] = ipmi_port
+                                    node_dict[INV_PORT_PXE] = \
+                                        value[INV_PORTS][INV_PXE][rack][port_index]
+                                    if INV_ETH10 in value[INV_PORTS]:
+                                        node_dict[INV_PORT_ETH10] = \
+                                            value[INV_PORTS][INV_ETH10][rack][port_index]
+                                    if INV_ETH11 in value[INV_PORTS]:
+                                        node_dict[INV_PORT_ETH11] = \
+                                            value[INV_PORTS][INV_ETH11][rack][port_index]
+                                    if INV_ETH12 in value[INV_PORTS]:
+                                        node_dict[INV_PORT_ETH12] = \
+                                            value[INV_PORTS][INV_ETH12][rack][port_index]
+                                    if INV_ETH13 in value[INV_PORTS]:
+                                        node_dict[INV_PORT_ETH13] = \
+                                            value[INV_PORTS][INV_ETH13][rack][port_index]
+                                    node_dict[INV_MAC_IPMI] = mac
+                                    node_dict[INV_IPV4_IPMI] = \
+                                        dhcp_mac_ip[mac]
+                                    node_dict[INV_RACK_ID] = rack
+                                    node_dict[INV_TEMPLATE] = key
+                                    if INV_OS_DISK in value:
+                                        node_dict[INV_OS_DISK] = value[INV_OS_DISK]
+                                    _list.append(node_dict)
+                                    _dict[key] = _list
+                                    self.inv[INV_NODES] = _dict
         if self.inv[INV_NODES] is not None:
             self._dump_inv_file()
 
@@ -629,12 +630,13 @@ class Inventory():
                 for port_index, pxe_port in enumerate(pxe_ports):
                     pxe_port = str(pxe_port)
                     for mgmt_port in mgmt_switch_config[rack]:
-                        if pxe_port in mgmt_port.keys():
-                            if mgmt_port[pxe_port] in dhcp_mac_ip:
-                                self.inv[INV_NODES][key][port_index][INV_MAC_PXE] = \
-                                    mgmt_port[pxe_port]
-                                self.inv[INV_NODES][key][port_index][INV_IPV4_PXE] = \
-                                    dhcp_mac_ip[mgmt_port[pxe_port]]
+                        if pxe_port == mgmt_port:
+                            for mac in mgmt_switch_config[rack][mgmt_port]:
+                                if mac in dhcp_mac_ip:
+                                    self.inv[INV_NODES][key][port_index][INV_MAC_PXE] = \
+                                        mac
+                                    self.inv[INV_NODES][key][port_index][INV_IPV4_PXE] = \
+                                        dhcp_mac_ip[mac]
 
         self._dump_inv_file()
 

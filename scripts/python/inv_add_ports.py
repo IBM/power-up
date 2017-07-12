@@ -25,9 +25,9 @@ import re
 
 from lib.inventory import Inventory
 from lib.logger import Logger
-from get_mgmt_switch_config import GetMgmtSwitchConfig
 from get_dhcp_lease_info import GetDhcpLeases
-from lib.switches import PassiveSwitch
+from lib.switch import SwitchFactory
+from lib.switch_common import SwitchCommon
 
 
 class InventoryAddPorts(object):
@@ -37,47 +37,42 @@ class InventoryAddPorts(object):
         dhcp_leases = GetDhcpLeases(dhcp_leases_file, log)
         dhcp_mac_ip = dhcp_leases.get_mac_ip()
 
-        mgmt_sw_cfg = AttrDict()
         mgmt_sw_cfg_mac_lists = AttrDict()
         if inv.is_passive_mgmt_switches():
             for rack, switch_ip in inv.yield_mgmt_rack_ipv4():
-                switch = PassiveSwitch(log, switch_ip)
                 scripts_path = os.path.abspath(__file__)
                 playbooks_path = (
                     re.match('(.*cluster\-genesis).*', scripts_path).group(1) +
                     '/passive/')
                 file_path = playbooks_path + switch_ip
-                mgmt_sw_cfg_mac_lists[rack] = switch.get_port_to_mac(file_path)
+                mac_info = {}
+                try:
+                    with open(file_path, 'r') as f:
+                        mac_info = f.read()
 
-            for rack, port_macs in mgmt_sw_cfg_mac_lists.items():
-                mac_port = []
-                for port, macs in port_macs.items():
-                    _dict = AttrDict()
-                    for mac in macs:
-                        port_ = str(port)
-                        _dict[port_] = mac
-                        mac_port.append(_dict)
-                mgmt_sw_cfg[rack] = mac_port
-
+                except IOError as error:
+                    self.log.error(
+                        'Passive switch MAC address table file not found (%s)' % error)
+                    raise
+                mgmt_sw_cfg_mac_lists[rack] = SwitchCommon.get_port_to_mac(mac_info, log)
         else:
-            mgmt_switch_config = GetMgmtSwitchConfig(log)
+            switch_class = inv.get_mgmt_switch_class()
+            userid = inv.get_userid_mgmt_switch()
+            password = inv.get_password_mgmt_switch()
             for rack, ipv4 in inv.yield_mgmt_rack_ipv4():
-                mgmt_sw_cfg[rack] = mgmt_switch_config.get_port_mac(rack, ipv4)
-
-            for rack, data in mgmt_sw_cfg.iteritems():
-                port_dict = {}
-                for port in data:
-                    for port_num, mac in port.iteritems():
-                        if port_num in port_dict:
-                            port_dict[port_num].append(mac)
-                        else:
-                            port_dict[port_num] = [mac]
-                mgmt_sw_cfg_mac_lists[rack] = port_dict
+                sw = SwitchFactory.factory(
+                    log,
+                    switch_class,
+                    ipv4,
+                    userid,
+                    password,
+                    mode='active')
+                mgmt_sw_cfg_mac_lists[rack] = sw.show_mac_address_table(format='std')
 
         if port_type == "ipmi":
-            inv.create_nodes(dhcp_mac_ip, mgmt_sw_cfg)
+            inv.create_nodes(dhcp_mac_ip, mgmt_sw_cfg_mac_lists)
         elif port_type == "pxe":
-            inv.add_pxe(dhcp_mac_ip, mgmt_sw_cfg)
+            inv.add_pxe(dhcp_mac_ip, mgmt_sw_cfg_mac_lists)
 
         self.table = []
 
