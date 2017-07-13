@@ -18,6 +18,7 @@
 TYPE=Bridge
 BOOTPROTO=none
 DEVICE={{ bridge }}
+NM_CONTROLLED=no
 ONBOOT=yes
 IPADDR={{ ipaddr_cidr | ipaddr('address') }}
 NETMASK={{ ipaddr_cidr | ipaddr('netmask') }}
