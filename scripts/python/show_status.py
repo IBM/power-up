@@ -22,10 +22,11 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import os
 import sys
 import subprocess
+import readline
 
 from lib import inventory
 from lib.logger import Logger
-from lib.ssh import SSH_CONNECTION
+from lib.ssh import SSH_CONNECTION, SSH_Exception
 from lib import genesis
 
 GEN_PATH = genesis.gen_path
@@ -36,6 +37,14 @@ GEN_CONTAINER_SSH_KEY_PRIVATE = genesis.ssh_key_private
 HOME_DIR = os.path.expanduser('~')
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
+
+
+def rlinput(prompt, prefill=''):
+    readline.set_startup_hook(lambda: readline.insert_text(prefill))
+    try:
+        return raw_input(prompt)
+    finally:
+        readline.set_startup_hook()
 
 
 def main(log, inv_file):
@@ -51,12 +60,12 @@ def main(log, inv_file):
 
     output = subprocess.check_output(['bash', '-c', 'brctl show'])
     if bridge_vlan_mgmt not in output:
-        print('    Management VLAN not found')
+        print('    Management bridge {} not found\n'.format(bridge_vlan_mgmt))
     else:
         print(subprocess.check_output(
             ['bash', '-c', 'brctl show ' + bridge_vlan_mgmt]))
     if bridge_vlan_mgmt_client not in output:
-        print('    Client VLAN not found')
+        print('    Client bridge {} not found\n'.format(bridge_vlan_mgmt_client))
     else:
         print(subprocess.check_output(
             ['bash', '-c', 'brctl show ' + bridge_vlan_mgmt_client]))
@@ -69,39 +78,62 @@ def main(log, inv_file):
         print('    ' + GEN_CONTAINER_NAME + ' container does not exist\n')
 
     if GEN_CONTAINER_RUNNING:
+        ssh_cont = None
+        ssh_log_filename = GEN_PATH + '/gen_ssh.log'
         if os.path.isfile(GEN_CONTAINER_SSH_KEY_PRIVATE):
-            ssh_log_filename = FILE_PATH + '/gen_ssh.log'
-            ssh_cont = SSH_CONNECTION(
-                GEN_CONTAINER_ADDR,
-                log=log,
-                ssh_log=ssh_log_filename,
-                username='deployer',
-                look_for_keys=False,
-                key_filename=GEN_CONTAINER_SSH_KEY_PRIVATE)
-
-            _, cobbler_running, _ = ssh_cont.send_cmd(
-                'ps aux|grep cobbler')
-            if 'root' in cobbler_running:
-                print('cobbler is running')
-                _, cobbler_status, _ = ssh_cont.send_cmd(
-                    'sudo cobbler status')
-                print(cobbler_status)
+            try:
+                ssh_cont = SSH_CONNECTION(
+                    GEN_CONTAINER_ADDR,
+                    log=log,
+                    ssh_log=ssh_log_filename,
+                    username='deployer',
+                    look_for_keys=False,
+                    key_filename=GEN_CONTAINER_SSH_KEY_PRIVATE)
+            except SSH_Exception as exc:
+                print('Failed to SSH to container {} using private key {}'
+                      .format(GEN_CONTAINER_NAME, GEN_CONTAINER_SSH_KEY_PRIVATE))
+                print(exc)
+        if not ssh_cont:
+            PASSWORD = 'ubuntu'
+            print('Trying password "{}"'.format(PASSWORD))
+            while PASSWORD[-1:] != '.':
+                try:
+                    ssh_cont = SSH_CONNECTION(
+                        GEN_CONTAINER_ADDR,
+                        log=log,
+                        ssh_log=ssh_log_filename,
+                        username='deployer',
+                        password=PASSWORD,
+                        look_for_keys=False)
+                    break
+                except SSH_Exception as exc:
+                    print('Failed to SSH to container {} using password {}'
+                          .format(GEN_CONTAINER_NAME, PASSWORD))
+                    print(exc)
+                PASSWORD = rlinput("Enter a password for container (last char = '.' to terminate): ", PASSWORD)
             else:
-                print('cobbler is not running')
+                sys.exit(1)
 
-            _, dnsmasq_running, _ = ssh_cont.send_cmd(
-                'ps aux|grep dnsmasq')
-            if 'root' in dnsmasq_running:
-                print('dnsmasq is running')
-                _, dnsmasq_status, _ = ssh_cont.send_cmd(
-                    'cat /var/lib/misc/dnsmasq.leases')
-                print(dnsmasq_status)
-            else:
-                print('dnsmasq is not running')
-            ssh_cont.close()
+        print()
+        _, cobbler_running, _ = ssh_cont.send_cmd(
+            'ps aux|grep cobbler')
+        if 'root' in cobbler_running:
+            print('cobbler is running')
+            _, cobbler_status, _ = ssh_cont.send_cmd(
+                'sudo cobbler status')
+            print(cobbler_status)
         else:
-            print('\nContainer ssh key not available\n')
-            log.info('Container ssh key not available')
+            print('cobbler is not running')
+        _, dnsmasq_running, _ = ssh_cont.send_cmd(
+            'ps aux|grep dnsmasq')
+        if 'root' in dnsmasq_running:
+            print('dnsmasq is running')
+            _, dnsmasq_status, _ = ssh_cont.send_cmd(
+                'cat /var/lib/misc/dnsmasq.leases')
+            print(dnsmasq_status)
+        else:
+            print('dnsmasq is not running')
+        ssh_cont.close()
     else:
         print('Container not running {}'.format(GEN_CONTAINER_RUNNING))
 

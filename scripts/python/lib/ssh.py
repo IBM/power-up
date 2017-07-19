@@ -28,6 +28,10 @@ from lib.logger import Logger
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
+class SSH_Exception(Exception):
+    pass
+
+
 class SSH(object):
     SWITCH_PORT = 22
     SSH_LOG = FILE_PATH + '_ssh.log'
@@ -59,7 +63,8 @@ class SSH(object):
                 socket.error,
                 BaseException) as exc:
             self.log.error('%s: %s' % (ip_addr, str(exc)))
-            sys.exit(1)
+            raise SSH_Exception('SSH connection Failure - {}'.format(exc))
+            # sys.exit(1)
         try:
             _, stdout, stderr = ssh.exec_command(cmd)
         except paramiko.SSHException as exc:
@@ -118,7 +123,7 @@ class SSH_CONNECTION(paramiko.SSHClient):
                 self.log.error('%s: %s' % (host, str(exc)))
             else:
                 print('%s: %s' % (host, str(exc)))
-            sys.exit(1)
+            raise SSH_Exception('Connection Failure - {}'.format(exc))
 
     def send_cmd(self, cmd):
         try:

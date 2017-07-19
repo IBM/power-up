@@ -25,7 +25,7 @@ import re
 
 genesis_dir = 'cluster-genesis'
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
-home = FILE_PATH[:FILE_PATH.find(genesis_dir)]
+home = os.path.expanduser('~')
 gen_path = FILE_PATH[:16 + FILE_PATH.find(genesis_dir)]
 gen_scripts_path = gen_path + 'scripts'
 gen_play_path = gen_path + 'playbooks'
@@ -62,4 +62,4 @@ if os.path.isfile(gen_path + "playbooks/host_vars/localhost"):
     localhost_content = load_localhost(gen_path + "playbooks/host_vars/localhost")
     container_name = localhost_content['container_name']
     ssh_key_private = localhost_content['ssh_key_private']
-    ssh_key_private = home + '.ssh/' + re.search('.+\.ssh/(.+)', ssh_key_private).group(1)
+    ssh_key_private = home + '/.ssh/' + re.search('.+\.ssh/(.+)', ssh_key_private).group(1)
