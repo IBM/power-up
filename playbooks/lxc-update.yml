@@ -208,12 +208,12 @@
         insertafter: '^ansible_user:*'
 
     - name: "Copy scripts into deployment container"
-      copy:
+      synchronize:
         src: "{{ scripts_path_local }}"
         dest: "{{ project_path }}"
 
     - name: "Copy OS images and configs into deployment container"
-      copy:
+      synchronize:
         src: "{{ images_local }}"
         dest: "{{ project_path }}"
 
