@@ -104,6 +104,14 @@ if [ -d $GEN_PATH ]; then
     fi
 fi
 ##################################################
+if [ -f "/var/oprc/inventory.yml" ]; then
+    read -p "move /var/oprc/inventory.yml to /var/oprc/inventory.ymlbak ? (y/n) " resp
+    if [ $resp == "y" ]; then
+        echo "moving /var/oprc/inventory.yml to /var/oprc/inventory.ymlbak"
+        sudo mv /var/oprc/inventory.yml /var/oprc/inventory.ymlbak
+    fi
+fi
+###################################################
 cmd=""
 read -p "Remove Genesis management ip address from management switch ? (y/n) " resp
 if [ $resp == "y" ]; then
