@@ -1,3 +1,5 @@
+"""Inventory"""
+
 # Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
@@ -19,13 +21,14 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 import os.path
+from collections import namedtuple
+from enum import Enum
 import yaml
 from orderedattrdict.yamlutils import AttrDictYAMLLoader
 from orderedattrdict import AttrDict
-from collections import namedtuple
-from enum import Enum
+import netaddr
 
-from lib.logger import Logger
+from lib.db import Database
 
 NONE = 'None'
 INV_IPADDR_MGMT_NETWORK = 'ipaddr-mgmt-network'
@@ -99,13 +102,32 @@ INV_INFO = 'info'
 INV_CLASS = 'class'
 
 
-class Inventory():
+class Inventory(object):
+    """Inventory
+
+    Args:
+        log (object): Log
+        inv_file (string): Inventory file
+    """
 
     class SwitchClassType(Enum):
         LENOVO, MELLANOX = range(2)
 
     class SwitchType(Enum):
         MGMT, DATA = range(2)
+
+    class InvKey(object):
+        LABEL = 'label'
+        HOSTNAME = 'hostname'
+        USERID = 'userid'
+        PASSWORD = 'password'
+        SSH_KEY = 'ssh_key'
+        ROOM = 'room'
+        ROW = 'row'
+        CELL = 'cell'
+        IPADDR = 'ipaddr'
+        PORT = 'port'
+        TYPE = 'type'
 
     INV_CHASSIS_PART_NUMBER = 'chassis-part-number'
     INV_CHASSIS_SERIAL_NUMBER = 'chassis-serial-number'
@@ -117,12 +139,886 @@ class Inventory():
     INV_ARCHITECTURE = 'architecture'
 
     def __init__(self, log, inv_file):
-        self.log = Logger(__file__)
+        self.log = log
         self.inv_file = os.path.abspath(
             os.path.dirname(os.path.abspath(inv_file)) +
             os.path.sep +
             os.path.basename(inv_file))
         self.inv = self._load_inv_file()
+        self.switch = None
+        self.switch_type = None
+
+        dbase = Database(self.log, os.path.abspath('../../cluster-genesis/config-v2.yml'))
+        self.inv_v2 = dbase.load_inventory()
+
+    @staticmethod
+    def _netmask_to_prefix(netmask):
+        """Convert Netmask to Prefix
+        Args:
+            netmask (str): Netmask
+
+        Returns:
+            int: Prefix
+        """
+
+        return netaddr.IPAddress(netmask).netmask_bits()
+
+    @staticmethod
+    def _prefix_to_netmask(prefix):
+        """Convert Prefix to Netmask
+        Args:
+            prefix (int): Prefix
+
+        Returns:
+            str: Netmask
+        """
+
+        return str(netaddr.IPNetwork('255.255.255.255/' + str(prefix)).netmask)
+
+    @staticmethod
+    def _get_members(obj_list, key, index):
+        """Get dictionary value under a list
+        Args:
+            obj_list (list): Object list
+            key (dict key): Dictionary key
+            index (int): Index
+
+        Returns:
+            list or obj: Members or member
+        """
+
+        if index is None:
+            list_ = []
+            for member in obj_list:
+                list_.append(getattr(member, key))
+            return list_
+        return getattr(obj_list[index], key)
+
+    def get_version(self):
+        """Get version
+        Returns:
+            str: Config file version
+        """
+
+        return self.inv_v2.version
+
+    def get_loc_time_zone(self):
+        """Get location time_zone
+        Returns:
+            str: Time zone
+        """
+
+        return self.inv_v2.location.time_zone
+
+    def get_loc_data_center(self):
+        """Get location data_center
+        Returns:
+            str: Data center
+        """
+
+        return self.inv_v2.location.data_center
+
+    def get_loc_racks_cnt(self):
+        """Get location racks count
+        Returns:
+            int: Racks count
+        """
+
+        return len(self.inv_v2.location.racks)
+
+    def get_loc_racks_label(self, index=None):
+        """Get location racks label
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Label member or list
+        """
+
+        return self._get_members(self.inv_v2.location.racks, self.InvKey.LABEL, index)
+
+    def get_loc_racks_room(self, index=None):
+        """Get location racks room
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Room member or list
+        """
+
+        return self._get_members(self.inv_v2.location.racks, self.InvKey.ROOM, index)
+
+    def get_loc_racks_row(self, index=None):
+        """Get location racks row
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Row member or list
+        """
+
+        return self._get_members(self.inv_v2.location.racks, self.InvKey.ROW, index)
+
+    def get_loc_racks_cell(self, index=None):
+        """Get location racks cell
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Cell member or list
+        """
+
+        return self._get_members(self.inv_v2.location.racks, self.InvKey.CELL, index)
+
+    def get_depl_log_level(self):
+        """Get deployer log_level
+        Returns:
+            str: Log level
+        """
+
+        return self.inv_v2.deployer.log_level
+
+    def get_depl_netw_mgmt_cont_ip(self):
+        """Get deployer networks mgmt container_ipaddr
+        Returns:
+            str: Container IP address
+        """
+
+        return self.inv_v2.deployer.networks.mgmt.container_ipaddr
+
+    def get_depl_netw_mgmt_brg_ip(self):
+        """Get deployer networks mgmt bridge_ipaddr
+        Returns:
+            str: Bridge IP address
+        """
+
+        return self.inv_v2.deployer.networks.mgmt.bridge_ipaddr
+
+    def get_depl_netw_mgmt_netmask(self):
+        """Get deployer networks mgmt netmask
+        Returns:
+            str: Netmask
+        """
+
+        try:
+            return self.inv_v2.deployer.networks.mgmt.netmask
+        except AttributeError:
+            return self._prefix_to_netmask(self.inv_v2.deployer.networks.mgmt.prefix)
+
+    def get_depl_netw_mgmt_prefix(self):
+        """Get deployer networks mgmt prefix
+        Returns:
+            int: Prefix
+        """
+
+        try:
+            return self.inv_v2.deployer.networks.mgmt.prefix
+        except AttributeError:
+            return self._netmask_to_prefix(self.inv_v2.deployer.networks.mgmt.netmask)
+
+    def get_depl_netw_mgmt_vlan(self):
+        """Get deployer networks mgmt vlan
+        Returns:
+            int: VLAN
+        """
+
+        return self.inv_v2.deployer.networks.mgmt.vlan
+
+    def get_depl_netw_ext_dev_label(self):
+        """Get deployer networks external dev_label
+        Returns:
+            str: Device label
+        """
+
+        return self.inv_v2.deployer.networks.external.dev_label
+
+    def get_depl_netw_ext_dev_ip(self):
+        """Get deployer networks external dev_ipaddr
+        Returns:
+            str: Device IP address
+        """
+
+        return self.inv_v2.deployer.networks.external.dev_ipaddr
+
+    def get_depl_netw_ext_netmask(self):
+        """Get deployer networks external netmask
+        Returns:
+            str: Netmask
+        """
+
+        try:
+            return self.inv_v2.deployer.networks.external.netmask
+        except AttributeError:
+            return self._prefix_to_netmask(self.inv_v2.deployer.networks.external.prefix)
+
+    def get_depl_netw_ext_prefix(self):
+        """Get deployer networks external prefix
+        Returns:
+            int: Prefix
+        """
+
+        try:
+            return self.inv_v2.deployer.networks.external.prefix
+        except AttributeError:
+            return self._netmask_to_prefix(self.inv_v2.deployer.networks.external.netmask)
+
+    def get_depl_netw_client_cont_ip(self):
+        """Get deployer networks client container_ipaddr
+        Returns:
+            str: Container IP address
+        """
+
+        return self.inv_v2.deployer.networks.client.container_ipaddr
+
+    def get_depl_netw_client_brg_ip(self):
+        """Get deployer networks client bridge_ipaddr
+        Returns:
+            str: Bridge IP address
+        """
+
+        return self.inv_v2.deployer.networks.client.bridge_ipaddr
+
+    def get_depl_netw_client_netmask(self):
+        """Get deployer networks client netmask
+        Returns:
+            str: Netmask
+        """
+
+        try:
+            return self.inv_v2.deployer.networks.client.netmask
+        except AttributeError:
+            return self._prefix_to_netmask(self.inv_v2.deployer.networks.client.prefix)
+
+    def get_depl_netw_client_prefix(self):
+        """Get deployer networks client prefix
+        Returns:
+            int: Prefix
+        """
+
+        try:
+            return self.inv_v2.deployer.networks.client.prefix
+        except AttributeError:
+            return self._netmask_to_prefix(self.inv_v2.deployer.networks.client.netmask)
+
+    def get_depl_netw_client_vlan(self):
+        """Get deployer networks client vlan
+        Returns:
+            int: VLAN
+        """
+
+        return self.inv_v2.deployer.networks.client.vlan
+
+    def get_sw_mgmt_cnt(self):
+        """Get switches mgmt count
+        Returns:
+            int: Management switch count
+        """
+
+        return len(self.inv_v2.switches.mgmt)
+
+    def get_sw_mgmt_label(self, index=None):
+        """Get switches mgmt label
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Label member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.mgmt, self.InvKey.LABEL, index)
+
+    def yield_sw_mgmt_label(self):
+        """Yield switches mgmt label
+        Returns:
+            iter of str: Label
+        """
+
+        for member in self.get_sw_mgmt_label():
+            yield member
+
+    def get_sw_mgmt_hostname(self, index=None):
+        """Get switches mgmt hostname
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Hostname member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.mgmt, self.InvKey.HOSTNAME, index)
+
+    def yield_sw_mgmt_hostname(self):
+        """Yield switches mgmt hostname
+        Returns:
+            iter of str: Hostname
+        """
+
+        for member in self.get_sw_mgmt_hostname():
+            yield member
+
+    def get_sw_mgmt_userid(self, index=None):
+        """Get switches mgmt userid
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Userid member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.mgmt, self.InvKey.USERID, index)
+
+    def yield_sw_mgmt_userid(self):
+        """Yield switches mgmt userid
+        Returns:
+            iter of str: Userid
+        """
+
+        for member in self.get_sw_mgmt_userid():
+            yield member
+
+    def get_sw_mgmt_password(self, index=None):
+        """Get switches mgmt password
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Password member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.mgmt, self.InvKey.PASSWORD, index)
+
+    def yield_sw_mgmt_password(self):
+        """Yield switches mgmt password
+        Returns:
+            iter of str: Password
+        """
+
+        for member in self.get_sw_mgmt_password():
+            yield member
+
+    def get_sw_mgmt_ssh_key(self, index=None):
+        """Get switches mgmt ssh_key
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: SSH key member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.mgmt, self.InvKey.SSH_KEY, index)
+
+    def yield_sw_mgmt_ssh_key(self):
+        """Yield switches mgmt ssh_key
+        Returns:
+            iter of str: SSH key
+        """
+
+        for member in self.get_sw_mgmt_ssh_key():
+            yield member
+
+    def get_sw_mgmt_ibintf_cnt(self, switch_index):
+        """Get switches mgmt inband_interfaces ipaddr count
+        Args:
+            switch_index (int): Management switch index
+
+        Returns:
+            int: Management switch inband interface count
+        """
+
+        return len(self.inv_v2.switches.mgmt[switch_index].inband_interfaces)
+
+    def get_sw_mgmt_ibintf_ip(self, switch_index, index=None):
+        """Get switches mgmt inband_interfaces ipaddr
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: IP address member or list
+        """
+        return self._get_members(self.inv_v2.switches.mgmt[switch_index].inband_interfaces, self.InvKey.IPADDR, index)
+
+    def yield_sw_mgmt_ibintf_ip(self, switch_index):
+        """Yield switches mgmt inband_interfaces ipaddr
+        Args:
+            switch_index (int): Management switch index
+
+        Returns:
+            iter of str: IP address
+        """
+
+        for member in self.get_sw_mgmt_ibintf_ip(switch_index):
+            yield member
+
+    def get_sw_mgmt_ibintf_port(self, switch_index, index=None):
+        """Get switches mgmt inband_interfaces ports
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            int or list of int: Port member or list
+        """
+        return self._get_members(self.inv_v2.switches.mgmt[switch_index].inband_interfaces, self.InvKey.PORT, index)
+
+    def yield_sw_mgmt_ibintf_port(self, switch_index):
+        """Yield switches mgmt inband_interfaces ports
+        Args:
+            switch_index (int): Management switch index
+
+        Returns:
+            iter of int: Port
+        """
+
+        for member in self.get_sw_mgmt_ibintf_port(switch_index):
+            yield member
+
+    def get_sw_data_cnt(self):
+        """Get switches data count
+        Returns:
+            int: Data switch count
+        """
+
+        return len(self.inv_v2.switches.data)
+
+    def get_sw_data_label(self, index=None):
+        """Get switches data label
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Label member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.data, self.InvKey.LABEL, index)
+
+    def yield_sw_data_label(self):
+        """Yield switches data label
+        Returns:
+            iter of str: Label
+        """
+
+        for member in self.get_sw_data_label():
+            yield member
+
+    def get_sw_data_hostname(self, index=None):
+        """Get switches data hostname
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Hostname member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.data, self.InvKey.HOSTNAME, index)
+
+    def yield_sw_data_hostname(self):
+        """Yield switches data hostname
+        Returns:
+            iter of str: Hostname
+        """
+
+        for member in self.get_sw_data_hostname():
+            yield member
+
+    def get_sw_data_userid(self, index=None):
+        """Get switches data userid
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Userid member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.data, self.InvKey.USERID, index)
+
+    def yield_sw_data_userid(self):
+        """Yield switches data userid
+        Returns:
+            iter of str: Userid
+        """
+
+        for member in self.get_sw_data_userid():
+            yield member
+
+    def get_sw_data_password(self, index=None):
+        """Get switches data password
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Password member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.data, self.InvKey.PASSWORD, index)
+
+    def yield_sw_data_password(self):
+        """Yield switches data password
+        Returns:
+            iter of str: Password
+        """
+
+        for member in self.get_sw_data_password():
+            yield member
+
+    def get_sw_data_ssh_key(self, index=None):
+        """Get switches data ssh_key
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: SSH key member or list
+        """
+
+        return self._get_members(self.inv_v2.switches.data, self.InvKey.SSH_KEY, index)
+
+    def yield_sw_data_ssh_key(self):
+        """Yield switches data ssh_key
+        Returns:
+            iter of str: SSH key
+        """
+
+        for member in self.get_sw_data_ssh_key():
+            yield member
+
+    def get_ntmpl_cnt(self):
+        """Get node_templates count
+        Returns:
+            int: Node template count
+        """
+
+        return len(self.inv_v2.node_templates)
+
+    def get_ntmpl_type(self, index=None):
+        """Get node_templates type
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Type member or list
+        """
+
+        return self._get_members(self.inv_v2.node_templates, self.InvKey.TYPE, index)
+
+    def yield_ntmpl_type(self):
+        """Yield node_templates type
+        Returns:
+            iter of str: Type
+        """
+
+        for member in self.get_ntmpl_type():
+            yield member
+
+    def get_ntmpl_ipmi_userid(self, index=None):
+        """Get node_templates ipmi userid
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: IPMI userid member or list
+        """
+        if index is None:
+            list_ = []
+            for member in self.inv_v2.node_templates:
+                list_.append(member.ipmi.userid)
+            return list_
+        return self.inv_v2.node_templates[index].ipmi.userid
+
+    def yield_ntmpl_ipmi_userid(self):
+        """Yield node_templates ipmi userid
+        Returns:
+            iter of str: IPMI userid
+        """
+
+        for member in self.get_ntmpl_ipmi_userid():
+            yield member
+
+    def get_ntmpl_ipmi_password(self, index=None):
+        """Get node_templates ipmi password
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: IPMI password member or list
+        """
+        if index is None:
+            list_ = []
+            for member in self.inv_v2.node_templates:
+                list_.append(member.ipmi.password)
+            return list_
+        return self.inv_v2.node_templates[index].ipmi.password
+
+    def yield_ntmpl_ipmi_password(self):
+        """Yield node_templates ipmi password
+        Returns:
+            iter of str: IPMI password
+        """
+
+        for member in self.get_ntmpl_ipmi_password():
+            yield member
+
+    def get_ntmpl_os_hostname_prefix(self, index=None):
+        """Get node_templates os hostname_prefix
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Hostname prefix member or list
+        """
+        if index is None:
+            list_ = []
+            for member in self.inv_v2.node_templates:
+                list_.append(member.os.hostname_prefix)
+            return list_
+        return self.inv_v2.node_templates[index].os.hostname_prefix
+
+    def yield_ntmpl_os_hostname_prefix(self):
+        """Yield node_templates os hostname_prefix
+        Returns:
+            iter of str: Hostname prefix
+        """
+
+        for member in self.get_ntmpl_os_hostname_prefix():
+            yield member
+
+    def get_ntmpl_os_profile(self, index=None):
+        """Get node_templates os profile
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: OS profile member or list
+        """
+        if index is None:
+            list_ = []
+            for member in self.inv_v2.node_templates:
+                list_.append(member.os.profile)
+            return list_
+        return self.inv_v2.node_templates[index].os.profile
+
+    def yield_ntmpl_os_profile(self):
+        """Yield node_templates os profile
+        Returns:
+            iter of str: OS profile
+        """
+
+        for member in self.get_ntmpl_os_profile():
+            yield member
+
+    def get_ntmpl_roles_cnt(self, node_template_index):
+        """Get node_templates roles count
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: Role count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].roles)
+
+    def get_ntmpl_roles(self, node_template_index, index=None):
+        """Get node_templates roles
+        Args:
+            node_template_index (int): Node template index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Role member or list
+        """
+
+        if index is None:
+            return self.inv_v2.node_templates[node_template_index].roles
+        return self.inv_v2.node_templates[node_template_index].roles[index]
+
+    def yield_ntmpl_roles(self, node_template_index):
+        """Yield node_templates roles
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            iter of str: Role
+        """
+
+        for member in self.get_ntmpl_roles(node_template_index):
+            yield member
+
+    def get_ntmpl_netw_cnt(self, node_template_index):
+        """Get node_templates networks count
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: Network count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].networks)
+
+    def get_ntmpl_netw(self, node_template_index, index=None):
+        """Get node_templates networks
+        Args:
+            node_template_index (int): Node template index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Network member or list
+        """
+
+        if index is None:
+            return self.inv_v2.node_templates[node_template_index].networks
+        return self.inv_v2.node_templates[node_template_index].networks[index]
+
+    def yield_ntmpl_netw(self, node_template_index):
+        """Yield node_templates networks
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            iter of str: Network
+        """
+
+        for member in self.get_ntmpl_netw(node_template_index):
+            yield member
+
+    def get_ntmpl_intf_cnt(self, node_template_index):
+        """Get node_templates interfaces count
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: Interface count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].interfaces)
+
+    def get_ntmpl_intf(self, node_template_index, index=None):
+        """Get node_templates interfaces
+        Args:
+            node_template_index (int): Node template index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Interface member or list
+        """
+
+        if index is None:
+            return self.inv_v2.node_templates[node_template_index].interfaces
+        return self.inv_v2.node_templates[node_template_index].interfaces[index]
+
+    def yield_ntmpl_intf(self, node_template_index):
+        """Yield node_templates interfaces
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            iter of str: Interface
+        """
+
+        for member in self.get_ntmpl_intf(node_template_index):
+            yield member
+
+    def get_ntmpl_phyintf_ipmi_cnt(self, node_template_index):
+        """Get node_templates physical_interfaces ipmi count
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: IPMI count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].physical_interfaces.ipmi)
+
+    def get_ntmpl_phyintf_ipmi_pt_cnt(self, node_template_index, ipmi_index):
+        """Get node template physical interface IPMI ports count
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: IPMI port count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].physical_interfaces.ipmi[ipmi_index].ports)
+
+    def get_ntmpl_phyintf_ipmi_ports(self, node_template_index, ipmi_index, index=None):
+        """Get node_templates physical_interfaces ipmi ports
+        Args:
+            node_template_index (int): Node template index
+            ipmi_index (int): IPMI index
+            index (int, optional): List index
+
+        Returns:
+            int or list of int: IPMI port member or list
+        """
+
+        if index is None:
+            return self.inv_v2.node_templates[node_template_index].physical_interfaces.ipmi[ipmi_index].ports
+        return self.inv_v2.node_templates[node_template_index].physical_interfaces.ipmi[ipmi_index].ports[index]
+
+    def yield_ntmpl_phyintf_ipmi_ports(self, node_template_index, ipmi_index):
+        """Yield node_templates physical_interfaces ipmi ports
+        Args:
+            node_template_index (int): Node template index
+            ipmi_index (int): IPMI index
+
+        Returns:
+            iter of int: IPMI port
+        """
+
+        for member in self.get_ntmpl_phyintf_ipmi_ports(node_template_index, ipmi_index):
+            yield member
+
+    def get_ntmpl_phyintf_pxe_cnt(self, node_template_index):
+        """
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: PXE count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].physical_interfaces.pxe)
+
+    def get_ntmpl_phyintf_pxe_pt_cnt(self, node_template_index, pxe_index):
+        """
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: PXE port count
+        """
+
+        return len(self.inv_v2.node_templates[node_template_index].physical_interfaces.pxe[pxe_index].ports)
+
+    def get_ntmpl_phyintf_pxe_ports(self, node_template_index, pxe_index, index=None):
+        """Get node_templates physical_interfaces pxe ports
+        Args:
+            node_template_index (int): Node template index
+            pxe_index (int): PXE index
+            index (int, optional): List index
+
+        Returns:
+            int or list of int: PXE port member or list
+        """
+
+        if index is None:
+            return self.inv_v2.node_templates[node_template_index].physical_interfaces.pxe[pxe_index].ports
+        return self.inv_v2.node_templates[node_template_index].physical_interfaces.pxe[pxe_index].ports[index]
+
+    def yield_ntmpl_phyintf_pxe_ports(self, node_template_index, pxe_index):
+        """Yield node_templates physical_interfaces pxe ports
+        Args:
+            node_template_index (int): Node template index
+            pxe_index (int): PXE index
+
+        Returns:
+            iter of int: PXE port
+        """
+
+        for member in self.get_ntmpl_phyintf_pxe_ports(node_template_index, pxe_index):
+            yield member
+
+    #
+    # /begin delete for config v2.0
+    #
 
     def _load_inv_file(self):
         try:
@@ -795,3 +1691,7 @@ class Inventory():
                 self.inv[INV_USERID_DATA_SWITCH] is not None):
             return False
         return True
+
+    #
+    # /end delete for config v2.0
+    #
