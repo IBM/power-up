@@ -31,10 +31,11 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 class SwitchCommon(object):
     ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
     SHOW_VLANS = 'show vlan'
-    CREATE_VLAN = 'vlan %d'
-    DELETE_VLAN = 'no vlan %d'
+    CREATE_VLAN = 'vlan {}'
+    DELETE_VLAN = 'no vlan {}'
     CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table'
     SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table'
+    SHOW_INTERFACE = 'show interface ip {}'
 
     def __init__(self, log, host=None, userid=None, password=None, mode=None, outfile=None):
         pass
@@ -48,39 +49,39 @@ class SwitchCommon(object):
     def create_vlan(self, vlan):
         if self.mode == 'passive':
             return
-        self.send_cmd(self.CREATE_VLAN % (vlan))
+        self.send_cmd(self.CREATE_VLAN.format(vlan))
         if self.is_vlan_created(vlan):
             self.log.info(
-                'Created management client VLAN %s' %
-                (vlan))
+                'Created VLAN {}'.format(vlan))
         else:
             raise SwitchException(
-                'Failed creating management client VLAN %s' %
-                (vlan))
+                'Failed creating VLAN {}'.format(vlan))
 
     def delete_vlan(self, vlan):
         if self.mode == 'passive':
             return
-        self.send_cmd(self.DELETE_VLAN % (vlan))
+        self.send_cmd(self.DELETE_VLAN.format(vlan))
         if self.is_vlan_created(vlan):
             self.log.warning(
-                'Failed deleting VLAN %s' %
-                (vlan))
+                'Failed deleting VLAN {}'.format(vlan))
             raise SwitchException(
-                'Failed deleting VLAN %s' %
-                (vlan))
-        self.log.info('vlan %d deleted.' % vlan)
+                'Failed deleting VLAN {}'.format(vlan))
+        self.log.info('vlan {} deleted.'.format(vlan))
         return
 
     def is_vlan_created(self, vlan):
         if self.mode == 'passive':
             return None
         if re.search(
-                '^' + str(vlan),
+                r'^' + str(vlan),
                 self.send_cmd(self.SHOW_VLANS),
                 re.MULTILINE):
             return True
         return False
+
+    def show_interfaces(self, vlan=''):
+        ifc_info = self.send_cmd(self.SHOW_INTERFACE.format(vlan))
+        return ifc_info
 
     def show_mac_address_table(self, format=False):
         """Get switch mac address table.
@@ -123,12 +124,16 @@ class SwitchCommon(object):
         self.send_cmd(self.CLEAR_MAC_ADDRESS_TABLE)
 
     def is_pingable(self):
-        if self.mode == 'passive':
-            return None
-        output = subprocess.check_output(['bash', '-c', 'ping -c2 -i.5 ' + self.host])
-        if '0% packet loss' in output:
-            return True
-        else:
+        try:
+            if self.mode == 'passive':
+                return None
+            output = subprocess.check_output(['bash', '-c', 'ping -c2 -i.5 ' + self.host])
+            if '0% packet loss' in output:
+                return True
+            else:
+                return False
+        except subprocess.CalledProcessError as exc:
+            self.log.error('Unable to ping switch.  {}'.format(exc))
             return False
 
     def send_cmd(self, cmd):
