@@ -18,14 +18,24 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
 import re
+import readline
+import yaml
+import sys
 
 from lib.logger import Logger
 from lib.switch import SwitchFactory
 from lib.switch_exception import SwitchException
 from lib.switch_common import SwitchCommon
-from lib.genesis import gen_passive_path
+from lib.genesis import gen_passive_path, gen_path
+
+
+def rlinput(prompt, prefill=''):
+    readline.set_startup_hook(lambda: readline.insert_text(prefill))
+    try:
+        return raw_input(prompt)
+    finally:
+        readline.set_startup_hook()
 
 
 def _get_available_interface(interfaces):
@@ -86,6 +96,249 @@ empty = (
 
 
 def main(log):
+    """Can be called from the command line with 0 arguments.
+
+    Args:
+        log:
+        cfg: Dictionary of configuration values
+    """
+    _class = rlinput('\nEnter switch class: ', 'lenovo')
+    cfg_file_path = gen_path + 'scripts/python/switch-test-cfg-{}.yml'
+    try:
+        cfg = yaml.load(open(cfg_file_path.format(_class)))
+    except:
+        print('Could not load file: ' + cfg_file_path.format(_class))
+        print('Using default config file')
+        try:
+            cfg = yaml.load(open(cfg_file_path.format('')))
+        except:
+            print('Could not load file: ' + cfg_file_path.format(''))
+            sys.xit(1)
+    test = cfg['test']
+    host = cfg['host']
+    vlan = cfg['vlan']
+    vlans = cfg['vlans']
+    ifc_addr = cfg['ifc_addr']
+    ifc_netmask = cfg['ifc_netmask']
+    port = cfg['port']
+    switchport_mode = cfg['switchport_mode']
+
+    host = rlinput('Enter host address: ', host)
+    cfg['host'] = host
+
+    try:
+        with open(__file__, 'r') as f:
+            text = f.read()
+    except IOError as error:
+        print('Unable to open file {}'.format(__file__))
+        print(error)
+        sys.exit(0)
+    sw = SwitchFactory.factory(log, _class, host, 'admin', 'admin', mode='active')
+    test = 1
+
+    while test != 0:
+        _text = text
+        print('\nAvailable tests')
+        _text = _text.split('# Test')
+        for line in _text:
+            match = re.search(r'if (\d+) == test', line)
+            if match:
+                print(match.group(1) + ' - ' + line.splitlines()[0])
+        test = int(rlinput('\nEnter a test to run: ', str(test)))
+        cfg['test'] = test
+
+        # Test Is switch pingable
+        if 1 == test:
+            print('\nTesting if switch is pingable')
+            pingable = sw.is_pingable()
+            if not pingable:
+                print('Can not communicate with switch.  Exiting.')
+            else:
+                print('Switch {} is pingable: {} '.format(host, pingable))
+
+        # Test create an in-band management interface
+        if 2 == test:
+            print('\nTesting in-band interface creation')
+            vlan = int(rlinput('Enter interface vlan: ', str(vlan)))
+            cfg['vlan'] = vlan
+            ifc_addr = rlinput('Enter interface address: ', ifc_addr)
+            cfg['ifc_addr'] = ifc_addr
+            ifc_netmask = rlinput('Enter interface netmask: ', ifc_netmask)
+            cfg['ifc_netmask'] = ifc_netmask
+            try:
+                sw.configure_interface(ifc_addr, ifc_netmask, vlan)
+                print('Created interface vlan {}'.format(vlan))
+            except SwitchException as exc:
+                print (exc)
+
+        # Test remove interface
+        if 3 == test:
+            print('Testing remove interface')
+            vlan = int(rlinput('Enter interface vlan: ', str(vlan)))
+            cfg['vlan'] = vlan
+            ifc_addr = rlinput('Enter interface address: ', ifc_addr)
+            cfg['ifc_addr'] = ifc_addr
+            ifc_netmask = rlinput('Enter interface netmask: ', ifc_netmask)
+            cfg['ifc_netmask'] = ifc_netmask
+            try:
+                sw.remove_interface(vlan, ifc_addr, ifc_netmask)
+                print('Removed interface vlan {}'.format(vlan))
+            except SwitchException as exc:
+                print(exc)
+
+        # Test show in-band interfaces
+        if 4 == test:
+            print('\nTesting show in-band interfaces')
+            ifc = rlinput('Enter interface or vlan (leave blank to show all): ', '')
+            format = rlinput('Enter format ("std" or leave blank ): ', 'std')
+            if format == '':
+                format = None
+            ifcs = sw.show_interfaces(ifc, format=format)
+            if format is None:
+                print(ifcs)
+            else:
+                for ifc in ifcs:
+                    print(ifc)
+
+        # Test show mac address table
+        if 5 == test:
+            print('Test show mac address table: ')
+            format = rlinput('Enter desired return format (std, dict or raw): ', 'std')
+            macs = sw.show_mac_address_table(format=format)
+            if format == 'raw':
+                print(macs)
+            elif format == 'dict' or format == 'std':
+                print_dict(macs)
+
+        # Test show vlans
+        if 6 == test:
+            print(sw.show_vlans())
+
+        # Test create vlan
+        if 7 == test:
+            print('\nTest create vlan')
+            vlan = int(rlinput('Enter vlan: ', str(vlan)))
+            cfg['vlan'] = vlan
+            try:
+                sw.create_vlan(vlan)
+                print('Created vlan {}'.format(vlan))
+            except SwitchException as exc:
+                print(exc)
+
+        # Test delete vlan
+        if 8 == test:
+            print('\nTest deleting vlan')
+            vlan = int(rlinput('Enter vlan: ', str(vlan)))
+            cfg['vlan'] = vlan
+            try:
+                sw.delete_vlan(vlan)
+                print('Deleted vlan {}'.format(vlan))
+            except SwitchException as exc:
+                print(exc)
+
+        # Test is port in trunk mode
+        if 9 == test:
+            print('\nTesting is port in trunk mode')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            print(sw.is_port_in_trunk_mode(port))
+
+        # Test is port in access mode
+        if 10 == test:
+            print('\nTesting is port in access mode')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            print(sw.is_port_in_access_mode(port))
+
+        # Test set switchport mode
+        if 11 == test:
+            print('\nTesting set switchport mode')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            vlan = rlinput('Enter vlan (blank for None): ', str(vlan))
+            if vlan == '':
+                vlan = None
+            else:
+                cfg['vlan'] = int(vlan)
+            switchport_mode = rlinput('Enter switchport mode: ', switchport_mode)
+            cfg['switchport_mode'] = switchport_mode
+            try:
+                sw.set_switchport_mode(switchport_mode, port, vlan)
+                print('Set switchport mode to ' + switchport_mode)
+            except SwitchException as exc:
+                print(exc)
+
+        # Test add vlans to port
+        if 12 == test:
+            print('\nTesting add vlans to port')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            vlans = rlinput('Enter vlan list: ', vlans)
+            cfg['vlans'] = vlans
+            try:
+                sw.add_vlans_to_port(port, vlans)
+            except SwitchException as exc:
+                print(exc)
+
+        # Test remove vlans from port
+        if 13 == test:
+            print('\nTesting remove vlans from port')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            vlans = rlinput('Enter vlan list: ', vlans)
+            cfg['vlans'] = vlans
+            try:
+                sw.remove_vlans_from_port(port, vlans)
+            except SwitchException as exc:
+                print(exc)
+
+        # Test is vlan allowed for port
+        if 14 == test:
+            print('\nTesting is vlan allowed for port')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            vlan = int(rlinput('Enter vlan: ', str(vlan)))
+            cfg['vlan'] = vlan
+            print(sw.is_vlan_allowed_for_port(vlan, port))
+
+        # Test show ports
+        if 15 == test:
+            print('\nTesting show ports')
+            format = rlinput('Enter format ("std" or leave blank ): ', 'std')
+            if format == '':
+                format = None
+            ports = sw.show_ports(format=format)
+            if format is None:
+                print(ports)
+            else:
+                print_dict(ports)
+
+        # Test show native vlan
+        if 16 == test:
+            print('\nTesting show native vlan')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            print('Native vlan: {}'.format(sw.show_native_vlan(port)))
+
+        # Test set native vlan
+        if 17 == test:
+            print('\nSet native vlan')
+            port = int(rlinput('Enter port #: ', str(port)))
+            cfg['port'] = port
+            vlan = rlinput('Enter vlan #: ', vlan)
+            cfg['vlan'] = vlan
+            try:
+                sw.set_switchport_native_vlan(vlan, port)
+                print('Set native vlan succesful')
+            except SwitchException as exc:
+                print(exc)
+
+        yaml.dump(cfg, open(cfg_file_path.format(_class), 'w'), default_flow_style=False)
+        _ = rlinput('\nPress enter to continue, 0 to end ', '')
+        if _ == '0':
+            test = 0
+    sys.exit(0)
+
     print('Test the get_mac_dict static method in SwitchCommon')
     mac_dict = SwitchCommon.get_mac_dict(mellanox)
     print_dict(mac_dict)
@@ -117,6 +370,10 @@ def main(log):
     mac_dict = sw2.show_mac_address_table(format='std')
     print_dict(mac_dict)
 
+    sw2 = SwitchFactory.factory(log, 'lenovo', host=filepath, mode='passive')
+    mac_dict = sw2.show_mac_address_table(format='std')
+    print_dict(mac_dict)
+
     # Test create and delete vlan
     print(sw.show_vlans())
     vlan_num = 999
@@ -141,7 +398,7 @@ def main(log):
 
 #    if '55: ' in ifc_info:
 #        print('Interface 55 already in use')
-#        exit(1)
+#        sys.exit(1)
 #    print('Configure mgmt interface 55: ')
 #    try:
 #        sw.configure_interface('192.168.17.17', '255.255.255.0', vlan=17, intf=55)
@@ -167,7 +424,7 @@ def main(log):
     # Test add vlan to port
     print('Is vlan 16 "allowed" for port 18": ' + str(sw.is_vlan_allowed_for_port(16, 18)))
 
-    exit(0)
+    sys.exit(0)
 
     sw2 = SwitchFactory.factory(log, 'mellanox', '192.168.16.25', 'admin', 'admin')
     vlan_info = sw2.show_vlans()
@@ -183,23 +440,15 @@ if __name__ == '__main__':
     """Show status of the Cluster Genesis environment
 
     Args:
-        INV_FILE (string): Inventory file.
-        LOG_LEVEL (string): Log level.
+        tests (string): string of tests to run. ex 245 will run tests 2,4
+        and 5.  99 will run all tests.
+        _class (string): switch class.  ie lenovo
+        host (string): switch address. ie 192.168.32.20
 
     Raises:
        Exception: If parameter count is invalid.
     """
 
     LOG = Logger(__file__)
-    ARGV_MAX = 3
-    ARGV_COUNT = len(sys.argv)
-    if ARGV_COUNT > ARGV_MAX:
-        try:
-            raise Exception()
-        except:
-            LOG.error('Invalid argument count')
-            sys.exit(1)
-
     LOG.set_level('INFO')
-
     main(LOG)

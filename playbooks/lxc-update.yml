@@ -148,6 +148,7 @@
         - python-dev
         - libffi-dev
         - libssl-dev
+        - python-netaddr
         - python-pysnmp4
         - ipmitool
         - git

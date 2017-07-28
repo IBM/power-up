@@ -1,0 +1,8 @@
+host: 192.168.16.25
+ifc_addr: 192.168.36.20
+ifc_netmask: 255.255.255.0
+port: 23
+switchport_mode: access
+test: 6
+vlan: 20
+vlans: 20 21

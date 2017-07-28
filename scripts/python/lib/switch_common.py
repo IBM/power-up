@@ -31,12 +31,40 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 class SwitchCommon(object):
     ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
     SHOW_VLANS = 'show vlan'
-    CREATE_VLAN = 'vlan %d'
-    DELETE_VLAN = 'no vlan %d'
+    CREATE_VLAN = 'vlan {}'
+    DELETE_VLAN = 'no vlan {}'
+    SET_NATIVE_VLAN = ('interface port {};switchport access vlan {}')
     CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table'
     SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table'
+    SET_SWITCHPORT_MODE_TRUNK = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport mode trunk'
+        ';switchport trunk allowed vlan none'
+        ';exit'
+        ';prompting')
+    SET_NATIVE_VLAN_TRUNK = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport trunk allowed vlan add {}'
+        ';switchport trunk native vlan {}'
+        ';exit'
+        ';prompting')
+    SET_SWITCHPORT_MODE_ACCESS = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport mode access'
+        ';exit'
+        ';prompting')
+    SET_NATIVE_VLAN_ACCESS = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport access vlan {}'
+        ';exit'
+        ';prompting')
 
-    def __init__(self, log, host=None, userid=None, password=None, mode=None, outfile=None):
+    def __init__(self, log, host=None, userid=None,
+                 password=None, mode=None, outfile=None):
         pass
 
     def show_vlans(self):
@@ -45,38 +73,137 @@ class SwitchCommon(object):
         vlan_info = self.send_cmd(self.SHOW_VLANS)
         return vlan_info
 
+    def set_switchport_native_vlan(self, vlan, port):
+        vlan = str(vlan)
+        ports = self.show_ports(format='std')
+        if ports[str(port)]['mode'] == 'access':
+            self.send_cmd(self.SET_NATIVE_VLAN_ACCESS.format(port, vlan))
+        if ports[str(port)]['mode'] == 'trunk':
+            self.send_cmd(self.SET_NATIVE_VLAN_TRUNK.format(port, vlan, vlan))
+        if self.mode == 'passive':
+            return
+        if vlan == self.show_native_vlan(port):
+            self.log.info(
+                'Set native VLAN to {} for access port {}'.format(vlan, port))
+        else:
+            raise SwitchException(
+                'Failed adding management VLAN {} to access port {}'.format(
+                    vlan, port))
+
+    def show_native_vlan(self, port):
+        if self.mode == 'passive':
+            return None
+        port = str(port)
+        ports = self.show_ports(format='std')
+        return ports[port]['nvlan']
+
+    def set_switchport_mode(self, mode, port, nvlan=None):
+        if mode == 'trunk':
+            self.send_cmd(self.SET_SWITCHPORT_MODE_TRUNK.format(port))
+            if nvlan is not None:
+                self.send_cmd(self.SET_NATIVE_VLAN_TRUNK.format(port, nvlan, nvlan))
+        if mode == 'access':
+            self.send_cmd(self.SET_SWITCHPORT_MODE_ACCESS.format(port))
+            if nvlan is not None:
+                self.send_cmd(self.SET_NATIVE_VLAN_ACCESS.format(port, nvlan))
+        if self.mode == 'passive':
+            return
+        ports = self.show_ports(format='std')
+        if ports[str(port)]['mode'] == mode:
+            self.log.info(
+                'Port {} is in {} mode'.format(port, mode))
+        else:
+            raise SwitchException(
+                'Failed setting port {} to {} mode'.format(port, mode))
+
+    def is_port_in_trunk_mode(self, port):
+        """Allows determination if a port is in 'trunk' mode.
+        """
+        if self.mode == 'passive':
+            return None
+        port = str(port)
+        ports = self.show_ports(format='std')
+        return 'trunk' in ports[port]['mode']
+
+    def is_port_in_access_mode(self, port):
+        if self.mode == 'passive':
+            return None
+        port = str(port)
+        ports = self.show_ports('std')
+        return 'access' in ports[port]['mode']
+
+    def add_vlans_to_port(self, port, vlans):
+        # Add VLANs to port
+        if isinstance(vlans, (int, basestring)):
+            vlans = str(vlans)
+            vlans = vlans.split(' ')
+            vlans = [int(vlan) for vlan in vlans]
+        for vlan in vlans:
+            self.send_cmd(
+                self.INTERFACE_CONFIG.format(port) +
+                ' ' +
+                self.ADD_VLANS_TO_PORT.format(vlan))
+            if self.is_vlan_allowed_for_port(vlan, port):
+                self.log.info(
+                    'VLAN {} is allowed for port {}'.format(vlan, port))
+            else:
+                raise SwitchException(
+                    'Failed adding VLAN {} to port {}'.format(vlan, port))
+
+    def remove_vlans_from_port(self, port, vlans):
+        # Add VLANs to port
+        if isinstance(vlans, (int, basestring)):
+            vlans = str(vlans)
+            vlans = vlans.split(' ')
+            vlans = [int(vlan) for vlan in vlans]
+        for vlan in vlans:
+            self.send_cmd(
+                self.INTERFACE_CONFIG.format(port) +
+                ' ' +
+                self.REMOVE_VLANS_FROM_PORT.format(vlan))
+            if not self.is_vlan_allowed_for_port(vlan, port):
+                self.log.info(
+                    'VLAN {} removed from port {}'.format(vlan, port))
+            else:
+                raise SwitchException(
+                    'Failed removing VLAN {} from port {}'.format(vlan, port))
+
+    def is_vlan_allowed_for_port(self, vlan, port):
+        if self.mode == 'passive':
+            return None
+        vlan = str(vlan)
+        port = str(port)
+        ports = self.show_ports('std')
+        return vlan in ports[port]['avlans']
+
     def create_vlan(self, vlan):
         if self.mode == 'passive':
             return
-        self.send_cmd(self.CREATE_VLAN % (vlan))
+        self.send_cmd(self.CREATE_VLAN.format(vlan))
         if self.is_vlan_created(vlan):
             self.log.info(
-                'Created management client VLAN %s' %
-                (vlan))
+                'Created VLAN {}'.format(vlan))
         else:
             raise SwitchException(
-                'Failed creating management client VLAN %s' %
-                (vlan))
+                'Failed creating VLAN {}'.format(vlan))
 
     def delete_vlan(self, vlan):
         if self.mode == 'passive':
             return
-        self.send_cmd(self.DELETE_VLAN % (vlan))
+        self.send_cmd(self.DELETE_VLAN.format(vlan))
         if self.is_vlan_created(vlan):
             self.log.warning(
-                'Failed deleting VLAN %s' %
-                (vlan))
+                'Failed deleting VLAN {}'.format(vlan))
             raise SwitchException(
-                'Failed deleting VLAN %s' %
-                (vlan))
-        self.log.info('vlan %d deleted.' % vlan)
+                'Failed deleting VLAN {}'.format(vlan))
+        self.log.info('vlan {} deleted.'.format(vlan))
         return
 
     def is_vlan_created(self, vlan):
         if self.mode == 'passive':
             return None
         if re.search(
-                '^' + str(vlan),
+                r'^' + str(vlan),
                 self.send_cmd(self.SHOW_VLANS),
                 re.MULTILINE):
             return True
@@ -110,7 +237,7 @@ class SwitchCommon(object):
             return mac_info
 
         mac_info = self.send_cmd(self.SHOW_MAC_ADDRESS_TABLE)
-        if not format:
+        if not format or format == 'raw':
             return mac_info
         if format == 'dict':
             return self.get_mac_dict(mac_info)
@@ -123,12 +250,16 @@ class SwitchCommon(object):
         self.send_cmd(self.CLEAR_MAC_ADDRESS_TABLE)
 
     def is_pingable(self):
-        if self.mode == 'passive':
-            return None
-        output = subprocess.check_output(['bash', '-c', 'ping -c2 -i.5 ' + self.host])
-        if '0% packet loss' in output:
-            return True
-        else:
+        try:
+            if self.mode == 'passive':
+                return None
+            output = subprocess.check_output(['bash', '-c', 'ping -c2 -i.5 ' + self.host])
+            if '0% packet loss' in output:
+                return True
+            else:
+                return False
+        except subprocess.CalledProcessError as exc:
+            self.log.error('Unable to ping switch.  {}'.format(exc))
             return False
 
     def send_cmd(self, cmd):
@@ -140,7 +271,6 @@ class SwitchCommon(object):
 
         if self.ENABLE_REMOTE_CONFIG:
             cmd = self.ENABLE_REMOTE_CONFIG % (cmd)
-
         ssh = SSH(self.log)
         __, data, _ = ssh.exec_cmd(
             self.host,

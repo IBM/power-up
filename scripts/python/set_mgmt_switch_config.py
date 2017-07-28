@@ -37,20 +37,6 @@ class ConfigureMgmtSwitch(object):
     INFO = b'info'
     SSH_LOG = 'mgmt-switch-ssh.log'
 
-#    SHOW_VLAN = 'show vlan %d'
-#    SHOW_INTERFACE_TRUNK = 'show interface trunk | include %d'
-#    SHOW_VLANS = 'show interface port %d | include VLANs'
-#
-#    ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
-#    SET_VLAN = 'vlan %d'
-#    ADD_VLAN_TO_TRUNK_PORT = (
-#        'interface port %d'
-#        ';switchport mode trunk'
-#        ';switchport trunk allowed vlan add %d')
-#    ADD_VLAN_TO_ACCESS_PORT = (
-#        'interface port %d'
-#        ';switchport access vlan %d')
-
     def __init__(self, log, inv_file):
         inv = Inventory(log, inv_file)
         self.log = log
@@ -77,7 +63,7 @@ class ConfigureMgmtSwitch(object):
                 'Port %s is already in trunk mode' % (self.mgmt_port))
         else:
             self.log.error('Port %s is not in trunk mode' % (self.mgmt_port))
-            sys.exit(1)
+            sys.exit('Error.  Management port not in trunk mode')
 
         # Check that management VLAN is added to management port
         if self.switch.is_vlan_allowed_for_port(self.vlan_mgmt, self.mgmt_port):
@@ -88,7 +74,7 @@ class ConfigureMgmtSwitch(object):
             self.log.error(
                 'Management VLAN %s is not added to trunk port %s' %
                 (self.vlan_mgmt, self.mgmt_port))
-            sys.exit(1)
+            sys.exit('Failed adding vlan to trunk port {}'.format(self.mgmt_port))
 
         # Set native vlan for management connections to data switch
         for mgmt_data_port in inv.yield_ports_mgmt_data_network():
@@ -102,7 +88,7 @@ class ConfigureMgmtSwitch(object):
                         self.vlan_mgmt, mgmt_data_port)
                 except SwitchException as se:
                     self.log.error(se.message)
-                    sys.exit(1)
+                    sys.exit(se.message)
 
         # Create management client VLAN
         if self.switch.is_vlan_created(self.vlan_mgmt_client):
@@ -114,7 +100,7 @@ class ConfigureMgmtSwitch(object):
                 self.switch.create_vlan(self.vlan_mgmt_client)
             except SwitchException as se:
                 self.log.error(se.message)
-                sys.exit(1)
+                sys.exit(se.message)
 
         # Add management client VLAN to management port
         if self.switch.is_vlan_allowed_for_port(self.vlan_mgmt_client, self.mgmt_port):
@@ -123,10 +109,10 @@ class ConfigureMgmtSwitch(object):
                 (self.vlan_mgmt_client, self.mgmt_port))
         else:
             try:
-                self.switch.add_vlan_to_trunk_port(self.vlan_mgmt_client, self.mgmt_port)
+                self.switch.add_vlans_to_port(self.mgmt_port, self.vlan_mgmt_client)
             except SwitchException as se:
                 self.log.error(se.message)
-                sys.exit(1)
+                sys.exit(se.message)
 
         # For each management client port
         for port in inv.yield_mgmt_switch_ports():
@@ -135,7 +121,7 @@ class ConfigureMgmtSwitch(object):
                 self.log.info('Port %s is already in access mode' % (port))
             else:
                 self.log.error('Port %s is not in access mode' % (port))
-                sys.exit(1)
+                sys.exit('Port %s is not in access mode' % (port))
 
             # Add management client VLAN to port
             if self.vlan_mgmt_client == self.switch.show_native_vlan(port):

@@ -14,14 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import nested_scopes, generators, division, absolute_import, \
+    with_statement, print_function, unicode_literals
+
 import re
 import os.path
+import netaddr
 import datetime
-import switch_common
 
+from lib import switch_common
 from lib.genesis import gen_passive_path, gen_path
 from orderedattrdict import AttrDict
 from lib.switches import PassiveSwitch
+from lib.switch_exception import SwitchException
 
 
 class Mellanox(switch_common.SwitchCommon):
@@ -54,12 +59,20 @@ class Mellanox(switch_common.SwitchCommon):
     """
     ENABLE_REMOTE_CONFIG = 'cli enable "configure terminal" "%s"'
     FORCE = 'force'
-    SET_VLAN = 'vlan %d'
-    SET_MTU = 'mtu %d'
-    INTERFACE_ETHERNET = 'interface ethernet 1/%s'
-    SWITCHPORT_MODE_HYBRID = 'switchport mode hybrid'
+    SET_MTU = 'mtu {}'
+    INTERFACE_CONFIG = 'interface ethernet 1/{}'
+    SHOW_SWITCHPORT = 'show interfaces switchport | include Eth1/{}'
+    SET_NATIVE_VLAN_ACCESS = 'interface ethernet 1/{} switchport access vlan {}'
+    SET_NATIVE_VLAN_TRUNK = 'interface ethernet 1/{} switchport access vlan {}'
+    SHOW_PORT = 'show interfaces switchport'
+    SET_SWITCHPORT_MODE_TRUNK = ('interface ethernet 1/{} switchport mode hybrid')
+    SET_SWITCHPORT_MODE_ACCESS = ('interface ethernet 1/{} switchport mode access')
     SWITCHPORT_HYBRID_ALLOWED_VLAN = \
         'switchport hybrid allowed-vlan add %d'
+    ADD_VLANS_TO_PORT = \
+        'switchport hybrid allowed-vlan add {}'
+    REMOVE_VLANS_FROM_PORT = \
+        'switchport hybrid allowed-vlan remove {}'
     SHUTDOWN = 'shutdown'
     NO_SHUTDOWN = 'no shutdown'
     IP_ROUTING = 'ip routing'
@@ -82,8 +95,17 @@ class Mellanox(switch_common.SwitchCommon):
     NO_CHANNEL_GROUP = 'no channel-group'
     MAC_RE = re.compile('([\da-fA-F]{2}:){5}([\da-fA-F]{2})')
     CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table dynamic'
+    SHOW_INTERFACE = 'show interface vlan {}'
+    SET_INTERFACE = 'interface vlan {} ip address {} {}'
 
-    def __init__(self, log, host=None, userid=None, password=None, mode=None, outfile=None):
+    def __init__(
+            self,
+            log,
+            host=None,
+            userid=None,
+            password=None,
+            mode=None,
+            outfile=None):
         self.mode = mode
         self.log = log
         self.host = host
@@ -99,64 +121,195 @@ class Mellanox(switch_common.SwitchCommon):
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
 
-        switch_common.SwitchCommon.__init__(self, log, host, userid, password, mode, outfile)
+        switch_common.SwitchCommon.__init__(
+            self, log, host, userid, password, mode, outfile)
 
-    def show_native_vlan(self, port):
-        print("mellanox: show_native_vlan not implemented yet")
+    def set_switchport_mode(self, mode, port, nvlan):
+        """Sets the switchport mode.  Note that Mellanox's 'hybrid'
+        mode is functionally equivalent to most other vendor's 'trunk'
+        mode. To handle this, if mode is specified as 'trunk', it is
+        set to 'hybrid'. Mellanox's trunk mode can be set by setting
+        mode to 'trunk-native'.
+        """
+        if mode == 'trunk':
+            self.send_cmd(self.SET_SWITCHPORT_MODE_TRUNK.format(port))
+            if nvlan is not None:
+                self.send_cmd(self.SET_NATIVE_VLAN_TRUNK.format(port, nvlan))
+        if mode == 'access':
+            self.send_cmd(self.SET_SWITCHPORT_MODE_ACCESS.format(port))
+            if nvlan is not None:
+                self.send_cmd(self.SET_NATIVE_VLAN_ACCESS.format(port, nvlan))
+        if mode == 'trunk-native':
+            self.send_cmd('interface ethernet 1/{} switchport mode trunk'.format(port))
+        if self.mode == 'passive':
+            return
+        ports = self.show_ports('std')
+        port = str(port)
+        if ports[port]['mode'] == 'hybrid' and mode == 'trunk':
+            self.log.info(
+                'Set port {} to {} mode'.format(port, mode))
+        elif ports[port]['mode'] == 'access' and mode == 'access':
+            self.log.info(
+                'Set port {} to {} mode'.format(port, mode))
+        elif mode == 'trunk':
+            self.log.info(
+                'Set port {} to {} mode'.format(port, mode))
+        else:
+            raise SwitchException(
+                'Failed setting port {} to {} mode'.format(port, mode))
 
-    def add_vlan_to_trunk_port(self, vlan, port):
-        print("mellanox: add_vlan_to_trunk_port not implemented yet")
+    def show_ports(self, format=None):
+        if self.mode == 'passive':
+            return None
+        ports = {}
+        port_info = self.send_cmd(self.SHOW_PORT)
+        if format is None:
+            return port_info
+        elif format == 'std':
+            port_info = port_info.splitlines()
+            for line in port_info:
+                match = re.search(r'Eth1/(\d+)\s+(access|hybrid|trunk)\s+(\d+)\s+(.+)', line)
+                if match:
+                    ports[match.group(1)] = {
+                        'mode': match.group(2),
+                        'nvlan': match.group(3),
+                        'avlans': match.group(4)}
+            return ports
 
-    def set_switchport_native_vlan(self, vlan, port):
-        print("mellanox: set_switchport_native_vlan not implemented yet")
+    def show_interfaces(self, vlan='', host=None, netmask=None, format=None):
+        """Gets from the switch a list of programmed in-band interfaces. The
+        standard format consists of a list of lists. Each list entry contains
+        the vlan number, the ip address, netmask and the number of the interface.
+        which do not number the in-band interfaces, the last item in each list
+        is set to '-'. When vlan, host and netmask are specified, the last list
+        item contains 'True' or 'False' indicating whether an interface already
+        exists with the specified vlan, host and netmask. For switches which do
+        number the interfaces, (ie Lenovo) the last list item also contains the
+        next available interface number and the number of the found interface.
+        Args:
+            vlan (string): String representation of integer between
+                1 and 4094. If none specified, usually the default vlan is used.
+            host (string): hostname or ipv4 address in dot decimal notation
+            netmask (string): netmask in dot decimal notation
+            format (string): 'std' If format is not specified, The native (raw)
+                format is returned. If format is set to 'std', a 'standard' format
+                is returned.
+        Returns:
+        If format is unspecified, returns a raw string of data as it
+        comes from the switch. If format == 'std' a standard format is returned.
+        Standard format consists of a list of lists. Each list entry contains
+        the vlan number, the ip address, netmask and the number of the interface.
+        For switches which do not number the in-band interfaces, the last item
+        in each list is set to '-'. When vlan, host and netmask are specified,
+        the last list item contains a dictionary. The dictionary has three entries;
+            'configured' : set to True or False indicating whether an
+                interface already exists with the specified vlan, host and netmask.
+            'avail ifc' : For switches which do number the interfaces, (ie Lenovo)
+                this dictioanary entry contains the next available interface number.
+            'found ifc' : For switches which do number the interfaces, this entry
+                contains the number of the found interface.
+        """
+        if self.mode == 'passive':
+            return None
+        ifcs = []
+        vlan = str(vlan)
+        found, found_vlan = False, False
+        ifc_info = self.send_cmd(self.SHOW_INTERFACE.format(''))
+        if format is None:
+            return ifc_info
+        ifc_info = ifc_info.rsplit('Vlan')
+        for line in ifc_info:
+            match = re.search(r'\s+(\d+).*Internet Address:\s+'
+                              '((\w+.\w+.\w+.\w+)/\d+)', line, re.DOTALL)
+            if match:
+                mask = netaddr.IPNetwork(match.group(2))
+                mask = str(mask.netmask)
+                ifcs.append(
+                    [match.group(1), match.group(3), mask, '-'])
+                if (vlan, host, netmask, '-') == tuple(ifcs[-1]):
+                    found = True
+                if vlan in ifcs[-1]:
+                    found_vlan = True
+        ifcs.append([{'configured': found, 'found vlan': found_vlan}])
+        return ifcs
 
-    def set_switchport_mode(self, mode, port):
-        print("mellanox: set_switchport_mode not implemented yet")
+    def remove_interface(self, vlan, host='', netmask=''):
+        """Removes an in-band management interface.
+        Args:
+            host (string): hostname or ipv4 address in dot decimal notation
+            netmask (string): netmask in dot decimal notation
+            vlan (int or string): value between 1 and 4094.
+        raises:
+            SwitchException if unable to remove interface
+        """
+        vlan = str(vlan)
+        interfaces = self.show_interfaces(vlan, host, netmask, format='std')
+        if interfaces[-1][0]['configured']:
+            self.send_cmd('no interface vlan {}'.format(vlan))
+            interfaces = self.show_interfaces(vlan, host, netmask, format='std')
+            if interfaces[-1][0]['configured']:
+                self.log.info('Failed to remove interface Vlan {}.'.format(vlan))
+                raise SwitchException('Failed to remove interface Vlan {}.'.format(vlan))
+        else:
+            if interfaces[-1][0]['found vlan']:
+                self.log.info('Specified interface on vlan {} does not exist.'.format(vlan))
+                raise SwitchException('Failed to remove interface Vlan {}.'.format(vlan))
 
-    def remove_interface(self, intf):
-        print("mellanox: remove_interface not implemented yet")
+    def configure_interface(self, host, netmask, vlan):
+        """Configures a management interface. Minimally, this method will
+        configure (overwrite if necessary) the specified interface.
+        A better behaved implementation will check if host ip is already in
+        use. If it is, it checks to see if it is configured as specified. If
+        not, an exception is raised. If no interface number is specified,
+        it will use the next available unconfigured interface. The specified
+        vlan will be created if it does not already exist.
 
-    def _check_interface(self, intf, interfaces, host, netmask, vlan):
-        print("mellanox: _check_interface not implemented yet")
+        Args:
+            host (string): hostname or ipv4 address in dot decimal notation
+            netmask (string): netmask in dot decimal notation
+            vlan (int or string): Integer between 1 and 4094.
+            If none specified, usually the default vlan is used.
+        raises:
+            SwitchException if unable to program interface
+        """
+        vlan = str(vlan)
+        interfaces = self.show_interfaces(vlan, host, netmask, format='std')
+        if interfaces[-1][0]['configured']:
+            self.log.info(
+                'Switch interface vlan {} already configured'.format(vlan))
+            return
+        if interfaces[-1][0]['found vlan']:
+            self.log.info(
+                'Conflicting address. Interface vlan {} already configured'.format(vlan))
+            raise SwitchException(
+                'Conflicting address exists on interface vlan {}'.format(vlan))
+            return
+        # create vlan if it does not already exist
+        self.create_vlan(vlan)
 
-    def _get_available_interface(self):
-        print("mellanox: _get_available_interface not implemented yet")
-
-    def configure_interface(self, host, netmask, vlan=None, intf=None):
-        print("mellanox: configure_interface not implemented yet")
-
-    def show_interfaces(self):
-        print("mellanox: show_interfaces not implemented yet")
+        # create the interface
+        self.send_cmd(self.SET_INTERFACE.format(vlan, host, netmask))
+        interfaces = self.show_interfaces(vlan, host, netmask, format='std')
+        if not interfaces[-1][0]['configured']:
+            raise SwitchException(
+                'Failed configuring management interface vlan {}'.format(vlan))
 
     def is_port_in_trunk_mode(self, port):
-        print("mellanox: is_port_in_trunk_mode not implemented yet")
-
-    def is_port_in_access_mode(self, port):
-        print("mellanox: is_port_in_access_mode not implemented yet")
-
-    def is_vlan_allowed_for_port(self, vlan, port):
-        print("mellanox: is_vlan_allowed_for_port not implemented yet")
+        """Allows determination if a port is in 'trunk' mode. Note that
+        mellanox's hybrid mode is equivalent to most vendor's trunk mode.
+        """
+        if self.mode == 'passive':
+            return None
+        port = str(port)
+        ports = self.show_ports('std')
+        return 'hybrid' in ports[port]['mode']
 
     def remove_channel_group(self, port):
         # Remove channel-group from interface
         self.send_cmd(
-            self.INTERFACE_ETHERNET % port +
+            self.INTERFACE_CONFIG.format(port) +
             ' ' +
             self.NO_CHANNEL_GROUP)
-
-    def add_vlans_to_port(self, port, vlans):
-        # Enable hybrid mode for port
-        self.send_cmd(
-            self.INTERFACE_ETHERNET % port +
-            ' ' +
-            self.SWITCHPORT_MODE_HYBRID)
-
-        # Add VLANs to port
-        for vlan in vlans:
-            self.send_cmd(
-                self.INTERFACE_ETHERNET % port +
-                ' ' +
-                self.SWITCHPORT_HYBRID_ALLOWED_VLAN % vlan)
 
     def add_vlans_to_lag_port_channel(self, port, vlans):
         # Enable hybrid mode for port
@@ -189,22 +342,22 @@ class Mellanox(switch_common.SwitchCommon):
     def set_mtu_for_port(self, port, mtu):
         # Bring port down
         self.send_cmd(
-            self.INTERFACE_ETHERNET % port + ' ' + self.SHUTDOWN)
+            self.INTERFACE_CONFIG.format(port) + ' ' + self.SHUTDOWN)
 
         # Set MTU
         self.send_cmd(
-            self.INTERFACE_ETHERNET % port + ' ' + self.SET_MTU % mtu)
+            self.INTERFACE_CONFIG.format(port) + ' ' + self.SET_MTU.format(mtu))
 
         # Bring port up
         self.send_cmd(
-            self.INTERFACE_ETHERNET % port + ' ' + self.NO_SHUTDOWN)
+            self.INTERFACE_CONFIG.format(port) + ' ' + self.NO_SHUTDOWN)
 
     def set_mtu_for_lag_port_channel(self, port, mtu):
         # Set port-channel MTU
         self.send_cmd(
             self.LAG_PORT_CHANNEL % port +
             ' ' +
-            self.SET_MTU % mtu +
+            self.SET_MTU.format(mtu) +
             ' ' +
             self.FORCE)
 
@@ -213,7 +366,7 @@ class Mellanox(switch_common.SwitchCommon):
         self.send_cmd(
             self.MLAG_PORT_CHANNEL % port +
             ' ' +
-            self.SET_MTU % mtu +
+            self.SET_MTU.format(mtu) +
             ' ' +
             self.FORCE)
 
@@ -226,7 +379,7 @@ class Mellanox(switch_common.SwitchCommon):
         # Map a physical port to the LAG in active mode (LACP)
         for port in ports:
             self.send_cmd(
-                self.INTERFACE_ETHERNET % (port) +
+                self.INTERFACE_CONFIG.format(port) +
                 ' ' +
                 self.LACP % port_channel)
 
@@ -236,7 +389,14 @@ class Mellanox(switch_common.SwitchCommon):
     def enable_mlag(self):
         self.send_cmd(self.ENABLE_MLAG)
 
-    def configure_mlag(self, switch_index, vlan, port_channel, cidr_mlag_ipl, ipaddr_mlag_ipl_peer, ipaddr_mlag_vip, mlag_ports):
+    def configure_mlag(self,
+                       switch_index,
+                       vlan,
+                       port_channel,
+                       cidr_mlag_ipl,
+                       ipaddr_mlag_ipl_peer,
+                       ipaddr_mlag_vip,
+                       mlag_ports):
 
         # Enable IP routing
         self.send_cmd(self.IP_ROUTING)
@@ -248,7 +408,7 @@ class Mellanox(switch_common.SwitchCommon):
         self.send_cmd(self.MLAG)
 
         # Create MLAG VLAN
-        self.send_cmd(self.SET_VLAN % vlan)
+        self.create_vlan(vlan)
 
         # Create a LAG
         self.send_cmd(
@@ -258,7 +418,7 @@ class Mellanox(switch_common.SwitchCommon):
         # for port in self.inv.yield_mlag_ports(switch_index):
         for port in mlag_ports:
             self.send_cmd(
-                self.INTERFACE_ETHERNET % (port) +
+                self.INTERFACE_CONFIG.format(port) +
                 ' ' +
                 self.LACP % port_channel)
 
@@ -306,7 +466,7 @@ class Mellanox(switch_common.SwitchCommon):
     def bind_mlag_interface(self, port):
         # Bind and enable MLAG interface
         self.send_cmd(
-            self.INTERFACE_ETHERNET % port + ' ' + self.MLAG_ACTIVE % port)
+            self.INTERFACE_CONFIG.format(port) + ' ' + self.MLAG_ACTIVE % port)
 
         self.send_cmd(
             self.MLAG_PORT_CHANNEL % port + ' ' + self.NO_SHUTDOWN)
