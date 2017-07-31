@@ -105,7 +105,13 @@ class ConfigureDataSwitch(object):
                 self.switch_dict[self.ipv4].enable_lacp()
                 # Configure port for MLAG
                 if self.inv.is_mlag():
-                    self.switch_dict[self.ipv4].configure_mlag(switch_index)
+                    vlan = self.inv.get_mlag_vlan()
+                    port_channel = self.inv.get_mlag_port_channel()
+                    cidr_mlag_ipl = self.inv.get_cidr_mlag_ipl(switch_index)
+                    ipaddr_mlag_ipl_peer = self.inv.get_ipaddr_mlag_ipl_peer(switch_index)
+                    ipaddr_mlag_vip = self.inv.get_ipaddr_mlag_vip()
+                    mlag_ports = self.inv.get_mlag_ports(switch_index)
+                    self.switch_dict[self.ipv4].configure_mlag(switch_index, vlan, port_channel, cidr_mlag_ipl, ipaddr_mlag_ipl_peer, ipaddr_mlag_vip, mlag_ports)
                     for port_channel, ports in port_bonds.items():
                         # Remove any channel-group from port
                         self.switch_dict[self.ipv4].remove_channel_group(ports[0])

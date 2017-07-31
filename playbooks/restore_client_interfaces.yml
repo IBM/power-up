@@ -19,7 +19,7 @@
   hosts: all
   tasks:
     - name: Bring down all interfaces except ansible communication interface
-      command: "ifdown {{ item }}"
+      command: "ip link set dev  {{ item }} down"
       when:
         - "{{ item != 'lo' }}"
         - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \
@@ -44,7 +44,7 @@
       with_items: "{{ ansible_interfaces }}"
 
     - name: Bring up all interfaces
-      command: "ifup {{ item }}"
+      command: "ip link set dev  {{ item }} up"
       when:
         - "{{ item != 'lo' }}"
         - "{{ inventory_hostname != hostvars[inventory_hostname]['ansible_' + \

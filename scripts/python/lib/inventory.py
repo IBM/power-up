@@ -554,6 +554,13 @@ class Inventory():
             for port in value[switch_index]:
                 yield port
 
+    def get_mlag_ports(self, switch_index):
+        port_list = []
+        for value in self.inv[INV_MLAG_IPL_PORTS].values():
+            for port in value[switch_index]:
+                port_list.append(port)
+        return port_list
+
     def get_data_switches(self):
         # This methods a dict of switch IP to a dict with user
         # userid and password
@@ -731,7 +738,7 @@ class Inventory():
         self.inv[INV_NODES][key][index][field] = value
         self._dump_inv_file()
 
-    def add_data_switch_port_macs(self, switch_ipv4, switch_ports_to_MACs):
+    def add_data_switch_port_macs(self, switch_ipv4, switch_ports_to_MACs, switch_index):
         # Get map of rack IP to rack ID.
         ip_to_rack_id = {}
         for rack_id, rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].iteritems():
@@ -745,7 +752,6 @@ class Inventory():
         nodes = [node for sublist in self.inv['nodes'].values() for node
                  in sublist]
         success = True
-        index = 0
         rack_id = ip_to_rack_id[switch_ipv4]
         for node in nodes:
             if node['rack-id'] != rack_id:
@@ -754,10 +760,10 @@ class Inventory():
             for port_name in node_template['ports'].keys():
                 if port_name not in INV_MANAGEMENT_PORTS:
                     if (not self.is_mlag() or
-                            (self.is_mlag() and index == 0 and port_name == INV_ETH10) or
-                            (self.is_mlag() and index == 1 and port_name == INV_ETH11) or
-                            (self.is_mlag() and index == 0 and port_name == INV_ETH12) or
-                            (self.is_mlag() and index == 1 and port_name == INV_ETH13)):
+                            (self.is_mlag() and switch_index == 0 and port_name == INV_ETH10) or
+                            (self.is_mlag() and switch_index == 1 and port_name == INV_ETH11) or
+                            (self.is_mlag() and switch_index == 0 and port_name == INV_ETH12) or
+                            (self.is_mlag() and switch_index == 1 and port_name == INV_ETH13)):
                         node_port_on_rack = str(node.get(INV_PORT_PATTERN %
                                                 port_name, ''))
                         macs = switch_ports_to_MACs.get(node_port_on_rack, [])
@@ -775,7 +781,6 @@ class Inventory():
                                         'switch': ip}
                             print(msg % msg_vars)
                             success = False
-        index += 1
         self._dump_inv_file()
         return success
 

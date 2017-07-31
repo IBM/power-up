@@ -236,12 +236,7 @@ class Mellanox(switch_common.SwitchCommon):
     def enable_mlag(self):
         self.send_cmd(self.ENABLE_MLAG)
 
-    def configure_mlag(self, switch_index):
-        vlan = self.inv.get_mlag_vlan()
-        port_channel = self.inv.get_mlag_port_channel()
-        cidr_mlag_ipl = self.inv.get_cidr_mlag_ipl(switch_index)
-        ipaddr_mlag_ipl_peer = self.inv.get_ipaddr_mlag_ipl_peer(switch_index)
-        ipaddr_mlag_vip = self.inv.get_ipaddr_mlag_vip()
+    def configure_mlag(self, switch_index, vlan, port_channel, cidr_mlag_ipl, ipaddr_mlag_ipl_peer, ipaddr_mlag_vip, mlag_ports):
 
         # Enable IP routing
         self.send_cmd(self.IP_ROUTING)
@@ -260,7 +255,8 @@ class Mellanox(switch_common.SwitchCommon):
             self.LAG_PORT_CHANNEL % port_channel)
 
         # Map a physical port to the LAG in active mode (LACP)
-        for port in self.inv.yield_mlag_ports(switch_index):
+        # for port in self.inv.yield_mlag_ports(switch_index):
+        for port in mlag_ports:
             self.send_cmd(
                 self.INTERFACE_ETHERNET % (port) +
                 ' ' +
@@ -305,8 +301,7 @@ class Mellanox(switch_common.SwitchCommon):
             self.MLAG_PORT_CHANNEL % port + ' ' + self.STP_PORT_TYPE_EDGE)
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port + ' ' + self.STP_BPDUFILTER_ENABLE,
-            'Set port %d spanning-tree bpdufilter enable' % port)
+            self.MLAG_PORT_CHANNEL % port + ' ' + self.STP_BPDUFILTER_ENABLE)
 
     def bind_mlag_interface(self, port):
         # Bind and enable MLAG interface
@@ -345,10 +340,10 @@ class Mellanox(switch_common.SwitchCommon):
                 '/passive/')
             file_path = passive_path + self.host
             port_to_mac = switch.get_port_to_mac(file_path)
+        print ("PORT OT MAC ", port_to_mac)
         return port_to_mac
 
     def clear_mac_address_table(self):
-        print("IN clear_mac_address_table")
         if self.mode is not 'passive':
             print(self.CLEAR_MAC_ADDRESS_TABLE)
             self.send_cmd(self.CLEAR_MAC_ADDRESS_TABLE)
