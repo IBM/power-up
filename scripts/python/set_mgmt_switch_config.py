@@ -123,7 +123,7 @@ class ConfigureMgmtSwitch(object):
                 (self.vlan_mgmt_client, self.mgmt_port))
         else:
             try:
-                self.switch.add_vlans_to_port(self.mgmt_port, self.vlan_mgmt_client)
+                self.switch.add_vlan_to_trunk_port(self.vlan_mgmt_client, self.mgmt_port)
             except SwitchException as se:
                 self.log.error(se.message)
                 sys.exit(1)

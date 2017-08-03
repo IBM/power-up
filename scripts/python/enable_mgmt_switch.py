@@ -82,7 +82,7 @@ class EnableMgmtSwitch(object):
             self.log.error(exc)
 
         try:
-            sw.add_vlans_to_port(self.port_mgmt, self.vlan_mgmt)
+            sw.add_vlan_to_trunk_port(self.vlan_mgmt, self.port_mgmt)
             print('Adding vlan %d to port %d' % (self.vlan_mgmt, self.port_mgmt))
         except SwitchException as exc:
             print(exc)
