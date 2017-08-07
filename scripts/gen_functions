@@ -77,6 +77,8 @@ deploy (){
     echo;
 
     ansible-playbook -i hosts install_2.yml -K
+
+    ansible-playbook -i inventory.py save_t0_interface_files.yml
 }
 
 deploy-passive-1 (){

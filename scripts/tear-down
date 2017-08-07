@@ -82,169 +82,247 @@ echo "$bridgemgmt"
 echo "$bridgemgmtinterface"
 echo "$bridgemgmtclient"
 echo "$bridgemgmtclientinterface"
+
+TD_LIST=""
+if [ "$1" == "deploy" ]; then
+    TD_LIST="move_inventory remove_t0_inventory remove_br_mgmt\
+        remove_br_mgmtclient destroy_container remove_cg"
+fi
+
+if [ "$1" == "post-deploy" ]; then
+    TD_LIST="restore_original_ifcs restore_original_inventory remove_mlag_ifcs deconfigure_mlag"
+fi
 #########################################################
 if [ -d $GEN_PATH ]; then
-    read -p "Backup config.yml from cluster-genesis directory to ~/configbak ? (y/n) " resp
-    if [ $resp == "y" ]; then
-       if [ ! -d ~/configbak ]; then
-           mkdir ~/configbak
-       fi
-       name="config.yml"$(date|tr ' ' '-' )
-       echo "copying config.yml to ~/configbak as "$name
-       cp "$GEN_PATH"/config.yml ~/configbak/config.yml$(date|tr ' ' '-' )
+    if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"backup_config"* ]]; then
+        read -p "Backup config.yml from cluster-genesis directory to ~/configbak ? (y/n) " resp
+        if [ $resp == "y" ]; then
+           if [ ! -d ~/configbak ]; then
+               mkdir ~/configbak
+           fi
+           name="config.yml"$(date|tr ' ' '-' )
+           echo "copying config.yml to ~/configbak as "$name
+           cp "$GEN_PATH"/config.yml ~/configbak/config.yml$(date|tr ' ' '-' )
+        fi
     fi
 fi
 #########################################################
 if [ -d $GEN_PATH ]; then
-    read -p "Backup os images from cluster-genesis/os_images to ~ ? (y/n) " resp
-    if [ $resp == "y" ]; then
-       name="os_images"$(date|tr ' ' '-' )"/"
-       echo "copying os_images to home directory as "$name
-       cp -r "$GEN_PATH"/os_images ~/$name
+    if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"backup_os_images"* ]]; then
+        read -p "Backup os images from cluster-genesis/os_images to ~ ? (y/n) " resp
+        if [ $resp == "y" ]; then
+           name="os_images"$(date|tr ' ' '-' )"/"
+           echo "copying os_images to home directory as "$name
+           cp -r "$GEN_PATH"/os_images ~/$name
+        fi
     fi
 fi
 ##################################################
 if [ -f "/var/oprc/inventory.yml" ]; then
-    read -p "move /var/oprc/inventory.yml to /var/oprc/inventory.ymlbak ? (y/n) " resp
-    if [ $resp == "y" ]; then
-        echo "moving /var/oprc/inventory.yml to /var/oprc/inventory.ymlbak"
-        sudo mv /var/oprc/inventory.yml /var/oprc/inventory.ymlbak
+    if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"move_inventory"* ]]; then
+        read -p "move /var/oprc/inventory.yml to /var/oprc/inventory.ymlbak ? (y/n) " resp
+        if [ $resp == "y" ]; then
+            echo "moving /var/oprc/inventory.yml to /var/oprc/inventory.ymlbak"
+            sudo mv /var/oprc/inventory.yml /var/oprc/inventory.ymlbak
+        fi
     fi
 fi
 ###################################################
 cmd=""
-read -p "Remove Genesis management ip address from management switch ? (y/n) " resp
-if [ $resp == "y" ]; then
-    addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch-external:/{getline; print $2}' ~/cluster-genesis/config.yml)
-    addrmgmtsw=${addrmgmtsw%%#*}  #remove trailing comments
-    addrmgmtsw=${addrmgmtsw//[$'\t\r\n ']}
-    addrgenmgmtsw=$(awk -F: '/ipaddr-mgmt-switch:/{getline; print $2}' ~/cluster-genesis/config.yml)
-    addrgenmgmtsw=${addrgenmgmtsw%%#*}  #remove trailing comments
-    addrgenmgmtsw=${addrgenmgmtsw//[$'\t\r\n ']}
-    echo "External addr for mgmt switch : "$addrmgmtsw
-    echo "Genesis addr for mgmt switch : "$addrgenmgmtsw
-    echo;
-    echo "Enter management switch password"
-    sstr=$(ssh admin@$addrmgmtsw "en; conf t; show interface ip; exit")
-    echo "$sstr"
-    ifcno=$(echo "$sstr"|grep $addrgenmgmtsw)
-    if [ ! -z "$ifcno" ]; then
-        ifcno=${ifcno%%:*}
-        ifcno=${ifcno// /}
-        cmd=$cmd" no interface ip "$ifcno";"
-#        echo $cmd
-    else
-        echo "Genesis management ip address not present on switch"
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"remove_mgmt_ip"* ]]; then
+    read -p "Remove Genesis management ip address from management switch ? (y/n) " resp
+    if [ $resp == "y" ]; then
+        addrmgmtsw=$(awk -F: '/ipaddr-mgmt-switch-external:/{getline; print $2}' ~/cluster-genesis/config.yml)
+        addrmgmtsw=${addrmgmtsw%%#*}  #remove trailing comments
+        addrmgmtsw=${addrmgmtsw//[$'\t\r\n ']}
+        addrgenmgmtsw=$(awk -F: '/ipaddr-mgmt-switch:/{getline; print $2}' ~/cluster-genesis/config.yml)
+        addrgenmgmtsw=${addrgenmgmtsw%%#*}  #remove trailing comments
+        addrgenmgmtsw=${addrgenmgmtsw//[$'\t\r\n ']}
+        echo "External addr for mgmt switch : "$addrmgmtsw
+        echo "Genesis addr for mgmt switch : "$addrgenmgmtsw
+        echo;
+        echo "Enter management switch password"
+        sstr=$(ssh admin@$addrmgmtsw "en; conf t; show interface ip; exit")
+        echo "$sstr"
+        ifcno=$(echo "$sstr"|grep $addrgenmgmtsw)
+        if [ ! -z "$ifcno" ]; then
+            ifcno=${ifcno%%:*}
+            ifcno=${ifcno// /}
+            cmd=$cmd" no interface ip "$ifcno";"
+    #        echo $cmd
+        else
+            echo "Genesis management ip address not present on switch"
+        fi
+    fi
+       echo;
+    if [ ! -z "$cmd" ]; then
+        echo "en; conf t;"$cmd" exit"
+        echo;
+        echo "Enter management switch password"
+        ssh admin@$addrmgmtsw "en; conf t;"$cmd
     fi
 fi
-   echo;
-if [ ! -z "$cmd" ]; then
-    echo "en; conf t;"$cmd" exit"
-    echo;
-    echo "Enter management switch password"
-    ssh admin@$addrmgmtsw "en; conf t;"$cmd
-fi
 #################################################
-if [ ! -z "$bridgemgmt" ]; then
-    read -p "Tear down bridge $bridgemgmt ? (y/n) " resp
-    if [ $resp == "y" ]; then
-        sudo ip link set dev $bridgemgmt down
-        if [ ! -z $bridgemgmtinterface ]; then
-            echo;
-            echo "Removing bridge interface "$bridgemgmtinterface
-            sudo brctl delif $bridgemgmt $bridgemgmtinterface
-            sudo ip link set dev $bridgemgmtinterface down
-            sudo ip link delete $bridgemgmtinterface
-        fi
-        sudo brctl delbr $bridgemgmt
-        if [ "$redcent" = 0 ]; then
-            sudo rm /etc/network/interfaces.d/$bridgemgmt
-        else
-            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmt
-            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtinterface
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"remove_br_mgmt"* ]]; then
+    if [ ! -z "$bridgemgmt" ]; then
+        read -p "Tear down bridge $bridgemgmt ? (y/n) " resp
+        if [ $resp == "y" ]; then
+            sudo ip link set dev $bridgemgmt down
+            if [ ! -z $bridgemgmtinterface ]; then
+                echo;
+                echo "Removing bridge interface "$bridgemgmtinterface
+                sudo brctl delif $bridgemgmt $bridgemgmtinterface
+                sudo ip link set dev $bridgemgmtinterface down
+                sudo ip link delete $bridgemgmtinterface
+            fi
+            sudo brctl delbr $bridgemgmt
+            if [ "$redcent" = 0 ]; then
+                sudo rm /etc/network/interfaces.d/$bridgemgmt
+            else
+                sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmt
+                sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtinterface
+            fi
         fi
     fi
 fi
 #######################################################
-if [ ! -z "$bridgemgmtclient" ]; then
-    read -p "Tear down bridge $bridgemgmtclient ? (y/n) " resp
-    if [ $resp == "y" ]; then
-        sudo ip link set dev $bridgemgmtclient down
-        if [ ! -z $bridgemgmtclientinterface ]; then
-            echo;
-            echo "Removing bridge interface "$bridgemgmtclientinterface
-            sudo brctl delif $bridgemgmtclient $bridgemgmtclientinterface
-            sudo ip link set dev $bridgemgmtclientinterface down
-            sudo ip link delete $bridgemgmtclientinterface
-        fi
-        sudo brctl delbr $bridgemgmtclient
-        if [ "$redcent" = 0 ]; then
-            sudo rm /etc/network/interfaces.d/$bridgemgmtclient
-        else
-            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclient
-            sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclientinterface
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"remove_br_mgmtclient"* ]]; then
+    if [ ! -z "$bridgemgmtclient" ]; then
+        read -p "Tear down bridge $bridgemgmtclient ? (y/n) " resp
+        if [ $resp == "y" ]; then
+            sudo ip link set dev $bridgemgmtclient down
+            if [ ! -z $bridgemgmtclientinterface ]; then
+                echo;
+                echo "Removing bridge interface "$bridgemgmtclientinterface
+                sudo brctl delif $bridgemgmtclient $bridgemgmtclientinterface
+                sudo ip link set dev $bridgemgmtclientinterface down
+                sudo ip link delete $bridgemgmtclientinterface
+            fi
+            sudo brctl delbr $bridgemgmtclient
+            if [ "$redcent" = 0 ]; then
+                sudo rm /etc/network/interfaces.d/$bridgemgmtclient
+            else
+                sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclient
+                sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclientinterface
+            fi
         fi
     fi
 fi
 ##################################################
 if [ ! -z "$cname" ]; then
-    read -p "Destroy container: $cname ? (y/n) " resp
-    if [ $resp == "y" ]; then
-        dep=$(sudo lxc-ls -f|grep -m 1 $cname)
-        echo $dep
-        depaddr=${dep##*,}
-        depaddr=${depaddr%-*}
-        depaddr=${depaddr// /}
-        echo "removing host key from known_hosts for container: "$depaddr
-        ssh-keygen -R $depaddr
-        echo;
-        echo "destroying container " $cname
-        sudo lxc-stop -n $cname
-        sudo lxc-destroy -n $cname
+    if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"destroy_container"* ]]; then
+        read -p "Destroy container: $cname ? (y/n) " resp
+        if [ $resp == "y" ]; then
+            dep=$(sudo lxc-ls -f|grep -m 1 $cname)
+            echo $dep
+            depaddr=${dep##*,}
+            depaddr=${depaddr%-*}
+            depaddr=${depaddr// /}
+            echo "removing host key from known_hosts for container: "$depaddr
+            ssh-keygen -R $depaddr
+            echo;
+            echo "destroying container " $cname
+            sudo lxc-stop -n $cname
+            sudo lxc-destroy -n $cname
+        fi
     fi
 fi
 ###################################################
 if [ -d $GEN_PATH ]; then
-    read -p "Remove cluster-genesis software? (y/n) " resp
-    if [ $resp == "y" ]; then
-        read -p "Are you sure - remove cluster-genesis ? (y/n) " resp
+    if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"remove_cg"* ]]; then
+        read -p "Remove cluster-genesis software? (y/n) " resp
         if [ $resp == "y" ]; then
-            echo;
-            echo "Removing Cluster Genesis "
-            rm -rf ~/cluster-genesis
-        fi
-    elif [ -d ~/cluster-genesis/playbooks/.facts ]; then
-        read -p "Remove cluster-genesis/playbooks/.facts ? (y/n) " resp
-        if [ $resp == "y" ]; then
-           echo;
-           echo "Removing cluster-genesis/playbooks/.facts "
-           rm -rf ~/cluster-genesis/playbooks/.facts
+            read -p "Are you sure - remove cluster-genesis ? (y/n) " resp
+            if [ $resp == "y" ]; then
+                echo;
+                echo "Removing Cluster Genesis "
+                rm -rf ~/cluster-genesis
+            fi
+        elif [ -d ~/cluster-genesis/playbooks/.facts ]; then
+            read -p "Remove cluster-genesis/playbooks/.facts ? (y/n) " resp
+            if [ $resp == "y" ]; then
+               echo;
+               echo "Removing cluster-genesis/playbooks/.facts "
+               rm -rf ~/cluster-genesis/playbooks/.facts
+            fi
         fi
     fi
 fi
 ##################################################
 str=$(cat ~/.bashrc|grep "cluster-genesis")
 if [ ! -z "$str" ] || [[ "$PATH" == *"cluster-genesis"* ]]; then
-    read -p "Remove Cluster Genesis path entries in .bashrc and PATH? (y/n) " resp
-    if [[ "$resp" == "y"* ]]; then
-        sed -i '/cluster-genesis/d' ~/.bashrc
-        sed -i '/complete -W/d' ~/.bashrc
-        echo;
-        echo "To clean the PATH variable: source ~/bin/cleanpath"
-        echo "To remove Cluster Genesis scripts from your ~/bin directory:"
-        echo "rm ~/bin/tear-down"
-        echo "rm ~/bin/cleanpath"
+    if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"undo_bashrc_and_path"* ]]; then
+        read -p "Remove Cluster Genesis path entries in .bashrc and PATH? (y/n) " resp
+        if [[ "$resp" == "y"* ]]; then
+            sed -i '/cluster-genesis/d' ~/.bashrc
+            sed -i '/complete -W/d' ~/.bashrc
+            echo;
+            echo "To clean the PATH variable: source ~/bin/cleanpath"
+            echo "To remove Cluster Genesis scripts from your ~/bin directory:"
+            echo "rm ~/bin/tear-down"
+            echo "rm ~/bin/cleanpath"
+        fi
     fi
 fi
 ##################################################
-KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-for key in "mgmt" "data"; do
-    read -p "Remove ${key} switch host key(s) from ${KNOWN_HOSTS}? (y/n) " resp
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"remove_mlag_ifcs"* ]]; then
+    read -p "Remove MLAG interfaces from data switches? (y/n) " resp
     if [[ "$resp" == "y"* ]]; then
-        get_config_key "ipaddr-${key}-switch"
-        for ip in "${config_value[@]}"; do
-            echo "Removing any $ip host keys from ${KNOWN_HOSTS}"
-            ssh-keygen -R $ip -f $KNOWN_HOSTS
-        done
+        "$GEN_SCRIPTS_PATH"/python/remove_mlag_interfaces.py \
+        "$GEN_PATH"/config.yml DEBUG
     fi
-done
+fi
+##################################################
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"deconfigure_mlag"* ]]; then
+    read -p "Delete MLAG configuration from data switches? (y/n) " resp
+    if [[ "$resp" == "y"* ]]; then
+        "$GEN_SCRIPTS_PATH"/python/deconfigure_mlag.py \
+        "$GEN_PATH"/config.yml DEBUG
+    fi
+fi
+##################################################
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"restore_original_ifcs"* ]]; then
+    echo ;
+    echo 'Restore cluster nodes network configuration.'
+    echo 'This tear down function will restore the original client network'
+    echo 'interfaces file and remove the persistent netrules files restoring'
+    echo 'the original interface names and then reboot the cluster nodes.'
+    read -p "OK to continue (Ubuntu only)? (y/n) " resp
+    if [[ "$resp" == "y"* ]]; then
+        cd "$GEN_PLAY_PATH"
+        ansible-playbook -i ./inventory.py restore_original_client_interfaces.yml
+        ansible-playbook -i hosts pause.yml --extra-vars "seconds=10"
+        ansible-playbook -i hosts container/ipmi_power_off.yml
+        ansible-playbook -i hosts pause.yml --extra-vars "minutes=1"
+        ansible-playbook -i hosts container/ipmi_power_on.yml
+        ansible-playbook -i inventory.py wait_for_clients_reboot.yml
+    fi
+fi
+##################################################
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"restore_original_inventory"* ]]; then
+    echo ;
+    read -p "OK to restore original time-zero inventory file? (y/n) " resp
+    if [[ "$resp" == "y"* ]]; then
+        cd "$GEN_PLAY_PATH"
+        cp /var/oprc/inventory.yml-gen-deploy-t0 /var/oprc/inventory.yml
+    fi
+fi
+##################################################
+if [[ "$TD_LIST" == *"remove_t0_inventory"* ]]; then
+    rm /var/oprc/inventory.yml-gen-deploy-t0
+fi
+##################################################
+KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
+if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"remove_sw_keys"* ]]; then
+    for key in "mgmt" "data"; do
+        read -p "Remove ${key} switch host key(s) from ${KNOWN_HOSTS}? (y/n) " resp
+        if [[ "$resp" == "y"* ]]; then
+            get_config_key "ipaddr-${key}-switch"
+            for ip in "${config_value[@]}"; do
+                echo "Removing any $ip host keys from ${KNOWN_HOSTS}"
+                ssh-keygen -R $ip -f $KNOWN_HOSTS
+            done
+        fi
+    done
+fi
+##################################################

@@ -276,6 +276,17 @@ class Inventory():
 
         return switch_class
 
+    def get_data_switch_class(self):
+        switch_class = None
+        try:
+            switch_class = self.inv[INV_CLASS_DATA_SWITCH]
+            if switch_class:
+                return switch_class
+            raise Exception()
+        except:
+            self.log.error('Data switch class is unspecified or not supported')
+            sys.exit(1)
+
     def yield_switches(self, switch_type):
         if switch_type == self.SwitchType.MGMT:
             if (INV_USERID_MGMT_SWITCH not in self.inv or

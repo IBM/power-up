@@ -29,7 +29,20 @@
            item.replace('-', '_')]['active'] }}"
       with_items: "{{ ansible_interfaces }}"
 
+    # A one time copy is made of the network interfaces files after initial
+    # OS install. This is now attempted at the end of install in wait_for_
+    # client_ping.yml, but is re-attempted here for previous installs done
+    # with prior versions of Genesis.
+
     - block:
+        - name: Check if deploy t0 interfaces file exists
+          stat: path=/etc/network/interfaces.gen-deploy-t0
+          register: st
+
+        - name: One time copy t0 interfaces file
+          command: "cp /etc/network/interfaces /etc/network/interfaces.gen-deploy-t0"
+          when: not st.stat.exists
+
         - name: Backup interfaces file
           command: "cp /etc/network/interfaces /etc/network/interfaces.bak"
 
@@ -54,7 +67,6 @@
       with_items: "{{ ansible_interfaces }}"
 
     - name: Bring up all interfaces
-#      command: "ifup {{ item }}"
       command: "ip link set dev {{ item }} up"
       when:
         - "{{ item != 'lo' }}"
