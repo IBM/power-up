@@ -88,7 +88,8 @@ class Mellanox(switch_common.SwitchCommon):
     PEER_ADDR = 'peer-address %s'
     MLAG_VIP = 'mlag-vip my-mlag-vip-domain ip %s force'
     ENABLE_MLAG = 'no mlag shutdown'
-    MLAG_PORT_CHANNEL = 'interface mlag-port-channel %d'
+    MLAG_PORT_CHANNEL = 'interface mlag-port-channel {}'
+    SHOW_IFC_MLAG_PORT_CHANNEL = 'show interface mlag-port-channel summary'
     STP_PORT_TYPE_EDGE = 'spanning-tree port type edge'
     STP_BPDUFILTER_ENABLE = 'spanning-tree bpdufilter enable'
     MLAG_ACTIVE = 'mlag-channel-group %d mode active'
@@ -328,14 +329,14 @@ class Mellanox(switch_common.SwitchCommon):
     def add_vlans_to_mlag_port_channel(self, port, vlans):
         # Enable hybrid mode for port
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port +
+            self.MLAG_PORT_CHANNEL.format(port) +
             ' ' +
             self.SWITCHPORT_MODE_HYBRID)
 
         # Add VLANs to port
         for vlan in vlans:
             self.send_cmd(
-                self.MLAG_PORT_CHANNEL % port +
+                self.MLAG_PORT_CHANNEL.format(port) +
                 ' ' +
                 self.SWITCHPORT_HYBRID_ALLOWED_VLAN % vlan)
 
@@ -364,7 +365,7 @@ class Mellanox(switch_common.SwitchCommon):
     def set_mtu_for_mlag_port_channel(self, port, mtu):
         # Set port-channel MTU
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port +
+            self.MLAG_PORT_CHANNEL.format(port) +
             ' ' +
             self.SET_MTU.format(mtu) +
             ' ' +
@@ -396,7 +397,7 @@ class Mellanox(switch_common.SwitchCommon):
                        cidr_mlag_ipl,
                        ipaddr_mlag_ipl_peer,
                        ipaddr_mlag_vip,
-                       mlag_ports):
+                       mlag_ipl_ports):
 
         # Enable IP routing
         self.send_cmd(self.IP_ROUTING)
@@ -416,7 +417,7 @@ class Mellanox(switch_common.SwitchCommon):
 
         # Map a physical port to the LAG in active mode (LACP)
         # for port in self.inv.yield_mlag_ports(switch_index):
-        for port in mlag_ports:
+        for port in mlag_ipl_ports:
             self.send_cmd(
                 self.INTERFACE_CONFIG.format(port) +
                 ' ' +
@@ -452,24 +453,36 @@ class Mellanox(switch_common.SwitchCommon):
         self.send_cmd(
             self.MLAG_VIP % ipaddr_mlag_vip)
 
-    def create_mlag_interface(self, port):
+    def create_mlag_interface(self, mlag_ifc):
         # Create MLAG interface
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc))
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port + ' ' + self.STP_PORT_TYPE_EDGE)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.STP_PORT_TYPE_EDGE)
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port + ' ' + self.STP_BPDUFILTER_ENABLE)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.STP_BPDUFILTER_ENABLE)
 
-    def bind_mlag_interface(self, port):
-        # Bind and enable MLAG interface
+    def remove_mlag_interface(self, mlag_ifc):
+        # Remove MLAG interface
+        self.send_cmd(
+            'no ' + self.MLAG_PORT_CHANNEL.format(mlag_ifc))
+
+    def show_mlag_interfaces(self):
+        return self.send_cmd(self.SHOW_IFC_MLAG_PORT_CHANNEL)
+
+    def bind_mlag_interface(self, port, mlag_ifc=None):
+        """ Bind and enable MLAG interface.  If no mlag interface is specified,
+        the port is bound to the mlag interface number matching the port number.
+        """
+        if mlag_ifc is None:
+            mlag_ifc = port
         self.send_cmd(
             self.INTERFACE_CONFIG.format(port) + ' ' + self.MLAG_ACTIVE % port)
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL % port + ' ' + self.NO_SHUTDOWN)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.NO_SHUTDOWN)
 
     def get_macs(self):
         port_to_mac = AttrDict()

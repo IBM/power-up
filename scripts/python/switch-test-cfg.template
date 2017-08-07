@@ -1,0 +1,11 @@
+# template file for switch-test
+#
+mlag_ifc: 36
+port: 23
+switchport_mode: access
+test: 1
+vlan: 20
+vlans: 20 21
+host: 192.168.16.25
+ifc_addr: 192.168.36.20
+ifc_netmask: 255.255.255.0

@@ -22,6 +22,7 @@ import re
 import readline
 import yaml
 import sys
+from shutil import copyfile
 
 from lib.logger import Logger
 from lib.switch import SwitchFactory
@@ -60,6 +61,8 @@ def print_dict(dict):
 
 
 MAX_INTF = 128
+GEN_PATH = gen_path
+# print('GEN PATH: ' + GEN_PATH)
 
 mellanox = (
     'Vlan    Mac Address         Type         Port\n'
@@ -103,16 +106,17 @@ def main(log):
         cfg: Dictionary of configuration values
     """
     _class = rlinput('\nEnter switch class: ', 'lenovo')
-    cfg_file_path = gen_path + 'scripts/python/switch-test-cfg-{}.yml'
+    cfg_file_path = GEN_PATH + 'scripts/python/switch-test-cfg-{}.yml'
     try:
         cfg = yaml.load(open(cfg_file_path.format(_class)))
     except:
         print('Could not load file: ' + cfg_file_path.format(_class))
-        print('Using default config file')
+        print('Copying from template file')
         try:
-            cfg = yaml.load(open(cfg_file_path.format('')))
+            copyfile(GEN_PATH + 'scripts/python/switch-test-cfg.template', cfg_file_path.format(_class))
+            cfg = yaml.load(open(cfg_file_path.format(_class)))
         except:
-            print('Could not load file: ' + cfg_file_path.format(''))
+            print('Could not load file: ' + cfg_file_path.format(_class))
             sys.xit(1)
     test = cfg['test']
     host = cfg['host']
@@ -122,6 +126,7 @@ def main(log):
     ifc_netmask = cfg['ifc_netmask']
     port = cfg['port']
     switchport_mode = cfg['switchport_mode']
+    mlag_ifc = cfg['mlag_ifc']
 
     host = rlinput('Enter host address: ', host)
     cfg['host'] = host
@@ -330,6 +335,32 @@ def main(log):
             try:
                 sw.set_switchport_native_vlan(vlan, port)
                 print('Set native vlan succesful')
+            except SwitchException as exc:
+                print(exc)
+
+        # Test show mlag interfaces summary
+        if 18 == test:
+            print(sw.show_mlag_interfaces())
+
+        # Test create MLAG interface (MLAG port channel)
+        if 19 == test:
+            print('\nTest create MLAG interface')
+            vlan = int(rlinput('Enter mlag ifc #: ', str(mlag_ifc)))
+            cfg['mlag_ifc'] = mlag_ifc
+            try:
+                sw.create_mlag_interface(mlag_ifc)
+                print('Created mlag ifc {}'.format(mlag_ifc))
+            except SwitchException as exc:
+                print(exc)
+
+        # Test remove mlag interface
+        if 20 == test:
+            print('\nTest remove mlag interface')
+            vlan = int(rlinput('Enter mlag ifc #: ', str(mlag_ifc)))
+            cfg['mlag_ifc'] = mlag_ifc
+            try:
+                sw.remove_mlag_interface(mlag_ifc)
+                print('Deleted mlag ifc {}'.format(mlag_ifc))
             except SwitchException as exc:
                 print(exc)
 
