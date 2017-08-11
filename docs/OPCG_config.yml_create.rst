@@ -122,6 +122,8 @@ The following keys must be included in the cluster definition section::
 
     ipaddr-mgmt-network: a.b.c.d/n
     ipaddr-mgmt-client-network: a.b.e.f/n
+    container-mgmt-ipaddr-offset: 4
+    container-bridge-ipaddr-offset: 5
     vlan-mgmt-network: 16
     vlan-mgmt-client-network: 20
     port-mgmt-network: 1
@@ -160,6 +162,10 @@ Notes:
 -  a.b.c.d is used above to represent any ipv4 address. The user must
    supply a valid ipv4 address. a.b.c.d/n is used to represent any valid
    ipv4 address in CIDR format.
+-  The default container and corresponding bridge ipv4 address offsets are set
+   to 2 and 3, respectively. On any additional deployers nodes these settings
+   must be changed to unique values. This can be accomplished using the
+   container-mgmt-ipaddr-offset and container-bridge-ipaddr-offset keywords.
 
 **Passive Switch Mode**:
 

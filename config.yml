@@ -32,6 +32,8 @@ deployment-environment:
     no_proxy: "localhost,127.0.0.1"
 ipaddr-mgmt-network: 192.168.16.0/20
 ipaddr-mgmt-client-network: 192.168.20.0/24
+container-mgmt-ipaddr-offset: 4
+container-bridge-ipaddr-offset: 5
 vlan-mgmt-network: 16
 vlan-mgmt-client-network: 20
 port-mgmt-network: 1

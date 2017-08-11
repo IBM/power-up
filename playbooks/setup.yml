@@ -65,3 +65,25 @@
       when:
         - config_file['deployment-environment'] is defined
         - config_file['deployment-environment'] is not none
+
+    - name: "Register container management IP address offset"
+      shell: "grep container-mgmt-ipaddr-offset {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: container_mgmt_ipaddr_offset
+
+    - name: "Update group_vars/all container_mgmt_ipv4_offset"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/group_vars/all"
+        regexp: '^(container_mgmt_ipv4_offset:).*$'
+        replace: '\1 {{ container_mgmt_ipaddr_offset.stdout }}'
+      when: container_mgmt_ipaddr_offset.stdout != ""
+
+    - name: "Register container bridge IP address offset"
+      shell: "grep container-bridge-ipaddr-offset {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
+      register: container_bridge_ipaddr_offset
+
+    - name: "Update group_vars/all container_bridge_ipv4_offset"
+      replace:
+        dest: "{{ project_path_local }}/playbooks/group_vars/all"
+        regexp: '^(container_bridge_ipv4_offset:).*$'
+        replace: '\1 {{ container_bridge_ipaddr_offset.stdout }}'
+      when: container_bridge_ipaddr_offset.stdout != ""
