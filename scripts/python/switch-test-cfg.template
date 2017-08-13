@@ -1,6 +1,7 @@
 # template file for switch-test
 #
 mlag_ifc: 36
+lag_ifc: 1
 port: 23
 switchport_mode: access
 test: 1

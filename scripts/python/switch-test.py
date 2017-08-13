@@ -92,6 +92,7 @@ def main(log):
     port = cfg['port']
     switchport_mode = cfg['switchport_mode']
     mlag_ifc = cfg['mlag_ifc']
+    lag_ifc = cfg['lag_ifc']
 
     host = rlinput('Enter host address: ', host)
     cfg['host'] = host
@@ -303,7 +304,7 @@ def main(log):
             except SwitchException as exc:
                 print(exc)
 
-        # Test show mlag interfaces summary
+        # Test show MLAG interfaces summary
         if 18 == test:
             print(sw.show_mlag_interfaces())
 
@@ -318,9 +319,9 @@ def main(log):
             except SwitchException as exc:
                 print(exc)
 
-        # Test remove mlag interface
+        # Test remove MLAG interface
         if 20 == test:
-            print('\nTest remove mlag interface')
+            print('\nTest remove MLAG interface')
             mlag_ifc = int(rlinput('Enter mlag ifc #: ', str(mlag_ifc)))
             cfg['mlag_ifc'] = mlag_ifc
             try:
@@ -329,23 +330,47 @@ def main(log):
             except SwitchException as exc:
                 print(exc)
 
+        # Test deconfigure MLAG interface
+        if 21 == test:
+            try:
+                sw.deconfigure_mlag()
+            except SwitchException as exc:
+                print(exc)
+
+        # Test show LAG interfaces summary
+        if 22 == test:
+            print(sw.show_lag_interfaces())
+
+        # Test create LAG interface (LAG port channel)
+        if 23 == test:
+            print('\nTest create LAG interface')
+            lag_ifc = int(rlinput('Enter lag ifc #: ', str(lag_ifc)))
+            cfg['lag_ifc'] = lag_ifc
+            try:
+                sw.create_lag_interface(lag_ifc)
+                print('Created lag ifc {}'.format(lag_ifc))
+            except SwitchException as exc:
+                print(exc)
+
+        # Test remove LAG interface
+        if 24 == test:
+            print('\nTest remove LAG interface')
+            lag_ifc = int(rlinput('Enter lag ifc #: ', str(lag_ifc)))
+            cfg['lag_ifc'] = lag_ifc
+            try:
+                sw.remove_lag_interface(lag_ifc)
+                print('Deleted lag ifc {}'.format(lag_ifc))
+            except SwitchException as exc:
+                print(exc)
+
         yaml.dump(cfg, open(cfg_file_path.format(_class), 'w'), default_flow_style=False)
-        _ = rlinput('\nPress enter to continue, 0 to end ', '')
+        _ = rlinput('\nPress enter to continue, 0 to exit ', '')
         if _ == '0':
             test = 0
 
 
 if __name__ == '__main__':
-    """Show status of the Cluster Genesis environment
-
-    Args:
-        tests (string): string of tests to run. ex 245 will run tests 2,4
-        and 5.  99 will run all tests.
-        _class (string): switch class.  ie lenovo
-        host (string): switch address. ie 192.168.32.20
-
-    Raises:
-       Exception: If parameter count is invalid.
+    """Interactive test for switch methods
     """
 
     LOG = Logger(__file__)

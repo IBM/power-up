@@ -60,7 +60,7 @@ class Mellanox(switch_common.SwitchCommon):
     ENABLE_REMOTE_CONFIG = 'cli enable "configure terminal" "%s"'
     FORCE = 'force'
     SET_MTU = 'mtu {}'
-    INTERFACE_CONFIG = 'interface ethernet 1/{}'
+    INTERFACE_CONFIG = 'interface ethernet 1/{} '
     SHOW_SWITCHPORT = 'show interfaces switchport | include Eth1/{}'
     SET_NATIVE_VLAN_ACCESS = 'interface ethernet 1/{} switchport access vlan {}'
     SET_NATIVE_VLAN_TRUNK = 'interface ethernet 1/{} switchport access vlan {}'
@@ -79,20 +79,24 @@ class Mellanox(switch_common.SwitchCommon):
     ENABLE_LACP = 'lacp'
     QOS_ENABLE = 'dcb priority-flow-control enable force'
     MLAG = 'protocol mlag'
-    LAG_PORT_CHANNEL = 'interface port-channel %d'
-    LACP = 'channel-group %d mode active'
+    LAG_PORT_CHANNEL = 'interface port-channel {} '
+    LAG_ACTIVE = 'channel-group {} mode active'
     IPL = 'ipl 1'
     QOS_ON = 'dcb priority-flow-control mode on force'
-    INTERFACE_VLAN = 'interface vlan %d'
-    IP_CIDR = 'ip address %s'
-    PEER_ADDR = 'peer-address %s'
+    QOS_OFF = 'no dcb priority-flow-control mode force'
+    INTERFACE_VLAN = 'interface vlan {}'
+    IP_CIDR = 'ip address {}'
+    PEER_ADDR = 'peer-address {}'
     MLAG_VIP = 'mlag-vip my-mlag-vip-domain ip %s force'
+    NO_MLAG_VIP = 'no mlag-vip'
     ENABLE_MLAG = 'no mlag shutdown'
-    MLAG_PORT_CHANNEL = 'interface mlag-port-channel {}'
+    DISABLE_MLAG = 'mlag shutdown'
+    MLAG_PORT_CHANNEL = 'interface mlag-port-channel {} '
+    SHOW_IFC_LAG_PORT_CHANNEL = 'show interface port-channel summary'
     SHOW_IFC_MLAG_PORT_CHANNEL = 'show interface mlag-port-channel summary'
     STP_PORT_TYPE_EDGE = 'spanning-tree port type edge'
     STP_BPDUFILTER_ENABLE = 'spanning-tree bpdufilter enable'
-    MLAG_ACTIVE = 'mlag-channel-group %d mode active'
+    MLAG_ACTIVE = 'mlag-channel-group {} mode active'
     NO_CHANNEL_GROUP = 'no channel-group'
     MAC_RE = re.compile('([\da-fA-F]{2}:){5}([\da-fA-F]{2})')
     CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table dynamic'
@@ -124,6 +128,9 @@ class Mellanox(switch_common.SwitchCommon):
 
         switch_common.SwitchCommon.__init__(
             self, log, host, userid, password, mode, outfile)
+
+    def pr_cmd(self, cmd):
+        print(cmd)
 
     def set_switchport_mode(self, mode, port, nvlan):
         """Sets the switchport mode.  Note that Mellanox's 'hybrid'
@@ -343,46 +350,65 @@ class Mellanox(switch_common.SwitchCommon):
     def set_mtu_for_port(self, port, mtu):
         # Bring port down
         self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + ' ' + self.SHUTDOWN)
+            self.INTERFACE_CONFIG.format(port) + self.SHUTDOWN)
 
         # Set MTU
-        self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + ' ' + self.SET_MTU.format(mtu))
+        if mtu == 0:
+            self.send_cmd(
+                self.INTERFACE_CONFIG.format(port) + 'no mtu')
+        else:
+            self.send_cmd(
+                self.INTERFACE_CONFIG.format(port) + self.SET_MTU.format(mtu))
 
         # Bring port up
         self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + ' ' + self.NO_SHUTDOWN)
+            self.INTERFACE_CONFIG.format(port) + self.NO_SHUTDOWN)
 
     def set_mtu_for_lag_port_channel(self, port, mtu):
         # Set port-channel MTU
-        self.send_cmd(
-            self.LAG_PORT_CHANNEL % port +
-            ' ' +
-            self.SET_MTU.format(mtu) +
-            ' ' +
-            self.FORCE)
+        if mtu == 0:
+            self.send_cmd(
+                self.LAG_PORT_CHANNEL.format(port) +
+                'no mtu ' +
+                self.FORCE)
+        else:
+            self.send_cmd(
+                self.LAG_PORT_CHANNEL.format(port) +
+                self.SET_MTU.format(mtu) +
+                ' ' +
+                self.FORCE)
 
     def set_mtu_for_mlag_port_channel(self, port, mtu):
         # Set port-channel MTU
-        self.send_cmd(
-            self.MLAG_PORT_CHANNEL.format(port) +
-            ' ' +
-            self.SET_MTU.format(mtu) +
-            ' ' +
-            self.FORCE)
+        if mtu == 0:
+            self.send_cmd(
+                self.MLAG_PORT_CHANNEL.format(port) +
+                'no mtu ' +
+                self.FORCE)
+        else:
+            self.send_cmd(
+                self.MLAG_PORT_CHANNEL.format(port) +
+                self.SET_MTU.format(mtu) +
+                ' ' +
+                self.FORCE)
 
-    def create_lag(self, port_channel):
+    def create_lag_interface(self, lag_ifc):
         # Create a LAG
         self.send_cmd(
-            self.LAG_PORT_CHANNEL % port_channel)
+            self.LAG_PORT_CHANNEL.format(lag_ifc))
 
-    def activate_lag(self, port_channel, ports):
+    def remove_lag_interface(self, lag_ifc):
+        # Remove LAG interface
+        self.send_cmd(
+            'no ' + self.LAG_PORT_CHANNEL.format(lag_ifc))
+
+    def bind_ports_to_lag_interface(self, ports, lag_ifc):
         # Map a physical port to the LAG in active mode (LACP)
         for port in ports:
             self.send_cmd(
                 self.INTERFACE_CONFIG.format(port) +
                 ' ' +
-                self.LACP % port_channel)
+                self.LAG_ACTIVE.format(lag_ifc))
 
     def enable_lacp(self):
         self.send_cmd(self.ENABLE_LACP)
@@ -390,8 +416,85 @@ class Mellanox(switch_common.SwitchCommon):
     def enable_mlag(self):
         self.send_cmd(self.ENABLE_MLAG)
 
+    def disable_mlag(self):
+        self.send_cmd(self.DISABLE_MLAG)
+
+    def show_lag_interfaces(self):
+        return self.send_cmd(self.SHOW_IFC_LAG_PORT_CHANNEL)
+
+    def deconfigure_mlag(self):
+        # Get MLAG info.  Note that Mellanox supports only 1 IPL port channel
+        mlag_info = self.send_cmd('show mlag')
+        match = re.search(r'\d+\s+Po(\d+)\s+(\d+)', mlag_info)
+        if match:
+            port_channel = match.group(1)
+            vlan = match.group(2)
+            self.log.info(
+                'Found IPL port channel {} on vlan {}. Removing.'
+                .format(port_channel, vlan))
+        else:
+            raise SwitchException(
+                'MLAG port channel information not found')
+
+        port_channel_info = self.send_cmd(self.SHOW_IFC_LAG_PORT_CHANNEL)
+        match = re.search(
+            r'\d+\s+Po' +
+            port_channel +
+            '\S+\s+\w+\s+Eth1/(\d+)\S+\s+Eth1/(\d+)', port_channel_info)
+        if match:
+            port1 = match.group(1)
+            port2 = match.group(2)
+            self.log.info('Found IPL ports {} {}'.format(port1, port2))
+        else:
+            raise SwitchException(
+                'MLAG IPL port channel information not found')
+
+        self.disable_mlag()
+        self.send_cmd(self.NO_MLAG_VIP)
+
+        # Remove IPL peer address
+        self.send_cmd(
+            self.INTERFACE_VLAN.format(vlan) +
+            ' no ' +
+            self.IPL +
+            ' ' +
+            self.PEER_ADDR.format(''))
+
+        # Remove IPL address
+        self.send_cmd(
+            self.INTERFACE_VLAN.format(vlan) +
+            ' no ' +
+            self.IP_CIDR.format(''))
+
+        # Remove the interface on vlan
+        self.send_cmd('no ' + self.INTERFACE_VLAN.format(vlan))
+
+        # Turn off QOS dcb priority flow control on port channel
+        self.send_cmd(
+            self.LAG_PORT_CHANNEL.format(port_channel) +
+            self.QOS_OFF)
+
+        # Unbind IPL 1 from port channel
+        self.send_cmd(
+            self.LAG_PORT_CHANNEL.format(port_channel) + 'no ' + self.IPL)
+
+        # Remove physical ports from channel group
+        self.send_cmd(self.INTERFACE_CONFIG.format(port1) + 'no channel group')
+        self.send_cmd(self.INTERFACE_CONFIG.format(port2) + 'no channel group')
+
+        # Remove the port channel
+        self.send_cmd('no ' + self.LAG_PORT_CHANNEL.format(port_channel))
+
+        # Remove the vlan
+        self.send_cmd('no vlan {}'.format(vlan))
+
+        # Disable mlag protocol
+        self.send_cmd('no ' + self.MLAG)
+
+        # Disable QOS
+        self.send_cmd('no ' + self.QOS_ENABLE)
+
     def configure_mlag(self,
-                       switch_index,
                        vlan,
                        port_channel,
                        cidr_mlag_ipl,
@@ -421,7 +524,7 @@ class Mellanox(switch_common.SwitchCommon):
             self.send_cmd(
                 self.INTERFACE_CONFIG.format(port) +
                 ' ' +
-                self.LACP % port_channel)
+                self.LAG_ACTIVE.format(port_channel))
 
         # Set this LAG as an IPL
         self.send_cmd(
@@ -433,21 +536,21 @@ class Mellanox(switch_common.SwitchCommon):
 
         # Create VLAN interface
         self.send_cmd(
-            self.INTERFACE_VLAN % vlan)
+            self.INTERFACE_VLAN.format(vlan))
 
         # Set MLAG IPL IP address
         self.send_cmd(
-            self.INTERFACE_VLAN % vlan +
+            self.INTERFACE_VLAN.format(vlan) +
             ' ' +
-            self.IP_CIDR % cidr_mlag_ipl)
+            self.IP_CIDR.format(cidr_mlag_ipl))
 
         # Set MLAG Peer IP address
         self.send_cmd(
-            self.INTERFACE_VLAN % vlan +
+            self.INTERFACE_VLAN.format(vlan) +
             ' ' +
             self.IPL +
             ' ' +
-            self.PEER_ADDR % ipaddr_mlag_ipl_peer)
+            self.PEER_ADDR.format(ipaddr_mlag_ipl_peer))
 
         # Set MLAG VIP
         self.send_cmd(
@@ -472,14 +575,21 @@ class Mellanox(switch_common.SwitchCommon):
     def show_mlag_interfaces(self):
         return self.send_cmd(self.SHOW_IFC_MLAG_PORT_CHANNEL)
 
-    def bind_mlag_interface(self, port, mlag_ifc=None):
-        """ Bind and enable MLAG interface.  If no mlag interface is specified,
-        the port is bound to the mlag interface number matching the port number.
+    def bind_port_to_mlag_interface(self, port, mlag_ifc=None):
+        """ Bind a port to an MLAG interface and enable it. If no mlag
+        interface is specified, the port is bound to the mlag interface
+        number matching the first port number.
+        Args:
+            port: (int or string) Physical port to add to the MLAG port
+            channel
+            mlag_ifc: (int or string) MLAG interface (MLAG port channel)
+            This port channel must already exist. (create_mlag_interface(self,
+            mlag_ifc))
         """
         if mlag_ifc is None:
             mlag_ifc = port
         self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + ' ' + self.MLAG_ACTIVE % port)
+            self.INTERFACE_CONFIG.format(port) + ' ' + self.MLAG_ACTIVE.format(port))
 
         self.send_cmd(
             self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.NO_SHUTDOWN)
