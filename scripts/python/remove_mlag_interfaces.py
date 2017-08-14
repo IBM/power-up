@@ -21,12 +21,13 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import os
 import readline
 import re
+import sys
 
 from lib.logger import Logger
 from lib.switch import SwitchFactory
 from lib import genesis
 from lib import inventory
-
+from lib.switch_exception import SwitchException
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 ssh_log = FILE_PATH + '/gen_ssh.log'
@@ -49,6 +50,12 @@ def main(log):
     password = inv.get_password_data_switch()
     for addr in inv.yield_data_switch_ip():
         sw = SwitchFactory.factory(log, switch_class, addr, userid, password, mode='active')
+        try:
+            mlag_ifcs = sw.show_mlag_interfaces()
+        except SwitchException as exc:
+            print(exc)
+            print('Unable to retrieve any mlag interfaces')
+            sys.exit(1)
         mlag_ifcs = sw.show_mlag_interfaces()
         print('\n       MLAG interface summary for switch: {}'.format(addr))
         print(mlag_ifcs)

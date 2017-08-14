@@ -76,7 +76,7 @@ class ConfigureDataSwitch(object):
                 self.password,
                 mode='active')
 
-        for self.ipv4, vlans in self.inv.yield_data_vlans(self.userid, self.password):
+        for self.ipv4, userid, password, vlans in self.inv.yield_data_vlans(self.userid, self.password):
             for vlan in vlans:
                 self.switch_dict[self.ipv4].create_vlan(vlan)
 
@@ -95,6 +95,7 @@ class ConfigureDataSwitch(object):
             else:
                 for port, vlans in port_vlans.items():
                     # Set port mode and add VLANs
+                    self.switch_dict[self.ipv4].set_switchport_mode('trunk', port)
                     self.switch_dict[self.ipv4].add_vlans_to_port(port, vlans)
                 for port, mtu in port_mtu.items():
                     # Specify MTU

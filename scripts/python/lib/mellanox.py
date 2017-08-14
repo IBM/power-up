@@ -129,10 +129,7 @@ class Mellanox(switch_common.SwitchCommon):
         switch_common.SwitchCommon.__init__(
             self, log, host, userid, password, mode, outfile)
 
-    def pr_cmd(self, cmd):
-        print(cmd)
-
-    def set_switchport_mode(self, mode, port, nvlan):
+    def set_switchport_mode(self, mode, port, nvlan=None):
         """Sets the switchport mode.  Note that Mellanox's 'hybrid'
         mode is functionally equivalent to most other vendor's 'trunk'
         mode. To handle this, if mode is specified as 'trunk', it is

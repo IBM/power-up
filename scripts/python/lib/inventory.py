@@ -382,8 +382,11 @@ class Inventory():
 
     def yield_data_switch_ip(self):
         for rack_list in self.inv[INV_IPADDR_DATA_SWITCH].values():
-            for ipv4 in rack_list:
-                yield ipv4
+            if type(rack_list) is list:
+                for ipv4 in rack_list:
+                    yield ipv4
+            else:
+                yield rack_list
 
     def yield_data_vlans(self, userid, password):
         _dict = AttrDict()
