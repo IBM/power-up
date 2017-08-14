@@ -22,11 +22,11 @@ import os.path
 import datetime
 
 from lib.switch_exception import SwitchException
-from lib import switch_common
+from lib.switch_common import SwitchCommon
 from lib.genesis import gen_passive_path, gen_path
 
 
-class Lenovo(switch_common.SwitchCommon):
+class Lenovo(SwitchCommon):
     """Class for configuring and retrieving information for a Lenovo
     switch.  This class works with the Lenovo G8052.  Similar
     Lenovo switches may work or may need some methods overridden.
@@ -55,7 +55,7 @@ class Lenovo(switch_common.SwitchCommon):
         outfile (string): Name of file to direct switch output to when
         in passive mode.
     """
-    ENABLE_REMOTE_CONFIG = switch_common.SwitchCommon.ENABLE_REMOTE_CONFIG
+    ENABLE_REMOTE_CONFIG = SwitchCommon.ENABLE_REMOTE_CONFIG
     # override ENABLE_REMOTE_CONFIG as needed.
     # ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
     # override as needed per switch syntax:
@@ -105,8 +105,7 @@ class Lenovo(switch_common.SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-        switch_common.SwitchCommon.__init__(
-            self, log, host, userid, password, mode, outfile)
+        SwitchCommon.__init__(self, log, host, userid, password, mode, outfile)
 
     def _get_port_detail(self, match):
         avlans = ''

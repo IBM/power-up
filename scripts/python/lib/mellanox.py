@@ -22,12 +22,12 @@ import os.path
 import netaddr
 import datetime
 
-from lib import switch_common
+from lib.switch_common import SwitchCommon
 from lib.genesis import gen_passive_path, gen_path
 from lib.switch_exception import SwitchException
 
 
-class Mellanox(switch_common.SwitchCommon):
+class Mellanox(SwitchCommon):
     """Class for configuring and retrieving information for a Mellanox
     switch. Similar Mellanox switches may work or may need some methods
     overridden. This class can be instantiated in 'active' mode, in which
@@ -124,7 +124,7 @@ class Mellanox(switch_common.SwitchCommon):
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
 
-        switch_common.SwitchCommon.__init__(
+        SwitchCommon.__init__(
             self, log, host, userid, password, mode, outfile)
 
     def set_switchport_mode(self, mode, port, nvlan=None):
