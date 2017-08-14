@@ -146,8 +146,8 @@ Notes:
    reside in is defined by the vlan-mgmt-client-network: keyword.
 -  The ipaddr-mgmt-network: keyword defines the subnet that the PXE and BMC ports for
    your cluster nodes will reside in. addresses a.b.c.1 and a.b.c.2 are reserved for
-   use by the linux container on the deployer node. Cluster node address assignements
-   will begin at a.b.c.100.
+   use by the linux container on the deployer node. Cluster node address assignments
+   will begin at a.b.c.101.
 -  The ipaddr-mgmt-client-network: keyword defines the subnet that the BMC and PXE ports
    of the cluster nodes reside in.
 -  The management ip addresses for the management switch and the data
