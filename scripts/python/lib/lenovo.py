@@ -105,7 +105,7 @@ class Lenovo(SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-        SwitchCommon.__init__(self, log, host, userid, password, mode, outfile)
+        super(Lenovo, self).__init__(log, host, userid, password, mode, outfile)
 
     def _get_port_detail(self, match):
         avlans = ''

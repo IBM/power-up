@@ -123,9 +123,8 @@ class Mellanox(SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-
-        SwitchCommon.__init__(
-            self, log, host, userid, password, mode, outfile)
+        super(Mellanox, self).__init__(
+            log, host, userid, password, mode, outfile)
 
     def set_switchport_mode(self, mode, port, nvlan=None):
         """Sets the switchport mode.  Note that Mellanox's 'hybrid'
