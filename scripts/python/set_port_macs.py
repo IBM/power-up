@@ -40,12 +40,12 @@ def main(log, inv_file):
             userid,
             password,
             mode='active')
-        switch_ip_to_port_to_macs = switch.get_macs()
+        switch_ip_to_port_to_macs = switch.show_mac_address_table(format='std')
         log.debug('switch_ip_to_port_to_macs')
         log.debug(switch_ip_to_port_to_macs)
         success = inv.add_data_switch_port_macs(ipv4, switch_ip_to_port_to_macs, index)
         if not success:
-            sys.exit(1)
+            sys.exit('Failed adding mac address table to inventory')
         index += 1
 
 

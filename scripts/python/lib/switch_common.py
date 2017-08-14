@@ -245,8 +245,12 @@ class SwitchCommon(object):
             return self.get_port_to_mac(mac_info, self.log)
 
     def clear_mac_address_table(self):
-        if self.mode == 'passive':
-            return
+        """Clear switch mac address table by writing the CLEAR_MAC_ADDRESS_TABLE
+        string to the switch.
+        Args: None.  The CLEAR_MAC_ADDRESS_TABLE string can be over-ridden in
+              the specific switch class module.
+        Returns: Nothing
+        """
         self.send_cmd(self.CLEAR_MAC_ADDRESS_TABLE)
 
     def is_pingable(self):

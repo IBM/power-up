@@ -24,8 +24,6 @@ import datetime
 
 from lib import switch_common
 from lib.genesis import gen_passive_path, gen_path
-from orderedattrdict import AttrDict
-from lib.switches import PassiveSwitch
 from lib.switch_exception import SwitchException
 
 
@@ -590,46 +588,6 @@ class Mellanox(switch_common.SwitchCommon):
 
         self.send_cmd(
             self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.NO_SHUTDOWN)
-
-    def get_macs(self):
-        port_to_mac = AttrDict()
-
-        if self.mode is not 'passive':
-            output = self.send_cmd(self.SHOW_MAC_ADDRESS_TABLE)
-            port_to_mac = AttrDict()
-            for line in output.splitlines():
-                mac_search = self.MAC_RE.search(line)
-                if mac_search and "/" in line:
-                    macAddr = mac_search.group().lower()
-                    portInfo = line.split("/")
-                    if len(portInfo) == 3:
-                        # port is String  type, if port = Eth1/59/4,
-                        port = portInfo[1] + "/" + portInfo[2]
-                    else:
-                        # port is integer type,  port = Eth1/48,
-                        port = portInfo[1]
-                    if port in port_to_mac:
-                        port_to_mac[port].append(macAddr)
-                    else:
-                        port_to_mac[port] = [macAddr]
-        else:
-            switch = PassiveSwitch(self.log, self.host)
-            scripts_path = os.path.abspath(__file__)
-            passive_path = (
-                re.match('(.*cluster\-genesis).*', scripts_path).group(1) +
-                '/passive/')
-            file_path = passive_path + self.host
-            port_to_mac = switch.get_port_to_mac(file_path)
-        print ("PORT OT MAC ", port_to_mac)
-        return port_to_mac
-
-    def clear_mac_address_table(self):
-        if self.mode is not 'passive':
-            print(self.CLEAR_MAC_ADDRESS_TABLE)
-            self.send_cmd(self.CLEAR_MAC_ADDRESS_TABLE)
-        else:
-            switch = PassiveSwitch(self.log, self.host)
-            switch.clear_mac_address_table()
 
 
 class switch(object):
