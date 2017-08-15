@@ -82,7 +82,7 @@ def main(log):
             cfg = yaml.load(open(cfg_file_path.format(_class)))
         except:
             print('Could not load file: ' + cfg_file_path.format(_class))
-            sys.xit(1)
+            sys.exit(1)
     test = cfg['test']
     host = cfg['host']
     vlan = cfg['vlan']
