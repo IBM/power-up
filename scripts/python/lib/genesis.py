@@ -17,11 +17,11 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import os.path
-import yaml
-import subprocess
 import sys
+import os.path
+import subprocess
 import re
+import yaml
 
 genesis_dir = 'cluster-genesis'
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))

@@ -20,12 +20,12 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 import os.path
-import netaddr
 import subprocess
 import readline
+import netaddr
 
 from lib.ssh import SSH, SSH_Exception
-from lib import inventory
+from lib.inventory import Inventory
 from lib.logger import Logger
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -41,7 +41,7 @@ def rlinput(prompt, prefill=''):
 
 
 def main(log, inv_file):
-    inv = inventory.Inventory(log, inv_file)
+    inv = Inventory(log, inv_file)
     print()
     mgmt_network_ext_cidr = None
     key_addr = None

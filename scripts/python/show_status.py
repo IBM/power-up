@@ -24,7 +24,7 @@ import sys
 import subprocess
 import readline
 
-from lib import inventory
+from lib.inventory import Inventory
 from lib.logger import Logger
 from lib.ssh import SSH_CONNECTION, SSH_Exception
 from lib import genesis
@@ -48,7 +48,7 @@ def rlinput(prompt, prefill=''):
 
 
 def main(log, inv_file):
-    inv = inventory.Inventory(log, inv_file)
+    inv = Inventory(log, inv_file)
 
     print('\nBridge Status: \n')
 

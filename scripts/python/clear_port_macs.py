@@ -20,14 +20,14 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 
-from lib import inventory
+from lib.inventory import Inventory
 from lib.logger import Logger
 from lib.switch import SwitchFactory
 
 
 def main(log, inv_file):
 
-    inv = inventory.Inventory(log, inv_file)
+    inv = Inventory(log, inv_file)
     userid = inv.get_userid_data_switch()
     password = inv.get_password_data_switch()
     switch_name = inv.get_data_switch_name()

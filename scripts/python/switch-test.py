@@ -18,11 +18,11 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import sys
 import re
 import readline
-import yaml
-import sys
 from shutil import copyfile
+import yaml
 
 from lib.logger import Logger
 from lib.switch import SwitchFactory
