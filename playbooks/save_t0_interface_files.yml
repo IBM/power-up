@@ -26,6 +26,4 @@
         - name: One time copy t0 interfaces file
           command: "cp /etc/network/interfaces /etc/network/interfaces.gen-deploy-t0"
           when: not st.stat.exists
-#      become: yes
-#      become_method: sudo
       ignore_errors: yes

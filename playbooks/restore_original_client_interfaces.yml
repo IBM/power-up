@@ -15,9 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 - name: Restore_original_client_interfaces.yml
   hosts: all
   gather_facts: False
+  handlers:
+    - include: handlers/reboot.yml
   tasks:
     - name: Check if deploy interfaces file exists
       stat: path=/etc/network/interfaces.gen-deploy-bak
@@ -27,12 +30,22 @@
         - name: Backup interfaces file
           command: "cp /etc/network/interfaces /etc/network/interfaces.gen-deploy-bak"
           when: not st.stat.exists
+          notify: Reboot
 
         - name: Restore original t0 interfaces file
           command: "cp /etc/network/interfaces.gen-deploy-t0 /etc/network/interfaces"
+          notify: Reboot
 
       when: ansible_distribution == 'Ubuntu'
 
     - name: Move original 99- persistent net rules udev file
       command: "mv /etc/udev/rules.d/99-persistent-net.rules /etc/udev/rules.d/99-persistent-net.rules-genbak"
       ignore_errors: yes
+      notify: Reboot
+
+    - name: Update boot ram disk
+      command: "update-initramfs -u"
+      register: updateinitramfs
+      when: (ansible_distribution == 'Ubuntu')
+      notify: Reboot
+    - debug: var=updateinitramfs.stdout_lines

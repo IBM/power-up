@@ -90,7 +90,8 @@ if [ "$1" == "deploy" ]; then
 fi
 
 if [ "$1" == "post-deploy" ]; then
-    TD_LIST="restore_original_ifcs restore_original_inventory remove_mlag_ifcs deconfigure_mlag"
+    TD_LIST="restore_original_ifcs restore_original_inventory remove_mlag_ifcs\
+        deconfigure_mlag"
 fi
 #########################################################
 if [ -d $GEN_PATH ]; then
@@ -291,10 +292,6 @@ if [ "$TD_LIST" == "" ] || [[ "$TD_LIST" == *"restore_original_ifcs"* ]]; then
     if [[ "$resp" == "y"* ]]; then
         cd "$GEN_PLAY_PATH"
         ansible-playbook -i ./inventory.py restore_original_client_interfaces.yml
-        ansible-playbook -i hosts pause.yml --extra-vars "seconds=10"
-        ansible-playbook -i hosts container/ipmi_power_off.yml
-        ansible-playbook -i hosts pause.yml --extra-vars "minutes=1"
-        ansible-playbook -i hosts container/ipmi_power_on.yml
         ansible-playbook -i inventory.py wait_for_clients_reboot.yml
     fi
 fi

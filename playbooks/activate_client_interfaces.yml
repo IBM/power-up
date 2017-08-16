@@ -17,7 +17,10 @@
 
 - name: activate_client_interfaces.yml
   hosts: all
+  gather_facts: no
   tasks:
+    - name: Gather facts
+      setup:
     - name: Bring down all interfaces except ansible communication interface
       command: "ip link set dev {{ item }} down"
       when:

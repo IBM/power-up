@@ -50,8 +50,10 @@
 
 - name: Update boot ram disk
   command: "update-initramfs -u"
-  delay: 30
+  register: updateinitramfs
   when: (ansible_distribution == 'Ubuntu')
+  notify: Reboot
+- debug: var=updateinitramfs.stdout_lines
 
 - name: Generate Ubuntu interfaces file
   template:
@@ -132,5 +134,4 @@
     - (ansible_distribution == 'CentOS') or (ansible_distribution == 'RedHat')
   with_items: "{{ host_networks.keys() }}"
   notify: Reboot
-
 ...
