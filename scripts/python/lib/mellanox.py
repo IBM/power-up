@@ -317,22 +317,19 @@ class Mellanox(SwitchCommon):
     def add_vlans_to_lag_port_channel(self, port, vlans):
         # Enable hybrid mode for port
         self.send_cmd(
-            self.LAG_PORT_CHANNEL % port +
-            ' ' +
+            self.LAG_PORT_CHANNEL.format(port) +
             self.SWITCHPORT_MODE_HYBRID)
 
         # Add VLANs to port
         for vlan in vlans:
             self.send_cmd(
-                self.LAG_PORT_CHANNEL % port +
-                ' ' +
+                self.LAG_PORT_CHANNEL.format(port) +
                 self.SWITCHPORT_HYBRID_ALLOWED_VLAN % vlan)
 
     def add_vlans_to_mlag_port_channel(self, port, vlans):
         # Enable hybrid mode for port
         self.send_cmd(
             self.MLAG_PORT_CHANNEL.format(port) +
-            ' ' +
             self.SWITCHPORT_MODE_HYBRID)
 
         # Add VLANs to port
@@ -511,23 +508,22 @@ class Mellanox(SwitchCommon):
 
         # Create a LAG
         self.send_cmd(
-            self.LAG_PORT_CHANNEL % port_channel)
+            self.LAG_PORT_CHANNEL.format(port_channel))
 
         # Map a physical port to the LAG in active mode (LACP)
         # for port in self.inv.yield_mlag_ports(switch_index):
         for port in mlag_ipl_ports:
             self.send_cmd(
                 self.INTERFACE_CONFIG.format(port) +
-                ' ' +
                 self.LAG_ACTIVE.format(port_channel))
 
         # Set this LAG as an IPL
         self.send_cmd(
-            self.LAG_PORT_CHANNEL % port_channel + ' ' + self.IPL)
+            self.LAG_PORT_CHANNEL.format(port_channel) + self.IPL)
 
         # Enable QoS on this specific interface
         self.send_cmd(
-            self.LAG_PORT_CHANNEL % port_channel + ' ' + self.QOS_ON)
+            self.LAG_PORT_CHANNEL.format(port_channel) + self.QOS_ON)
 
         # Create VLAN interface
         self.send_cmd(
@@ -557,10 +553,10 @@ class Mellanox(SwitchCommon):
             self.MLAG_PORT_CHANNEL.format(mlag_ifc))
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.STP_PORT_TYPE_EDGE)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + self.STP_PORT_TYPE_EDGE)
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.STP_BPDUFILTER_ENABLE)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + self.STP_BPDUFILTER_ENABLE)
 
     def remove_mlag_interface(self, mlag_ifc):
         # Remove MLAG interface
@@ -584,10 +580,10 @@ class Mellanox(SwitchCommon):
         if mlag_ifc is None:
             mlag_ifc = port
         self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + ' ' + self.MLAG_ACTIVE.format(port))
+            self.INTERFACE_CONFIG.format(port) + self.MLAG_ACTIVE.format(port))
 
         self.send_cmd(
-            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + ' ' + self.NO_SHUTDOWN)
+            self.MLAG_PORT_CHANNEL.format(mlag_ifc) + self.NO_SHUTDOWN)
 
 
 class switch(object):
