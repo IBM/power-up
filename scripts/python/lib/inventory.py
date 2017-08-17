@@ -99,7 +99,7 @@ INV_INFO = 'info'
 INV_CLASS = 'class'
 
 
-class Inventory():
+class Inventory(object):
     class SwitchType(Enum):
         MGMT, DATA = range(2)
 
