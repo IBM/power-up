@@ -37,4 +37,7 @@ reboot_delay_time: 300
 
 introspection_enabled: false
 deployer_gateway: false
+
+# BEGIN deployment_environment
 deployment_environment: {}
+# END deployment_environment
