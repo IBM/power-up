@@ -21,6 +21,7 @@ import os.path
 import subprocess
 import re
 from orderedattrdict import AttrDict
+from enum import Enum
 
 from lib.ssh import SSH
 from lib.switch_exception import SwitchException
@@ -29,18 +30,41 @@ FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 class SwitchCommon(object):
-    ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
+    ENABLE_REMOTE_CONFIG = 'enable;configure terminal; {}'
     SHOW_VLANS = 'show vlan'
     CREATE_VLAN = 'vlan {}'
     DELETE_VLAN = 'no vlan {}'
     SET_NATIVE_VLAN = ('interface port {};switchport access vlan {}')
     CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table'
     SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table'
-    SET_SWITCHPORT_MODE_TRUNK = (
+    SET_SWITCHPORT_MODE = (
         'no prompting'
         ';interface port {}'
-        ';switchport mode trunk'
-        ';switchport trunk allowed vlan none'
+        ';switchport mode {}'
+        ';exit'
+        ';prompting')
+    SWITCHPORT_ALLOWED_VLAN_ALL_OR_NONE = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport {} allowed vlan {}'
+        ';exit'
+        ';prompting')
+    SWITCHPORT_ADD_ALLOWED_VLAN = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport {} allowed vlan add {}'
+        ';exit'
+        ';prompting')
+    SWITCHPORT_SET_NATIVE_VLAN = (
+        'no prompting'
+        ';interface port {port}'
+        ';switchport {mode} native vlan {nvlan}'
+        ';exit'
+        ';prompting')
+    SET_NATIVE_VLAN_ACCESS = (
+        'no prompting'
+        ';interface port {}'
+        ';switchport access vlan {}'
         ';exit'
         ';prompting')
     SET_NATIVE_VLAN_TRUNK = (
@@ -50,18 +74,11 @@ class SwitchCommon(object):
         ';switchport trunk native vlan {}'
         ';exit'
         ';prompting')
-    SET_SWITCHPORT_MODE_ACCESS = (
-        'no prompting'
-        ';interface port {}'
-        ';switchport mode access'
-        ';exit'
-        ';prompting')
-    SET_NATIVE_VLAN_ACCESS = (
-        'no prompting'
-        ';interface port {}'
-        ';switchport access vlan {}'
-        ';exit'
-        ';prompting')
+
+    class PortMode(Enum):
+        TRUNK = 'trunk'
+        ACCESS = 'access'
+        TRUNK_NATIVE = ''
 
     def __init__(self, log, host=None, userid=None,
                  password=None, mode=None, outfile=None):
@@ -97,21 +114,34 @@ class SwitchCommon(object):
         ports = self.show_ports(format='std')
         return ports[port]['nvlan']
 
-    def set_switchport_mode(self, mode, port, nvlan=None):
-        if mode == 'trunk':
-            self.send_cmd(self.SET_SWITCHPORT_MODE_TRUNK.format(port))
+    def pr_cmd(self, cmd):
+        print(cmd)
+
+    def set_switchport_mode(self, mode, port, nvlan=None, allow_all_vlans='none'):
+        """Sets the switchport mode.
+        Args:
+            mode: member of self.port_mode enumeration class
+            port: int or string
+            nvlan: int or string
+        raises:
+            SwitchException on failure to set mode
+        """
+        self.send_cmd(self.SET_SWITCHPORT_MODE.format(port, mode.value))
+        if mode is not self.port_mode.ACCESS:
+            self.send_cmd(self.SWITCHPORT_ALLOWED_VLAN_ALL_OR_NONE.format(port, mode.value, allow_all_vlans))
             if nvlan is not None:
-                self.send_cmd(self.SET_NATIVE_VLAN_TRUNK.format(port, nvlan, nvlan))
-        if mode == 'access':
-            self.send_cmd(self.SET_SWITCHPORT_MODE_ACCESS.format(port))
-            if nvlan is not None:
-                self.send_cmd(self.SET_NATIVE_VLAN_ACCESS.format(port, nvlan))
+                self.send_cmd(self.SWITCHPORT_ADD_ALLOWED_VLAN.format(port, mode.value, nvlan))
+        if nvlan is not None:
+            self.send_cmd(self.SWITCHPORT_SET_NATIVE_VLAN.format(port=port, mode=mode.value, nvlan=nvlan))
+
         if self.mode == 'passive':
             return
-        ports = self.show_ports(format='std')
-        if ports[str(port)]['mode'] == mode:
+
+        ports = self.show_ports('std')
+        port = str(port)
+        if ports[port]['mode'] == mode.value:
             self.log.info(
-                'Port {} is in {} mode'.format(port, mode))
+                'Set port {} to {} mode'.format(port, mode.name))
         else:
             raise SwitchException(
                 'Failed setting port {} to {} mode'.format(port, mode))
@@ -171,10 +201,22 @@ class SwitchCommon(object):
     def is_vlan_allowed_for_port(self, vlan, port):
         if self.mode == 'passive':
             return None
-        vlan = str(vlan)
+        vlan = int(vlan)
         port = str(port)
+        print('vlan: {}'.format(vlan))
+        print('port: {}'.format(port))
         ports = self.show_ports('std')
-        return vlan in ports[port]['avlans']
+        vlans = ports[port]['avlans']
+        print('allowed vlans: {}'.format(vlans))
+        vlans = vlans.split(',')
+        for item in vlans:
+            print(item)
+            if item == '':
+                return False
+            item = item.split('-')
+            if vlan >= int(item[0]) and vlan <= int(item[-1]):
+                return True
+        return False
 
     def create_vlan(self, vlan):
         if self.mode == 'passive':
@@ -274,7 +316,7 @@ class SwitchCommon(object):
             return
 
         if self.ENABLE_REMOTE_CONFIG:
-            cmd = self.ENABLE_REMOTE_CONFIG % (cmd)
+            cmd = self.ENABLE_REMOTE_CONFIG.format(cmd)
         ssh = SSH(self.log)
         __, data, _ = ssh.exec_cmd(
             self.host,
@@ -286,7 +328,7 @@ class SwitchCommon(object):
         return data
 
     @staticmethod
-    def get_mac_dict(mac_address_table):
+    def get_mac_dict(mac_address_table, log=None, fmt='std'):
         """Convert MAC address table to dictionary.
 
         Args:
@@ -303,7 +345,12 @@ class SwitchCommon(object):
         port_col = None
         pos = None
         mac_dict = {}
-        p = re.compile(r'\w+\.\w+\.\w+|\w+:\w+:\w+:\w+:\w+:\w+')
+
+        _mac_iee802 = '([\dA-F]{2}[\.:-]){5}([\dA-F]{2})'
+        _mac_cisco = '([\dA-F]{4}\.){2}[\dA-F]{4}'
+        _mac_all = "%s|%s" % (_mac_iee802, _mac_cisco)
+        _mac_regex = re.compile(_mac_all, re.I)
+
         mac_address_table = mac_address_table.splitlines()
         p2 = re.compile('Port', re.IGNORECASE)
         for line in mac_address_table:
@@ -312,24 +359,37 @@ class SwitchCommon(object):
             if match:
                 pos = match.start()
             # find header seperator row
-            if re.search('-+', line):
-                iter = re.finditer('-+', line)
-                i = 0
-                for match in iter:
+            if re.search(r'--+', line):
+                if log:
+                    log.debug('Found header seperator row: {}'.format(line))
+                iter = re.finditer('--+', line)
+                for i, match in enumerate(iter):
                     # find column aligned with 'Port'
                     if pos >= match.span()[0] and pos < match.span()[1]:
                         port_col = i
-                    i += 1
             # find rows with MACs
-            match = p.search(line)
+            match = _mac_regex.search(line)
+
             if match:
+                mac = match.group()
+                if log:
+                    log.debug('Found mac address: {}'.format(mac))
+#                if fmt == 'std':
+#                    mac = mac.replace("-", ":")
+#                    mac = mac.replace(".", ":")
+#                    for i in [2, 5, 8, 11, 14]:
+#                        if mac[i] != ":":
+#                            mac = mac[:i] + ":" + mac[i:]
+
                 # isolate columns, extract row with macs
                 q = re.findall(r'[\w+:./]+', line)
                 port = q[port_col]
+#                if fmt == 'std':
+#                    port = port.strip('Eth')
                 if port not in mac_dict.keys():
-                    mac_dict[port] = [match.group()]
+                    mac_dict[port] = [mac]
                 else:
-                    mac_dict[port].append(match.group())
+                    mac_dict[port].append(mac)
         return mac_dict
 
     @staticmethod
@@ -351,6 +411,7 @@ class SwitchCommon(object):
         _mac_cisco = '([\dA-F]{4}\.){2}[\dA-F]{4}'
         _mac_all = "%s|%s" % (_mac_iee802, _mac_cisco)
         _mac_regex = re.compile(_mac_all, re.I)
+        _port_regex = re.compile('eth\d+\/\d+/\d+', re.I)
         port_to_mac = AttrDict()
         mac_line_list = []
         port_index = None
@@ -383,9 +444,12 @@ class SwitchCommon(object):
                     mac_index = index
 
         if port_index is None and mac_line_list:
-            if mac_index == 1:
+            for index, value in enumerate(mac_line_list[0]):
+                if _port_regex.search(value):
+                    port_index = index
+            if port_index is None and mac_index == 1:
                 port_index = 0
-            else:
+            elif port_index is None:
                 port_index = 1
 
         for line in mac_line_list:
@@ -397,7 +461,7 @@ class SwitchCommon(object):
                     mac = mac[:i] + ":" + mac[i:]
 
             if "/" in line[port_index]:
-                port = line[port_index].split("/", 1)[1]
+                port = line[port_index].strip('Eth')
             else:
                 port = line[port_index]
 

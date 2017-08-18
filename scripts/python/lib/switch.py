@@ -23,6 +23,7 @@ import sys
 
 from lib import lenovo
 from lib import mellanox
+from lib import cisco
 
 
 class SwitchFactory(object):
@@ -46,6 +47,8 @@ class SwitchFactory(object):
             return lenovo.switch.factory(log, host, userid, password, mode, outfile)
         if switch_type in 'mellanox Mellanox MELLANOX':
             return mellanox.switch.factory(log, host, userid, password, mode, outfile)
+        if switch_type in 'cisco Cisco CISCO':
+            return cisco.switch.factory(log, host, userid, password, mode, outfile)
         try:
             raise Exception()
         except:

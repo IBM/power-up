@@ -19,17 +19,19 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import re
 import os.path
+import netaddr
 import datetime
+from enum import Enum
 
 from lib.switch_exception import SwitchException
 from lib.switch_common import SwitchCommon
 from lib.genesis import gen_passive_path, gen_path
 
 
-class Lenovo(SwitchCommon):
-    """Class for configuring and retrieving information for a Lenovo
-    switch.  This class works with the Lenovo G8052.  Similar
-    Lenovo switches may work or may need some methods overridden.
+class Cisco(SwitchCommon):
+    """Class for configuring and retrieving information for a Cisco
+    Nexus switch.  This class developed with Cisco 5020.  Similar
+    Cisco switches may work or may need some methods overridden.
     This class can be instantiated in 'active' mode, in which case the
     switch will be configured or in 'passive' mode in which case the
     commands needed to configure the switch are written to a file.
@@ -55,39 +57,64 @@ class Lenovo(SwitchCommon):
         outfile (string): Name of file to direct switch output to when
         in passive mode.
     """
-    ENABLE_REMOTE_CONFIG = SwitchCommon.ENABLE_REMOTE_CONFIG
+    # ENABLE_REMOTE_CONFIG = SwitchCommon.ENABLE_REMOTE_CONFIG
     # override ENABLE_REMOTE_CONFIG as needed.
-    # ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
+    ENABLE_REMOTE_CONFIG = 'configure terminal ; {}'
     # override as needed per switch syntax:
     # SHOW_VLANS = 'show vlan'
     # override as needed.
-    # SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table;'
+    SHOW_MAC_ADDRESS_TABLE = 'show mac address-table ;'
     # override as needed:
-    # CREATE_VLAN = 'vlan %d'
+    # CREATE_VLAN = 'vlan {}'
     # override as needed:
-    # DELETE_VLAN = 'no vlan %d'
+    # DELETE_VLAN = 'no vlan {}'
     # override as needed:
-    # CLEAR_MAC_ADDRESS_TABLE = (
-    #    ENABLE_REMOTE_CONFIG %
-    #    'clear mac-address-table')
-    INTERFACE_CONFIG = 'interface port {}'
-    SHOW_PORT = 'show interface trunk'
-    ADD_VLANS_TO_PORT = (';switchport trunk allowed vlan add {}')
-    REMOVE_VLANS_FROM_PORT = (';switchport trunk allowed vlan remove {}')
-    # SET_NATIVE_VLAN = (
-    #     'interface port {}'
-    #     ';switchport access vlan {}')
+    CLEAR_MAC_ADDRESS_TABLE = ('clear mac address-table dynamic')
+    INTERFACE_CONFIG = 'interface ethernet {}'
+    SHOW_PORT = 'show interface brief'
+    ADD_VLANS_TO_PORT = (' ;switchport trunk allowed vlan add {}')
+    REMOVE_VLANS_FROM_PORT = (' ;switchport trunk allowed vlan remove {}')
+    SET_SWITCHPORT_MODE = (
+        'interface ethernet {} ;'
+        'switchport mode {} ;'
+        'exit')
+    SWITCHPORT_ALLOWED_VLAN_ALL_OR_NONE = (
+        'interface ethernet {} ;'
+        'switchport {} allowed vlan {} ;'
+        'exit')
+    SWITCHPORT_ADD_ALLOWED_VLAN = (
+        'interface port {} ;'
+        'switchport {} allowed vlan add {} ;'
+        'exit')
+    SWITCHPORT_SET_NATIVE_VLAN = (
+        'interface port {port}'
+        ' ;switchport {mode} native vlan {nvlan}'
+        ' ;exit')
+    SET_NATIVE_VLAN_ACCESS = (
+        'interface port {} ;'
+        'switchport access vlan {} ;'
+        'exit')
+    SET_NATIVE_VLAN_TRUNK = (
+        'interface port {} ;'
+        'switchport trunk allowed vlan add {} ;'
+        'switchport trunk native vlan {} ;'
+        'exit')
     MGMT_INTERFACE_CONFIG = 'interface ip {}'
-    SET_INTERFACE_IPADDR = ';ip address {}'
-    SET_INTERFACE_MASK = ';ip netmask {}'
-    SET_VLAN = ';vlan {}'
-    ENABLE_INTERFACE = ';enable'
-    CREATE_INTERFACE = MGMT_INTERFACE_CONFIG + SET_INTERFACE_IPADDR +\
-        SET_INTERFACE_MASK + SET_VLAN + ENABLE_INTERFACE
-    REMOVE_IFC = 'no interface ip {}'
-    SHOW_INTERFACE = 'show interface ip {}'
-    UP_STATE_IFC = 'up'
-    MAX_INTF = 128
+    SET_INTERFACE_IPADDR = ' ;ip address {}'
+    SET_INTERFACE_MASK = ' ;ip netmask {}'
+    SET_VLAN = ' ;vlan {}'
+    SHOW_IP_INTERFACE_BRIEF = 'show ip interface brief'
+    SHOW_INTERFACE = 'show interface Vlan{}'
+    SET_INTERFACE = ('feature interface-vlan ;'
+                     'interface vlan {} ;'
+                     'ip address {} {} ;'
+                     'management ;'
+                     'no shutdown')
+
+    class PortMode(Enum):
+        TRUNK = 'trunk'
+        ACCESS = 'access'
+        TRUNK_NATIVE = ''
 
     def __init__(self, log, host=None, userid=None,
                  password=None, mode=None, outfile=None):
@@ -105,25 +132,8 @@ class Lenovo(SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-        self.port_mode = SwitchCommon.PortMode
-        super(Lenovo, self).__init__(log, host, userid, password, mode, outfile)
-
-    def _get_port_detail(self, match):
-        avlans = ''
-        mode = match.group(2).replace('n', 'access')
-        mode = mode.replace('y', 'trunk')
-        _avlans = match.group(4)
-        _avlans = _avlans.split(' ')
-        for item in _avlans:
-            if '-' in item:
-                item = item.split('-')
-                n = int(item[0])
-                while n <= int(item[1]):
-                    avlans = avlans + ', ' + str(n)
-                    n += 1
-            else:
-                avlans = avlans + ', ' + item
-        return mode, avlans[2:]
+        self.port_mode = self.PortMode
+        super(Cisco, self).__init__(log, host, userid, password, mode, outfile)
 
     def show_ports(self, format=None):
         if self.mode == 'passive':
@@ -136,11 +146,22 @@ class Lenovo(SwitchCommon):
             port_info = port_info.splitlines()
             for line in port_info:
                 match = re.search(
-                    r'\d+\s+(\d+)\s+(y|n)\s+\w+\s+\w+\s+\w+\s+\w+\s+(\d+)\s+(.+)', line)
+                    r'Eth([0-9/]+)\s+(\d+)\s+\w+\s+(access|trunk)', line)
                 if match:
-                    mode, avlans = self._get_port_detail(match)
+                    # mode, avlans = self._get_port_detail(match)
                     ports[match.group(1)] = {
-                        'mode': mode, 'nvlan': match.group(3), 'avlans': avlans}
+                        'mode': match.group(3),
+                        'nvlan': match.group(2),
+                        'avlans': ''}
+            port_info = self.send_cmd('show interface trunk').split('Port')
+            for item in port_info:
+                if 'Vlans Allowed on Trunk' in item:
+                    item = item.splitlines()
+                    for line in item:
+                        match = re.search(
+                            'Eth((?:\d+/)+\d+)\s+((?:\d+[,-])*\d+)', line)
+                        if match:
+                            ports[match.group(1)]['avlans'] = match.group(2)
             return ports
 
     def remove_interface(self, vlan, host, netmask):
@@ -155,14 +176,16 @@ class Lenovo(SwitchCommon):
         vlan = str(vlan)
         interfaces = self.show_interfaces(vlan, host, netmask, format='std')
         if interfaces[-1][0]['configured']:
-            self.send_cmd(self.REMOVE_IFC.format(interfaces[-1][0]['found ifc']))
+            self.send_cmd('interface vlan {} ;no ip address {} {}'.format(vlan, host, netmask))
+            self.send_cmd('no interface vlan {}'.format(vlan))
             interfaces = self.show_interfaces(vlan, host, netmask, format='std')
             if interfaces[-1][0]['configured']:
                 self.log.info('Failed to remove interface Vlan {}.'.format(vlan))
                 raise SwitchException('Failed to remove interface Vlan {}.'.format(vlan))
         else:
-            self.log.info('Interface vlan {} does not exist.'.format(vlan))
-        return
+            if interfaces[-1][0]['found vlan']:
+                self.log.info('Specified interface on vlan {} does not exist.'.format(vlan))
+                raise SwitchException('Failed to remove interface Vlan {}.'.format(vlan))
 
     def show_interfaces(self, vlan='', host=None, netmask=None, format=None):
         """Gets from the switch a list of programmed in-band interfaces. The
@@ -200,38 +223,37 @@ class Lenovo(SwitchCommon):
         if self.mode == 'passive':
             return None
         ifcs = []
+        ifc_info = ''
         vlan = str(vlan)
-        found = False
-        ava_ifc, fnd_ifc, cnt = 0, 0, 0
-        ifc_info = self.send_cmd(self.SHOW_INTERFACE.format(''))
+        found, found_vlan = False, False
+        ifc_info_brief = self.send_cmd(self.SHOW_IP_INTERFACE_BRIEF)
+        vlan_ifcs = re.findall(r'Vlan(\d+)', ifc_info_brief, re.MULTILINE)
+        for ifc in vlan_ifcs:
+            ifc_info = ifc_info + self.send_cmd(self.SHOW_INTERFACE.format(ifc))
         if format is None:
             return ifc_info
-        ifc_info = ifc_info.splitlines()
+        ifc_info = ifc_info.split('Vlan')
         for line in ifc_info:
-            match = re.search(r'^(\d+):\s+IP4\s+(\w+.\w+.\w+.\w+)\s+(\w+.\w+.\w+.\w+)'
-                              '\s+\w+.\w+.\w+.\w+,\s+vlan\s(\d+),', line)
+            match = re.search(r'(\d+).*Internet Address is\s+'
+                              '((\w+.\w+.\w+.\w+)/\d+)', line, re.DOTALL)
             if match:
-                cnt += 1
+                mask = netaddr.IPNetwork(match.group(2))
+                mask = str(mask.netmask)
                 ifcs.append(
-                    [match.group(4), match.group(2), match.group(3), match.group(1)])
-                if [vlan, host, netmask, match.group(1)] in ifcs:
-                    fnd_ifc = match.group(1)
+                    [match.group(1), match.group(3), mask, '-'])
+                if (vlan, host, netmask, '-') == tuple(ifcs[-1]):
                     found = True
-                if cnt != int(match.group(1)) and ava_ifc == 0:
-                    ava_ifc = cnt
-        ifcs.append(
-            [{'configured': found,
-                'avail ifc': str(ava_ifc),
-                'found ifc': str(fnd_ifc)}])
+                if vlan in ifcs[-1]:
+                    found_vlan = True
+        ifcs.append([{'configured': found, 'found vlan': found_vlan}])
         return ifcs
 
     def configure_interface(self, host, netmask, vlan=1, intf=None):
         """Configures a management interface. This implementation checks
         if the host ip is already in use. If it is, a check is made to
         see if it is configured as specified. If not, an exception is raised.
-        Lenovo numbers interfaces. If no interface number is specified,
-        the next available unconfigured interface is used. The specified
-        vlan will be created if it does not already exist.
+        Lenovo numbers interfaces. The specified vlan will be created if it
+        does not already exist.
 
         When implementing this method for a new switch, minimally this method
         should configure (overwrite if necessary) the specified interface.
@@ -239,33 +261,38 @@ class Lenovo(SwitchCommon):
         Args:
             host (string): hostname or ipv4 address in dot decimal notation
             netmask (string): netmask in dot decimal notation
-            vlan (string): Optional. string representation of integer between
-            1 and 4094. If none specified, usually the default vlan is used.
-            intf (string): optional. String representation of integer between
-            1 and 128.
+            vlan (string): String representation of integer between
+            1 and 4094. The management interface is created on the specified
+            vlan intf (string): optional. String representation of integer
+            between 1 and 128.
         raises:
             SwitchException if unable to program interface
         """
+        vlan = str(vlan)
         interfaces = self.show_interfaces(vlan, host, netmask, format='std')
         if interfaces[-1][0]['configured']:
             self.log.info(
-                'Switch interface {} already configured'.format(interfaces[-1][0]['found ifc']))
+                'Switch interface vlan {} already configured'.format(vlan))
             return
-        if vlan is not None:
-            self.create_vlan(vlan)
-        if intf is None:
-            intf = interfaces[-1][0]['avail ifc']
-        self.send_cmd(self.CREATE_INTERFACE.format(intf, host, netmask, vlan))
+        if interfaces[-1][0]['found vlan']:
+            self.log.info(
+                'Conflicting address. Interface vlan {} already configured'.format(vlan))
+            raise SwitchException(
+                'Conflicting address exists on interface vlan {}'.format(vlan))
+            return
+        # create vlan if it does not already exist
+        self.create_vlan(vlan)
+
+        # create the interface
+
+        self.send_cmd(self.SET_INTERFACE.format(vlan, host, netmask))
         interfaces = self.show_interfaces(vlan, host, netmask, format='std')
         if not interfaces[-1][0]['configured']:
-            self.log.error(
-                'Failed configuring management interface ip {}'.format(intf))
             raise SwitchException(
-                'Failed configuring management interface ip {}'.format(intf))
-        return
+                'Failed configuring management interface vlan {}'.format(vlan))
 
 
 class switch(object):
     @staticmethod
     def factory(log, host=None, userid=None, password=None, mode=None, outfile=None):
-        return Lenovo(log, host, userid, password, mode, outfile)
+        return Cisco(log, host, userid, password, mode, outfile)

@@ -210,31 +210,35 @@ def main(log):
         # Test is port in trunk mode
         if 9 == test:
             print('\nTesting is port in trunk mode')
-            port = int(rlinput('Enter port #: ', str(port)))
+            port = rlinput('Enter port #: ', str(port))
             cfg['port'] = port
             print(sw.is_port_in_trunk_mode(port))
 
         # Test is port in access mode
         if 10 == test:
             print('\nTesting is port in access mode')
-            port = int(rlinput('Enter port #: ', str(port)))
+            port = rlinput('Enter port #: ', str(port))
             cfg['port'] = port
             print(sw.is_port_in_access_mode(port))
 
         # Test set switchport mode
         if 11 == test:
             print('\nTesting set switchport mode')
-            port = int(rlinput('Enter port #: ', str(port)))
+            port = rlinput('Enter port #: ', str(port))
             cfg['port'] = port
-            vlan = rlinput('Enter vlan (blank for None): ', str(vlan))
+            vlan = rlinput('Enter native vlan (blank for None): ', str(vlan))
             if vlan == '':
                 vlan = None
             else:
                 cfg['vlan'] = int(vlan)
+            print('Valid switchport modes: ')
+            print(sw.port_mode.TRUNK.name)
+            print(sw.port_mode.ACCESS.name)
+            print(sw.port_mode.TRUNK_NATIVE.name)
             switchport_mode = rlinput('Enter switchport mode: ', switchport_mode)
             cfg['switchport_mode'] = switchport_mode
             try:
-                sw.set_switchport_mode(switchport_mode, port, vlan)
+                sw.set_switchport_mode(sw.port_mode[switchport_mode], port, vlan)
                 print('Set switchport mode to ' + switchport_mode)
             except SwitchException as exc:
                 print(exc)
@@ -242,7 +246,7 @@ def main(log):
         # Test add vlans to port
         if 12 == test:
             print('\nTesting add vlans to port')
-            port = int(rlinput('Enter port #: ', str(port)))
+            port = rlinput('Enter port #: ', str(port))
             cfg['port'] = port
             vlans = rlinput('Enter vlan list: ', vlans)
             cfg['vlans'] = vlans
@@ -254,7 +258,7 @@ def main(log):
         # Test remove vlans from port
         if 13 == test:
             print('\nTesting remove vlans from port')
-            port = int(rlinput('Enter port #: ', str(port)))
+            port = rlinput('Enter port #: ', str(port))
             cfg['port'] = port
             vlans = rlinput('Enter vlan list: ', vlans)
             cfg['vlans'] = vlans
@@ -266,7 +270,7 @@ def main(log):
         # Test is vlan allowed for port
         if 14 == test:
             print('\nTesting is vlan allowed for port')
-            port = int(rlinput('Enter port #: ', str(port)))
+            port = rlinput('Enter port #: ', str(port))
             cfg['port'] = port
             vlan = int(rlinput('Enter vlan: ', str(vlan)))
             cfg['vlan'] = vlan

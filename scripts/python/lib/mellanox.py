@@ -21,6 +21,7 @@ import re
 import os.path
 import netaddr
 import datetime
+from enum import Enum
 
 from lib.switch_common import SwitchCommon
 from lib.genesis import gen_passive_path, gen_path
@@ -63,8 +64,14 @@ class Mellanox(SwitchCommon):
     SET_NATIVE_VLAN_ACCESS = 'interface ethernet 1/{} switchport access vlan {}'
     SET_NATIVE_VLAN_TRUNK = 'interface ethernet 1/{} switchport access vlan {}'
     SHOW_PORT = 'show interfaces switchport'
-    SET_SWITCHPORT_MODE_TRUNK = ('interface ethernet 1/{} switchport mode hybrid')
-    SET_SWITCHPORT_MODE_ACCESS = ('interface ethernet 1/{} switchport mode access')
+    SET_SWITCHPORT_MODE = ('interface ethernet 1/{} switchport mode {}')
+    SWITCHPORT_ALLOWED_VLAN_ALL_OR_NONE = (
+        'interface ethernet 1/{} switchport {} allowed-vlan {}')
+    SWITCHPORT_ADD_ALLOWED_VLAN = (
+        'interface ethernet 1/{} switchport {} allowed-vlan add {}')
+    SWITCHPORT_SET_NATIVE_VLAN = 'interface ethernet 1/{port} switchport access vlan {nvlan}'
+#    SET_SWITCHPORT_MODE_TRUNK = ('interface ethernet 1/{} switchport mode hybrid')
+#    SET_SWITCHPORT_MODE_ACCESS = ('interface ethernet 1/{} switchport mode access')
     SWITCHPORT_HYBRID_ALLOWED_VLAN = \
         'switchport hybrid allowed-vlan add %d'
     ADD_VLANS_TO_PORT = \
@@ -101,6 +108,11 @@ class Mellanox(SwitchCommon):
     SHOW_INTERFACE = 'show interface vlan {}'
     SET_INTERFACE = 'interface vlan {} ip address {} {}'
 
+    class PortMode(Enum):
+        TRUNK = 'hybrid'
+        ACCESS = 'access'
+        TRUNK_NATIVE = 'trunk'
+
     def __init__(
             self,
             log,
@@ -123,42 +135,9 @@ class Mellanox(SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
+        self.port_mode = self.PortMode
         super(Mellanox, self).__init__(
             log, host, userid, password, mode, outfile)
-
-    def set_switchport_mode(self, mode, port, nvlan=None):
-        """Sets the switchport mode.  Note that Mellanox's 'hybrid'
-        mode is functionally equivalent to most other vendor's 'trunk'
-        mode. To handle this, if mode is specified as 'trunk', it is
-        set to 'hybrid'. Mellanox's trunk mode can be set by setting
-        mode to 'trunk-native'.
-        """
-        if mode == 'trunk':
-            self.send_cmd(self.SET_SWITCHPORT_MODE_TRUNK.format(port))
-            if nvlan is not None:
-                self.send_cmd(self.SET_NATIVE_VLAN_TRUNK.format(port, nvlan))
-        if mode == 'access':
-            self.send_cmd(self.SET_SWITCHPORT_MODE_ACCESS.format(port))
-            if nvlan is not None:
-                self.send_cmd(self.SET_NATIVE_VLAN_ACCESS.format(port, nvlan))
-        if mode == 'trunk-native':
-            self.send_cmd('interface ethernet 1/{} switchport mode trunk'.format(port))
-        if self.mode == 'passive':
-            return
-        ports = self.show_ports('std')
-        port = str(port)
-        if ports[port]['mode'] == 'hybrid' and mode == 'trunk':
-            self.log.info(
-                'Set port {} to {} mode'.format(port, mode))
-        elif ports[port]['mode'] == 'access' and mode == 'access':
-            self.log.info(
-                'Set port {} to {} mode'.format(port, mode))
-        elif mode == 'trunk':
-            self.log.info(
-                'Set port {} to {} mode'.format(port, mode))
-        else:
-            raise SwitchException(
-                'Failed setting port {} to {} mode'.format(port, mode))
 
     def show_ports(self, format=None):
         if self.mode == 'passive':
