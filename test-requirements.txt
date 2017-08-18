@@ -1,7 +1,9 @@
 ansible~=2.3.0.0
 ansible-lint>=3.4.9
 bashate>=0.5.1
-flake8>=3.2.1
+pep8>=1.7.0
+flake8>=3.4.1
+pylint>=1.7.2
 mock>=1.2
 netaddr~=0.7.18
 testrepository>=0.0.20  # Apache-2.0/BSD
