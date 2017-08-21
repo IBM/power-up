@@ -100,10 +100,6 @@ INV_CLASS = 'class'
 
 
 class Inventory():
-
-    class SwitchClassType(Enum):
-        LENOVO, MELLANOX = range(2)
-
     class SwitchType(Enum):
         MGMT, DATA = range(2)
 
