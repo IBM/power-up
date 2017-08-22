@@ -45,8 +45,9 @@ Installing and Running the Genesis code. Step by Step Instructions
 #. copy your config.yml file to the ~/cluster-genesis directory (see
    section `4 <#anchor-4>`__ `Creating the config.yml
    File <#anchor-4>`__ for how to create the config.yml file)
-#. copy any needed os image files (iso format) to the
-   ~/cluster-genesis/os\_images directory.
+#. Copy any needed os image files (iso format) to the
+   '/cluster-genesis/os\_images' directory. Symbolic links to image
+   files are also allowed.
 #. For RHEL iso images, create a kickstart file having the same name as
    your iso image but with an extension of .ks. This can be done by
    copying the supplied kickstart file located in the

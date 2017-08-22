@@ -213,6 +213,7 @@
       synchronize:
         src: "{{ images_local }}"
         dest: "{{ project_path }}"
+        copy_links: yes
 
     - name: "Create log file"
       file:
