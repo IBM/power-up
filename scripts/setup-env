@@ -19,6 +19,8 @@ configure_operating_systems lxc-create install_1 install_2 inventory \
 show_mgmt_switches --help post-deploy post-deploy-passive deploy-passive \
 deploy-passive-retry setup' gen"
 eval "$ccmd"
+ccmd2="complete -W 'deploy post-deploy' tear-down"
+eval "$ccmd2"
 P=`pwd`
 P=${P#*"cluster-genesis"}
 if [ -z $P ]; then
@@ -45,6 +47,9 @@ if [ -z $P ]; then
             fi
             if [ -z "$(grep -m1 "complete -W 'log" ~/.bashrc)" ]; then
                 echo $ccmd >> ~/.bashrc
+            fi
+            if [ -z "$(grep -m1 "complete -W 'redeploy" ~/.bashrc)" ]; then
+                echo $ccmd2 >> ~/.bashrc
             fi
         fi
     fi

@@ -207,7 +207,7 @@ class MenuItemSubmenu(MenuItem):
 
     def __init__(self, name, menu, item_type='submenu'):
         self.menu = menu
-        MenuItem.__init__(self, name, item_type)
+        super(MenuItemSubmenu, self).__init__(name, item_type)
 
 
 class MenuItemFunction(MenuItem):
@@ -235,7 +235,7 @@ class MenuItemFunction(MenuItem):
             self, name, function, args=None, item_type='function', exit=False):
         self.function = function
         self.args = args
-        MenuItem.__init__(self, name, item_type, exit)
+        super(MenuItemFunction, self).__init__(name, item_type, exit)
 
 
 class MenuItemExit(MenuItem):
@@ -255,4 +255,4 @@ class MenuItemExit(MenuItem):
     """
 
     def __init__(self, name):
-        MenuItem.__init__(self, name, exit=True)
+        super(MenuItemExit, self).__init__(name, exit=True)

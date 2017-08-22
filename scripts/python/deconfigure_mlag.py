@@ -18,45 +18,36 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
+import os
 
-from lib.inventory import Inventory
 from lib.logger import Logger
 from lib.switch import SwitchFactory
+from lib import genesis
+from lib import inventory
+
+FILE_PATH = os.path.dirname(os.path.abspath(__file__))
+ssh_log = FILE_PATH + '/gen_ssh.log'
+GEN_PATH = genesis.gen_path
 
 
-def main(log, inv_file):
-
-    inv = Inventory(log, inv_file)
+def main(log):
+    inv_file = GEN_PATH + 'config.yml'
+    inv = inventory.Inventory(log, inv_file)
+    switch_class = inv.get_data_switch_class()
     userid = inv.get_userid_data_switch()
     password = inv.get_password_data_switch()
-    switch_name = inv.get_data_switch_name()
-    for ipv4 in inv.yield_data_switch_ip():
-        switch = SwitchFactory.factory(
-            log,
-            switch_name,
-            ipv4,
-            userid,
-            password,
-            mode='active')
-        switch.clear_mac_address_table()
+    for addr in inv.yield_data_switch_ip():
+        sw = SwitchFactory.factory(log, switch_class, addr, userid, password, mode='active')
+        mlag_ifcs = sw.show_mlag_interfaces()
+        if "Unrecognized command" in mlag_ifcs:
+            print('\nMLAG not configured on switch: {}'.format(addr))
+        else:
+            sw.deconfigure_mlag()
 
 
 if __name__ == '__main__':
-    """
-    Arg1: inventory file
-    Arg2: log level
+    """Remove mlag configuration from data switch.
     """
     LOG = Logger(__file__)
-
-    if len(sys.argv) != 3:
-        try:
-            raise Exception()
-        except:
-            LOG.error('Invalid argument count')
-            sys.exit(1)
-
-    INV_FILE = sys.argv[1]
-    LOG.set_level(sys.argv[2])
-
-    main(LOG, INV_FILE)
+    LOG.set_level('INFO')
+    main(LOG)

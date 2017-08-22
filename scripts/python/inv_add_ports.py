@@ -17,17 +17,18 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
+
 import sys
-from orderedattrdict import AttrDict
-from tabulate import tabulate
 import os.path
 import re
+from orderedattrdict import AttrDict
+from tabulate import tabulate
 
 from lib.inventory import Inventory
 from lib.logger import Logger
-from get_dhcp_lease_info import GetDhcpLeases
 from lib.switch import SwitchFactory
 from lib.switch_common import SwitchCommon
+from get_dhcp_lease_info import GetDhcpLeases
 
 
 class InventoryAddPorts(object):

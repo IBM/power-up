@@ -20,18 +20,18 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 
-from lib import inventory
+from lib.inventory import Inventory
 from lib.logger import Logger
 from lib.switch import SwitchFactory
 
 
 def main(log, inv_file):
 
-    inv = inventory.Inventory(log, inv_file)
+    inv = Inventory(log, inv_file)
     userid = inv.get_userid_data_switch()
     password = inv.get_password_data_switch()
     switch_name = inv.get_data_switch_name()
-
+    index = 0
     for ipv4 in inv.yield_data_switch_ip():
         switch = SwitchFactory.factory(
             log,
@@ -40,10 +40,13 @@ def main(log, inv_file):
             userid,
             password,
             mode='active')
-        switch_ip_to_port_to_macs = switch.get_macs()
-        success = inv.add_data_switch_port_macs(ipv4, switch_ip_to_port_to_macs)
+        switch_ip_to_port_to_macs = switch.show_mac_address_table(format='std')
+        log.debug('switch_ip_to_port_to_macs')
+        log.debug(switch_ip_to_port_to_macs)
+        success = inv.add_data_switch_port_macs(ipv4, switch_ip_to_port_to_macs, index)
         if not success:
-            sys.exit(1)
+            sys.exit('Failed adding mac address table to inventory')
+        index += 1
 
 
 if __name__ == '__main__':

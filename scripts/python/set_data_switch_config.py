@@ -76,7 +76,7 @@ class ConfigureDataSwitch(object):
                 self.password,
                 mode='active')
 
-        for self.ipv4, vlans in self.inv.yield_data_vlans(self.userid, self.password):
+        for self.ipv4, userid, password, vlans in self.inv.yield_data_vlans(self.userid, self.password):
             for vlan in vlans:
                 self.switch_dict[self.ipv4].create_vlan(vlan)
 
@@ -95,6 +95,7 @@ class ConfigureDataSwitch(object):
             else:
                 for port, vlans in port_vlans.items():
                     # Set port mode and add VLANs
+                    self.switch_dict[self.ipv4].set_switchport_mode('trunk', port)
                     self.switch_dict[self.ipv4].add_vlans_to_port(port, vlans)
                 for port, mtu in port_mtu.items():
                     # Specify MTU
@@ -105,7 +106,19 @@ class ConfigureDataSwitch(object):
                 self.switch_dict[self.ipv4].enable_lacp()
                 # Configure port for MLAG
                 if self.inv.is_mlag():
-                    self.switch_dict[self.ipv4].configure_mlag(switch_index)
+                    vlan = self.inv.get_mlag_vlan()
+                    port_channel = self.inv.get_mlag_port_channel()
+                    cidr_mlag_ipl = self.inv.get_cidr_mlag_ipl(switch_index)
+                    ipaddr_mlag_ipl_peer = self.inv.get_ipaddr_mlag_ipl_peer(switch_index)
+                    ipaddr_mlag_vip = self.inv.get_ipaddr_mlag_vip()
+                    mlag_ports = self.inv.get_mlag_ports(switch_index)
+                    self.switch_dict[self.ipv4].configure_mlag(
+                        vlan,
+                        port_channel,
+                        cidr_mlag_ipl,
+                        ipaddr_mlag_ipl_peer,
+                        ipaddr_mlag_vip,
+                        mlag_ports)
                     for port_channel, ports in port_bonds.items():
                         # Remove any channel-group from port
                         self.switch_dict[self.ipv4].remove_channel_group(ports[0])
@@ -116,7 +129,7 @@ class ConfigureDataSwitch(object):
                         if ports[0] in port_mtu:
                             self.switch_dict[self.ipv4].set_mtu_for_mlag_port_channel(
                                 port_channel, port_mtu[ports[0]])
-                        self.switch_dict[self.ipv4].bind_mlag_interface(port_channel)
+                        self.switch_dict[self.ipv4].bind_port_to_mlag_interface(port_channel)
                     # Enable MLAG
                     self.switch_dict[self.ipv4].enable_mlag()
                 # Configure port for LAG

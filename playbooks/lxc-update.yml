@@ -26,37 +26,24 @@
           - url: "http://releases.ubuntu.com/14.04.5/ubuntu-14.04.5-server-amd64.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-amd64.iso"
             sha1sum: 5e567024c385cc8f90c83d6763c6e4f1cd5deb6f
-      - name: ubuntu-16.04.1-server-amd64
-        images:
-          - url: "http://old-releases.ubuntu.com/releases/xenial/ubuntu-16.04.1-server-amd64.iso"
-            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-amd64.iso"
-            sha1sum: de5ee8665048f009577763efbf4a6f0558833e59
-      - name: ubuntu-16.04.2-server-amd64
-        images:
-          - url: "http://releases.ubuntu.com/16.04/ubuntu-16.04.2-server-amd64.iso"
-            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.2-server-amd64.iso"
-            sha1sum: f529548fa7468f2d8413b8427d8e383b830df5f6
       - name: ubuntu-14.04.5-server-ppc64el
         images:
           - url: "http://cdimage.ubuntu.com/releases/14.04.5/release/ubuntu-14.04.5-server-ppc64el.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-ppc64el.iso"
             sha1sum: f4843944ca1927375bd3a0dbeb744f5764876dae
-          - url: "http://us.ports.ubuntu.com/dists/trusty-updates/main/installer-ppc64el/current/images/xenial-netboot/mini.iso"
+          - url: "http://us.ports.ubuntu.com/dists/trusty-updates/main/installer-ppc64el/20101020ubuntu318.41/images/xenial-netboot/mini.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-ppc64el.mini.iso"
             sha1sum: b167507d2a65fa81f199cd2125079beb499023c6
-      - name: ubuntu-16.04.1-server-ppc64el
+      - name: ubuntu-16.04.3-server-amd64
         images:
-          - url: "http://old-releases.ubuntu.com/releases/xenial/ubuntu-16.04.1-server-ppc64el.iso"
-            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-ppc64el.iso"
-            sha1sum: 2dfdca7a2b3407d4ba36df89d063959105dd7b05
-          - url: "http://us.ports.ubuntu.com/dists/xenial-updates/main/installer-ppc64el/20101020ubuntu451.6/images/netboot/mini.iso"
-            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.1-server-ppc64el.mini.iso"
-            sha1sum: 6fe82bae9b8f9a4cde3179ebfb71e964f56c4acb
-      - name: ubuntu-16.04.2-server-ppc64el
+          - url: "http://releases.ubuntu.com/16.04/ubuntu-16.04.3-server-amd64.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.3-server-amd64.iso"
+            sha1sum: f3532991e031cae75bcf5e695afb844dd278fff9
+      - name: ubuntu-16.04.3-server-ppc64el
         images:
-          - url: "http://cdimage.ubuntu.com/releases/16.04.2/release/ubuntu-16.04.2-server-ppc64el.iso"
-            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.2-server-ppc64el.iso"
-            sha1sum: 493f4c8411527409182fe1f3ba1a017c91da3ed2
+          - url: "http://cdimage.ubuntu.com/releases/16.04.3/release/ubuntu-16.04.3-server-ppc64el.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.3-server-ppc64el.iso"
+            sha1sum: 3048e855b83787a23dc7fdd7e72496e264059d44
   tasks:
     - name: "Get list of OS images from config.yml cobbler-profile keys"
       shell: "grep cobbler-profile {{ config_local }} | awk '{print $2}'"
@@ -148,6 +135,7 @@
         - python-dev
         - libffi-dev
         - libssl-dev
+        - python-netaddr
         - python-pysnmp4
         - ipmitool
         - git
