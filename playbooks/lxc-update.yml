@@ -150,6 +150,8 @@
         - setuptools
         - wheel
         - virtualenv
+        - jsonschema
+        - jsl
       become: yes
       become_method: sudo
 
