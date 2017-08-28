@@ -1,5 +1,3 @@
-.. highlight:: none
-
 Creating the config.yml File
 ============================
 

@@ -121,27 +121,27 @@ switches:
                     - 8
 
 interfaces:
-    - name: manual1
+    - label: manual1
       description: manual network 1
       iface: eth0
       method: manual
 
-    - name: manual2
+    - label: manual2
       description: manual network 2
       DEVICE: eth0
       BOOTPROTO: none
 
-    - name: dhcp1
+    - label: dhcp1
       description: dhcp interface 1
       iface: eth0
       method: dhcp
 
-    - name: dhcp2
+    - label: dhcp2
       description: dhcp interface 2
       DEVICE: eth0
       BOOTPROTO: dhcp
 
-    - name: static1
+    - label: static1
       description: static interface 1
       iface: eth0
       method: static
@@ -158,7 +158,7 @@ interfaces:
       mtu: 9000
       pre_up: command
 
-    - name: static2
+    - label: static2
       description: static interface 2
       DEVICE: eth0
       BOOTPROTO: none
@@ -175,24 +175,24 @@ interfaces:
       DNS2: 9.3.1.201
       MTU: 9000
 
-    - name: vlan1
+    - label: vlan1
       description: vlan interface 1
       iface: eth0.10
       method: manual
 
-    - name: vlan2
+    - label: vlan2
       description: vlan interface 2
       iface: myvlan10
       method: manual
       vlan_raw_device: eth0
 
-    - name: vlan3
+    - label: vlan3
       description: vlan interface 3
       DEVICE: eth0.10
       BOOTPROTO: none
       VLAN: yes
 
-    - name: bridge1
+    - label: bridge1
       description: bridge interface 1
       iface: br1
       method: static
@@ -204,7 +204,7 @@ interfaces:
       bridge_maxage: 12
       bridge_stp: off
 
-    - name: bridge2
+    - label: bridge2
       description: bridge interface 2
       DEVICE: br2
       BOOTPROTO: static
@@ -212,26 +212,26 @@ interfaces:
       NETMASK: 255.255.255.0
       STP: off
 
-    - name: bridge2_port
+    - label: bridge2_port
       description: port for bridge if 2
       DEVICE: eth0
       BOOTPROTO: none
       BRIDGE: br2
 
-    - name: bond1_interface0
+    - label: bond1_interface0
       description: primary interface for bond 1
       iface: eth0
       method: manual
       bond_master: bond1
       bond_primary: eth0
 
-    - name: bond1_interface1
+    - label: bond1_interface1
       description: secondary interface for bond 1
       iface: eth1
       method: manual
       bond_master: bond1
 
-    - name: bond1
+    - label: bond1
       description: bond interface 1
       iface: bond1
       address_start: 192.168.1.10
@@ -240,39 +240,39 @@ interfaces:
       bond_miimon: 100
       bond_slaves: none
 
-    - name: bond2_interface0
+    - label: bond2_interface0
       description: primary interface for bond 2
       DEVICE: eth0
       BOOTPROTO: manual
       MASTER: bond2
 
-    - name: bond2_interface1
+    - label: bond2_interface1
       description: secondary interface for bond 2
       DEVICE: eth1
       BOOTPROTO: manual
       MASTER: bond2
 
-    - name: bond2
+    - label: bond2
       description: bond interface 2
       DEVICE: bond2
       IPADDR_start: 192.168.1.10
       NETMASK: 255.255.255.0
       BONDING_OPTS: "mode=active-backup miimon=100"
 
-    - name: osbond0_interface0
+    - label: osbond0_interface0
       description: primary interface for osbond0
       iface: eth0
       method: manual
       bond_master: osbond0
       bond_primary: eth0
 
-    - name: osbond0_interface1
+    - label: osbond0_interface1
       description: secondary interface for osbond0
       iface: eth1
       method: manual
       bond_master: osbond0
 
-    - name: osbond0
+    - label: osbond0
       description: bond interface
       iface: osbond0
       address_start: 192.168.1.10
@@ -281,12 +281,12 @@ interfaces:
       bond_miimon: 100
       bond_slaves: none
 
-    - name: osbond0_vlan10
+    - label: osbond0_vlan10
       description: vlan interface 1
       iface: osbond0.10
       method: manual
 
-    - name: bridge10
+    - label: bridge10
       description: bridge interface for vlan10
       iface: br10
       method: static
@@ -295,12 +295,12 @@ interfaces:
       bridge_ports: osbond0.10
       bridge_stp: off
 
-    - name: osbond0_vlan20
+    - label: osbond0_vlan20
       description: vlan interface 2
       iface: osbond0.20
       method: manual
 
-    - name: bridge20
+    - label: bridge20
       description: bridge interface for vlan20
       iface: br20
       method: static
@@ -310,19 +310,19 @@ interfaces:
       bridge_stp: off
 
 networks:
-    - name: bond1
+    - label: bond1
       interfaces:
           - bond1_interface0
           - bond1_interface1
           - bond1
 
-    - name: bond2
+    - label: bond2
       interfaces:
           - bond2_interface0
           - bond2_interface1
           - bond2
 
-    - name: openstack_mgmt
+    - label: openstack_mgmt
       interfaces:
           - bond2_interface0
           - bond2_interface1
@@ -331,7 +331,7 @@ networks:
           - mgmt_bridge
 
 node_templates:
-    - type: ubuntu-servers
+    - label: ubuntu-servers
       ipmi:
           userid: userid
           password: password
@@ -406,7 +406,7 @@ node_templates:
                     - 5
                     - 6
 
-    - type: rhel-servers
+    - label: rhel-servers
       ipmi:
           userid: userid
           password: password

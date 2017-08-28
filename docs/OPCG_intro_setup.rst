@@ -150,10 +150,10 @@ Hardware initialization
 If your switches are a supported model, Genesis can fully configure them.
 (See :ref:`supported-hardware` for a list of supported switches.)
 Even if your switch models are not supported by Cluster Genesis, you
-can still use Cluster Genesis to deploy and configure your cluster 
+can still use Cluster Genesis to deploy and configure your cluster
 compute nodes.  Genesis supports a 'passive' switch mode which enables
 this.  (See : :ref:`Preparing for Passive Mode <passive-mode-setup>`)
-   
+
 **Initial configuration of data switch(es)**
 
 For out of box installation, it is usually
@@ -206,10 +206,10 @@ switch installation guide. Using the Mellanox configuration wizard;
       disconnected until Cluster Genesis completes.  (This avoids loops)
 
 **Initial configuration of management switch(es)**
-  
+
 For out of box installation, it is usually necessary to configure the switch
 using a serial connection. See the switch installation guide. For
-additional info on Lenovo G8052 specific commands, see Appendix G. 
+additional info on Lenovo G8052 specific commands, see Appendix G.
 and the *Lenovo RackSwitch G8052 Installation guide*)
 
    In order for Cluster Genesis to access and configure the switches in your cluster
@@ -340,11 +340,11 @@ This completes normal Genesis initial configuration.
 **Preparing for Passive Mode**
 
 In passive mode, Genesis configures the cluster compute nodes without
-requiring any management communication with the cluster switches. This 
+requiring any management communication with the cluster switches. This
 facilitates the use of Genesis even when the switch hardare is not
-supported or in cases where the end user does not allow 3rd party 
+supported or in cases where the end user does not allow 3rd party
 access to their switches. When running Genesis in passive mode,
-the user is responsible for configuring the cluster switches. The 
+the user is responsible for configuring the cluster switches. The
 user must also provide the Cluster Genesis software with MAC address
 tables collected from the cluster switches during the Genesis process.
 For passive mode, the cluster management switch must be fully programmed
@@ -355,23 +355,23 @@ configured after Genesis runs.
 
 - The port connected to the deployer node must be put in trunk mode with
   allowed vlans *vlan-mgmt-network* and *vlan-mgmt-client-network* added.
-  (see :ref:`AppendixB` for a description of these config file keys)
+  (see :ref:`config_file_spec` for a description of these config file keys)
 - The ports on the management switch which connect to the management ports
   of cluster data switches must be in access mode and have their PVID
   (Native VLAN) value set to *vlan-mgmt-network*
-- The ports on the management switch which connect to cluster node BMC 
-  ports or PXE ports must be in access mode and have their PVID 
+- The ports on the management switch which connect to cluster node BMC
+  ports or PXE ports must be in access mode and have their PVID
   (Native VLAN) set to *vlan-mgmt-client-network*
 
 **Configuring the data switch(es)**
 
 Configuration of the data switches is dependent on the user requirements.
-The user / installer is responsible for all configuration.  Generally, 
-configuration of the data switches should occur after Cluster Genesis 
-completes. In particular, note that it is not usually possible to aquire 
+The user / installer is responsible for all configuration.  Generally,
+configuration of the data switches should occur after Cluster Genesis
+completes. In particular, note that it is not usually possible to aquire
 complete MAC address information once vPC (AKA MLAG or VLAG) has been
 configured on the data switches.
-  
+
 Setting up the Deployer Node
 ----------------------------
 
@@ -423,28 +423,28 @@ ie::
   iface eth0 inet manual
 
 Genesis sets up a vlan and subnet for it's access to the switches in the cluster.
-It is recommended that the deployer be provided with a direct connection to the 
-management switch to simplify the overall setup.  If this is not possible, the 
+It is recommended that the deployer be provided with a direct connection to the
+management switch to simplify the overall setup.  If this is not possible, the
 end user must insure that tagged vlan packets can be communicated between the
-deployer and the switches in the cluster.  
+deployer and the switches in the cluster.
 
 The following keys are used to provide initial access to the switches
 in the cluster and must be assigned in the config.yml file
 
 - *ipaddr-mgmt-switch*
-- *ipaddr-data-switch* 
+- *ipaddr-data-switch*
 - *vlan-mgmt-network*
 - *ipaddr-mgmt-switch-external*
 - *cidr-mgmt-switch-external-dev*
 - *port-mgmt-data-network*
 
-For a detailed description of these keys, see :ref:`AppendixB` and
-:ref:`fig-network-setup`. 
+For a detailed description of these keys, see :ref:`config_file_spec` and
+:ref:`fig-network-setup`.
 
 There are two options for configuring network setup on the deployer. With the
-first option, Genesis will attempt to discover the deployer port connected to the 
+first option, Genesis will attempt to discover the deployer port connected to the
 management switch and configure a temporary address on it for accessing the
 management switches.  For the second option, the user can optionally assign the
 *label-mgmt-switch-external-dev* key in the config file to skip the auto
-discovery.  In this case, the user must configure the specified port so that 
+discovery.  In this case, the user must configure the specified port so that
 it can access the management switches on the 'external' management network.

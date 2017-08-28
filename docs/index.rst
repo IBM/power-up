@@ -29,12 +29,13 @@ Welcome to Cluster Genesis User's Guide documentation!
    OPCG_front_matter
    release_table
    OPCG_intro_setup
+   Config_Specification
+   Inventory_Specification
    OPCG_config.yml_create
    OPCG_running_OPCG
    OPCG_dev_guide
    OPCG_build_introspection
    Appendix-A
-   Appendix-B
    Appendix-C
    Appendix-D
    Appendix-E
