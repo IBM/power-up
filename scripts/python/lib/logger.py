@@ -23,6 +23,7 @@ import logging
 
 
 class Logger(object):
+    LOG_NAME = 'log'
     LOG_FILE = 'log.txt'
 
     DEBUG = 'DEBUG'
@@ -31,7 +32,8 @@ class Logger(object):
     ERROR = 'ERROR'
     CRITICAL = 'CRITICAL'
 
-    DEFAULT_LOG_LEVEL = getattr(logging, 'WARNING')
+    DEFAULT_LOG_LEVEL = getattr(logging, WARNING)
+    DEFAULT_HANDLER_LEVEL = getattr(logging, DEBUG)
     LOGGER_PATH = os.path.abspath(
         os.path.dirname(os.path.abspath(__file__)) +
         os.path.sep +
@@ -47,10 +49,10 @@ class Logger(object):
         self.logger = logging.getLogger(os.path.basename(file_))
         self.logger.setLevel(self.DEFAULT_LOG_LEVEL)
         self.handler = logging.FileHandler(self.LOGGER_PATH)
-        self.handler.setLevel(self.DEFAULT_LOG_LEVEL)
+        self.handler.setLevel(self.DEFAULT_HANDLER_LEVEL)
         self.handler.setFormatter(
             logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+                '%(asctime)s - %(filename)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(self.handler)
 
     def set_level(self, log_level_str):

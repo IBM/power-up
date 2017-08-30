@@ -21,9 +21,12 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
+import logging
 import jsonschema
 from jsonschema import validate
 import jsl
+
+from lib.logger import Logger
 
 
 def _string_int_field(**kwargs):
@@ -32,6 +35,12 @@ def _string_int_field(**kwargs):
             jsl.fields.StringField(),
             jsl.fields.IntField()],
         **kwargs)
+
+
+class Globals(jsl.Document):
+    log_level = jsl.fields.StringField(required=True)
+    introspection = jsl.fields.BooleanField()
+    env_variables = jsl.fields.DictField()
 
 
 class LocationRacks(jsl.Document):
@@ -49,36 +58,32 @@ class Location(jsl.Document):
 
 
 class DeployerNetworks(jsl.Document):
-    mgmt = jsl.fields.DictField(
+    mgmt = jsl.fields.ArrayField(jsl.fields.DictField(
         properties={
+            'device': jsl.fields.StringField(required=True),
+            'interface_ipaddr': jsl.fields.IPv4Field(),
+            'container_ipaddr': jsl.fields.IPv4Field(),
+            'bridge_ipaddr': jsl.fields.IPv4Field(),
+            'vlan': jsl.fields.IntField(),
             'netmask': jsl.fields.IPv4Field(),
-            'prefix': jsl.fields.IntField(),
+            'prefix': jsl.fields.IntField()},
+        additional_properties=False,
+        required=True))
+    client = jsl.fields.ArrayField(jsl.fields.DictField(
+        properties={
+            'type': jsl.fields.StringField(required=True),
+            'device': jsl.fields.StringField(required=True),
             'container_ipaddr': jsl.fields.IPv4Field(required=True),
             'bridge_ipaddr': jsl.fields.IPv4Field(required=True),
-            'vlan': jsl.fields.IntField(required=True)},
-        additional_properties=False,
-        required=True)
-    external = jsl.fields.DictField(
-        properties={
-            'dev_label': jsl.fields.StringField(required=True),
+            'vlan': jsl.fields.IntField(required=True),
             'netmask': jsl.fields.IPv4Field(),
-            'prefix': jsl.fields.IntField(),
-            'dev_ipaddr': jsl.fields.IPv4Field(required=True)},
+            'prefix': jsl.fields.IntField()},
         additional_properties=False,
-        required=True)
-    client = jsl.fields.DictField(
-        properties={
-            'netmask': jsl.fields.IPv4Field(),
-            'prefix': jsl.fields.IntField(),
-            'container_ipaddr': jsl.fields.IPv4Field(required=True),
-            'bridge_ipaddr': jsl.fields.IPv4Field(required=True),
-            'vlan': jsl.fields.IntField(required=True)},
-        additional_properties=False,
-        required=True)
+        required=True))
 
 
 class Deployer(jsl.Document):
-    log_level = jsl.fields.StringField(required=True)
+    gateway = jsl.fields.BooleanField()
     networks = jsl.DocumentField(DeployerNetworks)
 
 
@@ -126,7 +131,7 @@ class Interfaces(jsl.Document):
 
 
 class Networks(jsl.Document):
-    name = jsl.fields.StringField()
+    label = jsl.fields.StringField()
     interfaces = jsl.fields.ArrayField(
         jsl.fields.StringField(),
         required=True)
@@ -141,13 +146,17 @@ class SoftwareBootstrap(jsl.Document):
 class SchemaDefinition(jsl.Document):
     version = jsl.fields.StringField(required=True)
 
+    globals = jsl.fields.DocumentField(Globals)
+
     location = jsl.fields.DocumentField(Location)
 
     deployer = jsl.DocumentField(Deployer)
 
     switches = jsl.fields.DictField(required=True)
 
-    interfaces = jsl.fields.ArrayField(jsl.fields.DocumentField(Interfaces))
+    interfaces = jsl.fields.ArrayField(
+        jsl.fields.DocumentField(Interfaces),
+        required=True)
 
     networks = jsl.fields.ArrayField(
         jsl.fields.DocumentField(Networks),
@@ -163,12 +172,11 @@ class ValidateConfigSchema(object):
     """Config schema validation
 
     Args:
-        log (object): Log
         config (object): Config
     """
 
-    def __init__(self, log, config):
-        self.log = log
+    def __init__(self, config):
+        self.log = logging.getLogger(Logger.LOG_NAME)
         self.config = config
 
     def validate_config_schema(self):
@@ -183,6 +191,7 @@ class ValidateConfigSchema(object):
             validate(
                 self.config, schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as error:
-            self.log.error('Schema validation failed:' + '\n' + str(error))
+            self.log.error('Schema validation failed:' + '\n' + str(
+                error.message))
             sys.exit(1)
         self.log.info('Config schema validation completed successfully')

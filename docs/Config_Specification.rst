@@ -12,7 +12,7 @@ the fields and the YAML file format are documented below.
 Each section represents a top level dictionary key:
 
 | `version:`_
-| `global:`_
+| `globals:`_
 | `location:`_
 | `deployer:`_
 | `switches:`_
@@ -47,12 +47,12 @@ version:
 |             |                  |                                                                                                                                      |          |
 +-------------+------------------+--------------------------------------------------------------------------------------------------------------------------------------+----------+
 
-global:
+globals:
 --------
 
 ::
 
-  global:
+  globals:
       log_level:
       introspection:
       env_variables:
@@ -63,7 +63,7 @@ global:
 |                                   |                                            |                                                                                            |          |
 | ::                                | ::                                         | Minimum logger level to write to file. Options in order of decreasing verbosity:           | **yes**  |
 |                                   |                                            |                                                                                            |          |
-|   deployer:                       |   log_level: debug                         |   | *debug*                                                                                |          |
+|   globals:                        |   log_level: debug                         |   | *debug*                                                                                |          |
 |      log_level:                   |                                            |   | *info*                                                                                 |          |
 |      ...                          | ::                                         |   | *warning*                                                                              |          |
 |                                   |                                            |   | *error*                                                                                |          |
@@ -73,7 +73,7 @@ global:
 |                                   |                                            |                                                                                            |          |
 | ::                                | ::                                         | Introspection shall be enabled. Evaluates to *false* if missing.                           | no       |
 |                                   |                                            |                                                                                            |          |
-|   deployer:                       |   introspection: true                      |   | *false*                                                                                |          |
+|   globals:                        |   introspection: true                      |   | *false*                                                                                |          |
 |      introspection:               |                                            |   | *true*                                                                                 |          |
 |      ...                          |                                            |                                                                                            |          |
 |                                   |                                            |                                                                                            |          |
@@ -81,7 +81,7 @@ global:
 |                                   |                                            |                                                                                            |          |
 | ::                                | ::                                         | Apply environmental variables to the shell.                                                | no       |
 |                                   |                                            |                                                                                            |          |
-|   deployer:                       |   env_variables:                           | The example to the left would give the following result in bash:                           |          |
+|   globals:                        |   env_variables:                           | The example to the left would give the following result in bash:                           |          |
 |      env_variables:               |       https_proxy: http://192.168.1.2:3128 |                                                                                            |          |
 |      ...                          |       http_proxy: http://192.168.1.2:3128  | | export https_proxy="http://192.168.1.2:3128"                                             |          |
 |                                   |       no_proxy: localhost,127.0.0.1        | | export http_proxy="http://192.168.1.2:3128"                                              |          |
@@ -241,6 +241,7 @@ switches:
               userid:
               password:
               ssh_key:
+              class:
               rack_id:
               rack_eia:
               interfaces:
@@ -261,6 +262,7 @@ switches:
               userid:
               password:
               ssh_key:
+              class:
               rack_id:
               rack_eia:
               interfaces:
@@ -285,23 +287,25 @@ switches:
 |                                 |                                       | list.                                                                                       |          |
 |   switches:                     |   mgmt:                               |                                                                                             |          |
 |       mgmt:                     |       - label: mgmt_switch            | | Required keys:                                                                            |          |
-|           - label:              |         userid: admin                 | |   *label*  - Unique label used to reference this switch elsewhere in the config file.     |          |
-|             userid:             |         password: abc123              | |   *userid* [1]_ - Userid for switch management account.                                   |          |
-|             password:           |         hostname: switch23423         |                                                                                             |          |
-|             hostname:           |         rack_id: rack1                | | "Password" must [1]_ be defined with *password* OR *ssh_key* (not both!):                 |          |
-|             rack_id:            |         rack_eia: 20                  | |   *password* - Plain text password associated with *userid*.                              |          |
-|             rack_eia:           |         interfaces:                   | |   *ssh_key*  - Path to SSH private key file associated with *userid*.                     |          |
-|             interfaces:         |             - type: outband           |                                                                                             |          |
-|                 - type:         |               ipaddr: 192.168.1.10    | | Optional keys:                                                                            |          |
-|                   ipaddr:       |               port: mgmt0             | |   *hostname* - Hostname associated with switch management network interface.              |          |
-|                   vlan:         |             - type: inband            | |   *rack_id*  - Reference to rack *label* defined in the                                   |          |
-|                   port:         |               ipaddr: 192.168.5.20    |                  `locations: racks:= <location_racks_>`_ element.                           |          |
-|             links:              |               port: 15                | |   *rack_eia* - Switch position within rack.                                               |          |
-|                 - target:       |         links:                        | |   *interfaces* - See interfaces_.                                                         |          |
-|                   ports:        |             - target: deployer        | |   *links*    - See links_.                                                                |          |
-|       ...                       |               ports: 1                |                                                                                             |          |
-|                                 |             - target: data_switch     | .. [1] *userid* and *password*/*ssh_key* are not required when running in passive switch    |          |
-|                                 |               ports: 2                |    mode.                                                                                    |          |
+|           - label:              |         hostname: switch23423         | |   *label*  - Unique label used to reference this switch elsewhere in the config file.     |          |
+|             hostname:           |         userid: admin                 |                                                                                             |          |
+|             userid:             |         password: abc123              | | Required keys in "active" switch mode:                                                    |          |
+|             password:           |         class: lenovo                 | |   *userid*        - Userid for switch management account.                                 |          |
+|             class:              |         rack_id: rack1                | |   *password* [1]_ - Plain text password associated with *userid*.                         |          |
+|             rack_id:            |         rack_eia: 20                  | |   *ssh_key*  [1]_ - Path to SSH private key file associated with *userid*.                |          |
+|             rack_eia:           |         interfaces:                   |                                                                                             |          |
+|             interfaces:         |             - type: outband           | | Required keys in "passive" switch mode:                                                   |          |
+|                 - type:         |               ipaddr: 192.168.1.10    | |   *class*  - Switch class (lenovo/mellanox/cisco/cumulus).                                |          |
+|                   ipaddr:       |               port: mgmt0             |                                                                                             |          |
+|                   vlan:         |             - type: inband            | | Optional keys:                                                                            |          |
+|                   port:         |               ipaddr: 192.168.5.20    | |   *hostname* - Hostname associated with switch management network interface.              |          |
+|             links:              |               port: 15                | |   *rack_id*  - Reference to rack *label* defined in the                                   |          |
+|                 - target:       |         links:                        |                  `locations: racks:= <location_racks_>`_ element.                           |          |
+|                   ports:        |             - target: deployer        | |   *rack_eia* - Switch position within rack.                                               |          |
+|       ...                       |               ports: 1                | |   *interfaces* - See interfaces_.                                                         |          |
+|                                 |             - target: data_switch     | |   *links*    - See links_.                                                                |          |
+|                                 |               ports: 2                |                                                                                             |          |
+|                                 |                                       | .. [1] Either *password* or *ssh_key* shall be specified, but not both.                     |          |
 |                                 |                                       |                                                                                             |          |
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
 | .. _switches_data:              |                                       |                                                                                             |          |
@@ -310,28 +314,29 @@ switches:
 |                                 |                                       |                                                                                             |          |
 |   switches:                     |   data:                               | Key/value specs are identical to `mgmt switches <switches_mgmt_>`_.                         |          |
 |       data:                     |       - label: data_switch_1          |                                                                                             |          |
-|           - label:              |         userid: admin                 |                                                                                             |          |
+|           - label:              |         hostname: switch84579         |                                                                                             |          |
+|             hostname:           |         userid: admin                 |                                                                                             |          |
 |             userid:             |         password: abc123              |                                                                                             |          |
-|             password:           |         hostname: switch84579         |                                                                                             |          |
-|             hostname:           |         rack_id: rack1                |                                                                                             |          |
+|             password:           |         class: mellanox               |                                                                                             |          |
+|             class:              |         rack_id: rack1                |                                                                                             |          |
 |             rack_id:            |         rack_eia: 21                  |                                                                                             |          |
 |             rack_eia:           |         interfaces:                   |                                                                                             |          |
 |             interfaces:         |             - type: inband            |                                                                                             |          |
 |                 - type:         |               ipaddr: 192.168.1.21    |                                                                                             |          |
 |                   ipaddr:       |               port: 15                |                                                                                             |          |
-|                   port:         |         links:                        |                                                                                             |          |
-|             links:              |             - target: mgmt_switch     |                                                                                             |          |
-|                 - target:       |               ports: 1                |                                                                                             |          |
-|                   ports:        |             - target: data_switch_2   |                                                                                             |          |
-|       ...                       |               ports: 2                |                                                                                             |          |
-|                                 |                                       |                                                                                             |          |
+|                   vlan:         |         links:                        |                                                                                             |          |
+|                   port:         |             - target: mgmt_switch     |                                                                                             |          |
+|             links:              |               ports: 1                |                                                                                             |          |
+|                 - target:       |             - target: data_switch_2   |                                                                                             |          |
+|                   ports:        |               ports: 2                |                                                                                             |          |
+|       ...                       |                                       |                                                                                             |          |
 |                                 | example #2::                          |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
 |                                 |   data:                               |                                                                                             |          |
 |                                 |       - label: data_switch            |                                                                                             |          |
+|                                 |         hostname: switch84579         |                                                                                             |          |
 |                                 |         userid: admin                 |                                                                                             |          |
 |                                 |         password: abc123              |                                                                                             |          |
-|                                 |         hostname: switch84579         |                                                                                             |          |
 |                                 |         rack_id: rack1                |                                                                                             |          |
 |                                 |         rack_eia: 21                  |                                                                                             |          |
 |                                 |         interfaces:                   |                                                                                             |          |
@@ -473,36 +478,36 @@ interfaces:
 | ::                        | ::                                                | Ubuntu formatted OS interface configuration.                                               | no       |
 |                           |                                                   |                                                                                            |          |
 |   interfaces:             |   - label: manual1                                | | Required keys:                                                                           |          |
-|       - label:            |     description: manual network 1                 | |   *label*       - Unique label of interface configuration to be referenced within        |          |
-|         description:      |     iface: eth0                                   |                     `networks:`_ `node_templates: interfaces:                              |          |
-|         iface:            |     method: manual                                |                     <node_templates_interfaces_>`_.                                        |          |
-|         method:           |                                                   |                                                                                            |          |
-|         address_list:     |   - label: dhcp1                                  | | Optional keys:                                                                           |          |
-|         netmask:          |     description: dhcp interface 1                 | |   *description*   - Short description of interface configuration to be included as a     |          |
-|         broadcast:        |     iface: eth0                                   |                       comment in OS config files.                                          |          |
-|         gateway:          |     method: dhcp                                  | |   *address_list*  - List of IP address to assign client interfaces referencing this      |          |
-|         dns_search:       |                                                   |                       configuration. Each list element may either be a single IP address   |          |
-|         dns_nameservers:  |   - label: static1                                |                       or a range (formatted as *<start_address>*-<*end_address*>).         |          |
-|         mtu:              |     description: static interface 1               | |   *address_start* - Starting IP address to assign client interfaces referencing this     |          |
-|         pre_up:           |     iface: eth0                                   |                       configuration. Addresses will be assigned to each client interface   |          |
-|         vlan_raw_device:  |     method: static                                |                       incrementally.                                                       |          |
-|                           |     address_list:                                 |                                                                                            |          |
-|                           |         - 9.3.89.14                               | | Optional "drop-in" keys:                                                                 |          |
-|                           |         - 9.3.89.18-9.3.89.22                     | |   The following key names are derived directly from the Ubuntu *interfaces*              |          |
-|                           |         - 9.3.89.111-9.3.89.112                   |     configuration file (note that all "-" charactes are replaced with "_"). Values will be |          |
-|                           |         - 9.3.89.120                              |     copied directly into the *interfaces* file. Refer to the `interfaces manpage           |          |
-|                           |     netmask: 255.255.255.0                        |     <http://manpages.ubuntu.com/manpages/xenial/man5/interfaces.5.html>`_ for usage.       |          |
-|                           |     broadcast: 9.3.89.255                         | |                                                                                          |          |
-|                           |     gateway: 9.3.89.1                             | |   *iface*                                                                                |          |
-|                           |     dns_search: your.dns.com                      | |   *method*                                                                               |          |
-|                           |     dns_nameservers: 9.3.1.200 9.3.1.201          | |   *netmask*                                                                              |          |
-|                           |     mtu: 9000                                     | |   *broadcast*                                                                            |          |
-|                           |     pre_up: command                               | |   *gateway*                                                                              |          |
-|                           |                                                   | |   *dns_search*                                                                           |          |
-|                           |   - label: vlan1                                  | |   *dns_nameservers*                                                                      |          |
-|                           |     description: vlan interface 1                 | |   *mtu*                                                                                  |          |
-|                           |     iface: eth0.10                                | |   *pre_up*                                                                               |          |
-|                           |     method: manual                                | |   *vlan_raw_device*                                                                      |          |
+|       - label:            |     description: manual network 1                 | |   *label* - Unique label of interface configuration to be referenced within              |          |
+|         description:      |     iface: eth0                                   |               `networks:`_ `node_templates: interfaces: <node_templates_interfaces_>`_.    |          |
+|         iface:            |     method: manual                                |                                                                                            |          |
+|         method:           |                                                   | | Optional keys:                                                                           |          |
+|         address_list:     |   - label: dhcp1                                  | |   *description*   - Short description of interface configuration to be included as a     |          |
+|         netmask:          |     description: dhcp interface 1                 |                       comment in OS config files.                                          |          |
+|         broadcast:        |     iface: eth0                                   | |   *address_list*  - List of IP address to assign client interfaces referencing this      |          |
+|         gateway:          |     method: dhcp                                  |                       configuration. Each list element may either be a single IP address   |          |
+|         dns_search:       |                                                   |                       or a range (formatted as *<start_address>*-<*end_address*>).         |          |
+|         dns_nameservers:  |   - label: static1                                | |   *address_start* - Starting IP address to assign client interfaces referencing this     |          |
+|         mtu:              |     description: static interface 1               |                       configuration. Addresses will be assigned to each client interface   |          |
+|         pre_up:           |     iface: eth0                                   |                       incrementally.                                                       |          |
+|         vlan_raw_device:  |     method: static                                |                                                                                            |          |
+|                           |     address_list:                                 | | Optional "drop-in" keys:                                                                 |          |
+|                           |         - 9.3.89.14                               | |   The following key names are derived directly from the Ubuntu *interfaces*              |          |
+|                           |         - 9.3.89.18-9.3.89.22                     |     configuration file (note that all "-" charactes are replaced with "_"). Values will be |          |
+|                           |         - 9.3.89.111-9.3.89.112                   |     copied directly into the *interfaces* file. Refer to the `interfaces manpage           |          |
+|                           |         - 9.3.89.120                              |     <http://manpages.ubuntu.com/manpages/xenial/man5/interfaces.5.html>`_ for usage.       |          |
+|                           |     netmask: 255.255.255.0                        | |                                                                                          |          |
+|                           |     broadcast: 9.3.89.255                         | |   *iface*                                                                                |          |
+|                           |     gateway: 9.3.89.1                             | |   *method*                                                                               |          |
+|                           |     dns_search: your.dns.com                      | |   *netmask*                                                                              |          |
+|                           |     dns_nameservers: 9.3.1.200 9.3.1.201          | |   *broadcast*                                                                            |          |
+|                           |     mtu: 9000                                     | |   *gateway*                                                                              |          |
+|                           |     pre_up: command                               | |   *dns_search*                                                                           |          |
+|                           |                                                   | |   *dns_nameservers*                                                                      |          |
+|                           |   - label: vlan1                                  | |   *mtu*                                                                                  |          |
+|                           |     description: vlan interface 1                 | |   *pre_up*                                                                               |          |
+|                           |     iface: eth0.10                                | |   *vlan_raw_device*                                                                      |          |
+|                           |     method: manual                                |                                                                                            |          |
 |                           |                                                   |                                                                                            |          |
 |                           |   - label: vlan2                                  |                                                                                            |          |
 |                           |     description: vlan interface 2                 |                                                                                            |          |
@@ -600,35 +605,35 @@ interfaces:
 | ::                        | ::                                                | RHEL styled OS interface configuration.                                                    | no       |
 |                           |                                                   |                                                                                            |          |
 |   interfaces:             |   - label: manual2                                | | Required keys:                                                                           |          |
-|       - label:            |     description: manual network 2                 | |   *label*       - Unique label of interface configuration to be referenced within        |          |
-|         description:      |     DEVICE: eth0                                  |                     `networks:`_ `node_templates: interfaces:                              |          |
-|         DEVICE:           |     BOOTPROTO: none                               |                     <node_templates_interfaces_>`_.                                        |          |
-|         BOOTPROTO:        |                                                   |                                                                                            |          |
-|         IPADDR_list:      |   - label: dhcp2                                  | | Optional keys:                                                                           |          |
-|         NETMASK:          |     description: dhcp interface 2                 | |   *description*  - Short description of interface configuration to be included as a      |          |
-|         BROADCAST:        |     DEVICE: eth0                                  |                      comment in OS config files.                                           |          |
-|         GATEWAY:          |     BOOTPROTO: dhcp                               | |   *IPADDR_list*  - List of IP address to assign client interfaces referencing this       |          |
-|         SEARCH:           |                                                   |                      configuration. Each list element may either be a single IP address    |          |
-|         DNS1:             |   - label: static2                                |                      or a range (formatted as *<start_address>*-<*end_address*>).          |          |
-|         DNS2:             |     description: static interface 2               | |   *IPADDR_start* - Starting IP address to assign client interfaces referencing this      |          |
-|         MTU:              |     DEVICE: eth0                                  |                      configuration. Addresses will be assigned to each client interface    |          |
-|         VLAN:             |     BOOTPROTO: none                               |                      incrementally.                                                        |          |
-|                           |     IPADDR_list:                                  |                                                                                            |          |
-|                           |         - 9.3.89.14                               | | Optional "drop-in" keys:                                                                 |          |
-|                           |         - 9.3.89.18-9.3.89.22                     | |   The following key names are derived directly from RHEL's *ifcfg* configuration files.  |          |
-|                           |         - 9.3.89.111-9.3.89.112                   |     Values will be copied directly into the *ifcfg-<name>* files.  Refer to the `RHEL IP   |          |
-|                           |         - 9.3.89.120                              |     NETWORKING <rhel_ifcfg_doc_>`_ for usage.                                              |          |
-|                           |     NETMASK: 255.255.255.0                        | |                                                                                          |          |
-|                           |     BROADCAST: 9.3.89.255                         | |   *DEVICE*                                                                               |          |
-|                           |     GATEWAY: 9.3.89.1                             | |   *BOOTPROTO*                                                                            |          |
-|                           |     SEARCH: your.dns.com                          | |   *NETMASK*                                                                              |          |
-|                           |     DNS1: 9.3.1.200                               | |   *BROADCAST*                                                                            |          |
-|                           |     DNS2: 9.3.1.201                               | |   *GATEWAY*                                                                              |          |
-|                           |     MTU: 9000                                     | |   *SEARCH*                                                                               |          |
-|                           |                                                   | |   *DNS1*                                                                                 |          |
-|                           |   - label: vlan3                                  | |   *DNS2*                                                                                 |          |
-|                           |     description: vlan interface 3                 | |   *MTU*                                                                                  |          |
-|                           |     DEVICE: eth0.10                               | |   *VLAN*                                                                                 |          |
+|       - label:            |     description: manual network 2                 | |   *label* - Unique label of interface configuration to be referenced within              |          |
+|         description:      |     DEVICE: eth0                                  |               `networks:`_ `node_templates: interfaces: <node_templates_interfaces_>`_.    |          |
+|         DEVICE:           |     BOOTPROTO: none                               |                                                                                            |          |
+|         BOOTPROTO:        |                                                   | | Optional keys:                                                                           |          |
+|         IPADDR_list:      |   - label: dhcp2                                  | |   *description*  - Short description of interface configuration to be included as a      |          |
+|         NETMASK:          |     description: dhcp interface 2                 |                      comment in OS config files.                                           |          |
+|         BROADCAST:        |     DEVICE: eth0                                  | |   *IPADDR_list*  - List of IP address to assign client interfaces referencing this       |          |
+|         GATEWAY:          |     BOOTPROTO: dhcp                               |                      configuration. Each list element may either be a single IP address    |          |
+|         SEARCH:           |                                                   |                      or a range (formatted as *<start_address>*-<*end_address*>).          |          |
+|         DNS1:             |   - label: static2                                | |   *IPADDR_start* - Starting IP address to assign client interfaces referencing this      |          |
+|         DNS2:             |     description: static interface 2               |                      configuration. Addresses will be assigned to each client interface    |          |
+|         MTU:              |     DEVICE: eth0                                  |                      incrementally.                                                        |          |
+|         VLAN:             |     BOOTPROTO: none                               |                                                                                            |          |
+|                           |     IPADDR_list:                                  | | Optional "drop-in" keys:                                                                 |          |
+|                           |         - 9.3.89.14                               | |   The following key names are derived directly from RHEL's *ifcfg* configuration files.  |          |
+|                           |         - 9.3.89.18-9.3.89.22                     |     Values will be copied directly into the *ifcfg-<name>* files.  Refer to the            |          |
+|                           |         - 9.3.89.111-9.3.89.112                   |     `RHEL IP NETWORKING <rhel_ifcfg_doc_>`_ for usage.                                     |          |
+|                           |         - 9.3.89.120                              | |                                                                                          |          |
+|                           |     NETMASK: 255.255.255.0                        | |   *DEVICE*                                                                               |          |
+|                           |     BROADCAST: 9.3.89.255                         | |   *BOOTPROTO*                                                                            |          |
+|                           |     GATEWAY: 9.3.89.1                             | |   *NETMASK*                                                                              |          |
+|                           |     SEARCH: your.dns.com                          | |   *BROADCAST*                                                                            |          |
+|                           |     DNS1: 9.3.1.200                               | |   *GATEWAY*                                                                              |          |
+|                           |     DNS2: 9.3.1.201                               | |   *SEARCH*                                                                               |          |
+|                           |     MTU: 9000                                     | |   *DNS1*                                                                                 |          |
+|                           |                                                   | |   *DNS2*                                                                                 |          |
+|                           |   - label: vlan3                                  | |   *MTU*                                                                                  |          |
+|                           |     description: vlan interface 3                 | |   *VLAN*                                                                                 |          |
+|                           |     DEVICE: eth0.10                               |                                                                                            |          |
 |                           |     BOOTPROTO: none                               |                                                                                            |          |
 |                           |     VLAN: yes                                     |                                                                                            |          |
 |                           |                                                   |                                                                                            |          |
@@ -734,12 +739,12 @@ node_templates:
                     ports:
               pxe:
                   - switch:
-                    dev:
+                    device:
                     rename:
                     ports:
               data:
                   - switch:
-                    dev:
+                    device:
                     rename:
                     ports:
           interfaces:
@@ -830,24 +835,24 @@ node_templates:
 |                   ports:           |                   - 7                         |                                                                                  |          |
 |             pxe:                   |                   - 8                         | | Optional keys:                                                                 |          |
 |                 - switch:          |                   - 9                         | |   *data* - Data (OS) interface port mappings. See `physical_interfaces:        |          |
-|                   dev:             |         pxe:                                  |              pxe/data <physical_ints_os_>`_.                                     |          |
+|                   device:          |         pxe:                                  |              pxe/data <physical_ints_os_>`_.                                     |          |
 |                   rename:          |             - switch: mgmt_1                  |                                                                                  |          |
-|                   ports:           |               dev: eth15                      |                                                                                  |          |
+|                   ports:           |               device: eth15                   |                                                                                  |          |
 |             data:                  |               rename: true                    |                                                                                  |          |
 |                 - switch:          |               ports:                          |                                                                                  |          |
-|                   dev:             |                   - 10                        |                                                                                  |          |
+|                   device:          |                   - 10                        |                                                                                  |          |
 |                   rename:          |                   - 11                        |                                                                                  |          |
 |                   ports:           |                   - 12                        |                                                                                  |          |
 |                                    |         data:                                 |                                                                                  |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               dev: eth10                      |                                                                                  |          |
+|                                    |               device: eth10                   |                                                                                  |          |
 |                                    |               rename: true                    |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 7                         |                                                                                  |          |
 |                                    |                   - 8                         |                                                                                  |          |
 |                                    |                   - 9                         |                                                                                  |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               dev: eth11                      |                                                                                  |          |
+|                                    |               device: eth11                   |                                                                                  |          |
 |                                    |               rename: false                   |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 10                        |                                                                                  |          |
@@ -877,22 +882,22 @@ node_templates:
 |       - ...                        |     physical_interfaces:                      | |   *switch* - Reference to switch *label* defined in the `switches: mgmt:       |          |
 |         physical_interfaces:       |         pxe:                                  |                <switches_mgmt_>`_ or `switches: data: <switches_data_>`_         |          |
 |             ...                    |             - switch: mgmt_1                  |                elements.                                                         |          |
-|             pxe:                   |               dev: eth15                      | |   *dev*    - Reference to interface label defined in the `interfaces:`_        |          |
+|             pxe:                   |               device: eth15                   | |   *device*    - Reference to interface label defined in the `interfaces:`_     |          |
 |                 - switch:          |               rename: true                    |                elements.                                                         |          |
-|                   dev:             |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces will |          |
+|                   device:          |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces will |          |
 |                   rename:          |                   - 10                        |                be renamed to match the 'dev' value.                              |          |
 |                   ports:           |                   - 11                        | |   *ports*  - List of port number/identifiers mapping to client node OS         |          |
 |             data:                  |                   - 12                        |                interfaces.                                                       |          |
 |                 - siwtch:          |         data:                                 |                                                                                  |          |
-|                   dev:             |             - switch: data_1                  |                                                                                  |          |
-|                   rename:          |               dev: eth10                      |                                                                                  |          |
+|                   device:          |             - switch: data_1                  |                                                                                  |          |
+|                   rename:          |               device: eth10                   |                                                                                  |          |
 |                   ports            |               rename: true                    |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 7                         |                                                                                  |          |
 |                                    |                   - 8                         |                                                                                  |          |
 |                                    |                   - 9                         |                                                                                  |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               dev: eth11                      |                                                                                  |          |
+|                                    |               device: eth11                   |                                                                                  |          |
 |                                    |               rename: false                   |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 10                        |                                                                                  |          |

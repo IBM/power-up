@@ -21,12 +21,14 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
-import os.path
+import os
+import logging
 import yaml
 from orderedattrdict.yamlutils import AttrDictYAMLLoader
 
 from lib.validate_config_schema import ValidateConfigSchema
 from lib.validate_config_logic import ValidateConfigLogic
+from lib.logger import Logger
 
 
 class Database(object):
@@ -37,36 +39,44 @@ class Database(object):
         db_file (string): Database file
     """
 
-    def __init__(self, log, db_file):
-        self.log = log
-        self.file = os.path.abspath(
-            os.path.dirname(os.path.abspath(db_file)) +
-            os.path.sep +
-            os.path.basename(db_file))
+    CFG_FILE = '../../config.yml'
+    INV_FILE = '../../inventory.yml'
+    FILE_MODE = 0o666
+
+    def __init__(self):
+        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.cfg_file = os.path.realpath(self.CFG_FILE)
+        self.inv_file = os.path.realpath(self.INV_FILE)
+        self.cfg = None
         self.inv = None
 
-        if not os.path.isfile(self.file):
+        # Check if config file exists
+        if not os.path.isfile(self.cfg_file):
             try:
                 raise Exception()
             except Exception:
-                self.log.error('Could not find: ' + self.file)
+                self.log.error('Could not find config file: ' + self.cfg_file)
                 sys.exit(1)
 
-    def _load_yaml_file(self):
-        """Load inventory from YAML file
+        # Create inventory file if it does not exist
+        if not os.path.isfile(self.inv_file):
+            os.mknod(self.inv_file, self.FILE_MODE)
+
+    def _load_yaml_file(self, yaml_file):
+        """Load from YAML file
 
         Exception:
             If load from file fails
         """
 
         try:
-            self.inv = yaml.load(open(self.file), Loader=AttrDictYAMLLoader)
+            return yaml.load(open(yaml_file), Loader=AttrDictYAMLLoader)
         except:
-            self.log.error('Could not load file: ' + self.file)
+            self.log.error('Could not load file: ' + yaml_file)
             sys.exit(1)
 
-    def _dump_yaml_file(self):
-        """Dump inventory to YAML file
+    def _dump_yaml_file(self, yaml_file, content):
+        """Dump to YAML file
 
         Exception:
             If dump to file fails
@@ -74,14 +84,24 @@ class Database(object):
 
         try:
             yaml.safe_dump(
-                self.inv,
-                open(self.file, 'w'),
+                content,
+                open(yaml_file, 'w'),
                 indent=4,
                 default_flow_style=False)
         except:
             self.log.error(
-                'Could not dump inventory to file: ' + self.file)
+                'Could not dump inventory to file: ' + yaml_file)
             sys.exit(1)
+
+    def load_config(self):
+        """Load config from database
+
+        Returns:
+            object: Config
+        """
+
+        self.cfg = self._load_yaml_file(self.cfg_file)
+        return self.cfg
 
     def load_inventory(self):
         """Load inventory from database
@@ -90,19 +110,25 @@ class Database(object):
             object: Inventory
         """
 
-        self._load_yaml_file()
+        self.inv = self._load_yaml_file(self.inv_file)
         return self.inv
 
-    def dump_inventory(self):
+    def dump_inventory(self, inv):
         """Dump inventory to database"""
 
-        self._dump_yaml_file()
+        self.inv = inv
+        self._dump_yaml_file(self.inv_file, inv)
 
-    def validate_config(self):
+    def validate_config(self, config_file=None):
         """Validate config"""
 
-        self._load_yaml_file()
-        schema = ValidateConfigSchema(self.log, self.inv)
+        if config_file is None:
+            cfg_file = self.cfg_file
+        else:
+            cfg_file = os.path.realpath(config_file)
+        self.cfg = self._load_yaml_file(cfg_file)
+        self.log.setLevel(logging.INFO)
+        schema = ValidateConfigSchema(self.cfg)
         schema.validate_config_schema()
-        logic = ValidateConfigLogic(self.log, self.inv)
+        logic = ValidateConfigLogic(self.cfg)
         logic.validate_config_logic()

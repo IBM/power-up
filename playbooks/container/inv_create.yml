@@ -15,10 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: validate_config.yml
-  hosts: localhost
+- name: container/inv_create.yml
+  hosts: deployer
   tasks:
-    - name: "Config file schema and logic validation"
-      command: "{{ python_executable_local }} \
-                {{ scripts_path_local }}/python/validate_config.py \
-                {{ config_local }}"
+    - name: Create inventory
+      command: "{{ python_executable }} \
+                {{ scripts_path }}/python/inv_create.py"

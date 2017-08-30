@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Validate config"""
+"""Create inventory"""
 
 # Copyright 2017 IBM Corp.
 #
@@ -21,26 +21,29 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 from lib.logger import Logger
-from lib.db import Database
+from lib.config import Config
+from lib.inv_nodes import InventoryNodes
 
 
-class ValidateConfig(object):
-    """Validate config
+class InventoryCreate(object):
+    """Create inventory
 
     Args:
-        log (object): Log
+        log(object): log
     """
 
     def __init__(self, log=None):
-        pass
+        if log is not None:
+            cfg = Config()
+            log.set_level(cfg.get_globals_log_level())
 
-    def validate_config(self):
-        """Validate config"""
+    def create(self):
+        """Create inventory"""
 
-        dbase = Database()
-        dbase.validate_config()
+        nodes = InventoryNodes()
+        nodes.create_nodes()
 
 
 if __name__ == '__main__':
-    VAL_CFG = ValidateConfig(Logger(Logger.LOG_NAME))
-    VAL_CFG.validate_config()
+    INV = InventoryCreate(Logger(Logger.LOG_NAME))
+    INV.create()

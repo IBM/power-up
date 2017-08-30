@@ -88,6 +88,13 @@ switches:
                 port: 46
               - target: data_1_2
                 port: 47
+        - label: mgmt_2
+          hostname: mymgmt_2
+          userid: admin
+          password: passw0rd
+          ssh_key: <path1>
+          rack_id: rack_2
+          rack_eia: 36
     data:
         - label: data_1_1
           hostname: mydata_1
@@ -444,26 +451,26 @@ node_templates:
       # switch port numbers to these ports.
       physical_interfaces:
           ipmi:
-              switch: mgmt_1
-              ports:
-                  - 7
-                  - 8
-                  - 9
+              - switch: mgmt_2
+                ports:
+                    - 7
+                    - 8
+                    - 9
           pxe:
-              switch: mgmt_1
-              dev: eth15
-              ports:
-                  - 10
-                  - 11
-                  - 12
+              - switch: mgmt_2
+                dev: eth15
+                ports:
+                    - 10
+                    - 11
+                    - 12
           data:
-              - switch: data_1
+              - switch: data_2
                 dev: eth10
                 ports:
                     - 7
                     - 8
                     - 9
-              - switch: data_1
+              - switch: data_2
                 dev: eth11
                 ports:
                     - 10

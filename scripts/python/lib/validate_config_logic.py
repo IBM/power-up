@@ -21,20 +21,22 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
+import logging
+
+from lib.logger import Logger
 
 
 class ValidateConfigLogic(object):
     """Config logic validation
 
     Args:
-        log (object): Log
         config (object): Config
     """
 
     CONFIG_VERSION = 'v2.0'
 
-    def __init__(self, log, config):
-        self.log = log
+    def __init__(self, config):
+        self.log = logging.getLogger(Logger.LOG_NAME)
         self.config = config
 
     def _validate_version(self):
@@ -61,34 +63,34 @@ class ValidateConfigLogic(object):
             If both or neither the netmask and prefix are specified.
         """
 
+        msg_either = "Either 'netmask' or 'prefix' needs to be specified"
+        msg_both = "Both 'netmask' and 'prefix' can not be specified"
+
         for element in (
-                'deployer.networks.mgmt',
-                'deployer.networks.external',
-                'deployer.networks.client'):
-
-            try:
-                netmask = eval('self.config.' + element).netmask
-            except AttributeError:
-                netmask = None
-            try:
-                prefix = eval('self.config.' + element).prefix
-            except AttributeError:
-                prefix = None
-
-            if netmask is None and prefix is None:
+                self.config.deployer.networks.mgmt,
+                self.config.deployer.networks.client):
+            for member in element:
                 try:
-                    raise Exception()
-                except Exception:
-                    msg = "Either 'netmask' or 'prefix' needs to be specified"
-                    self.log.error("%s - %s" % (element, msg))
-                    sys.exit(1)
-            if netmask is not None and prefix is not None:
+                    netmask = member.netmask
+                except AttributeError:
+                    netmask = None
                 try:
-                    raise Exception()
-                except Exception:
-                    msg = "Both 'netmask' and 'prefix' can not be specified"
-                    self.log.error("%s - %s" % (element, msg))
-                    sys.exit(1)
+                    prefix = member.prefix
+                except AttributeError:
+                    prefix = None
+
+                if netmask is None and prefix is None:
+                    try:
+                        raise Exception()
+                    except Exception:
+                        self.log.error("%s - %s" % (element, msg_either))
+                        sys.exit(1)
+                if netmask is not None and prefix is not None:
+                    try:
+                        raise Exception()
+                    except Exception:
+                        self.log.error("%s - %s" % (element, msg_both))
+                        sys.exit(1)
 
     def validate_config_logic(self):
         """Config logic validation"""
