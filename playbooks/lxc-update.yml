@@ -34,6 +34,16 @@
           - url: "http://us.ports.ubuntu.com/dists/trusty-updates/main/installer-ppc64el/20101020ubuntu318.41/images/xenial-netboot/mini.iso"
             dest: "{{ project_path_local }}/os_images/ubuntu-14.04.5-server-ppc64el.mini.iso"
             sha1sum: b167507d2a65fa81f199cd2125079beb499023c6
+      - name: ubuntu-16.04.2-server-amd64
+        images:
+          - url: "http://old-releases.ubuntu.com/releases/16.04.2/ubuntu-16.04.2-server-amd64.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.2-server-amd64.iso"
+            sha1sum: f529548fa7468f2d8413b8427d8e383b830df5f6
+      - name: ubuntu-16.04.2-server-ppc64el
+        images:
+          - url: "http://old-releases.ubuntu.com/releases/16.04.2/ubuntu-16.04.2-server-ppc64el.iso"
+            dest: "{{ project_path_local }}/os_images/ubuntu-16.04.2-server-ppc64el.iso"
+            sha1sum: 493f4c8411527409182fe1f3ba1a017c91da3ed2
       - name: ubuntu-16.04.3-server-amd64
         images:
           - url: "http://releases.ubuntu.com/16.04/ubuntu-16.04.3-server-amd64.iso"
