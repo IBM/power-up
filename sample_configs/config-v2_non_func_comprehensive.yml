@@ -29,15 +29,15 @@ location:
 deployer:
     log_level: debug
     networks:
+        external:
+            dev_label: enp1s0f0
+            dev_ipaddr: 192.168.1.10
+            prefix: 24
         mgmt:
             container_ipaddr: 192.168.5.2
             bridge_ipaddr: 192.168.5.3
             netmask: 255.255.255.0
             vlan: 5
-        external:
-            dev_label: enp1s0f0
-            dev_ipaddr: 192.168.1.10
-            prefix: 24
         client:
             container_ipaddr: 192.168.11.2
             bridge_ipaddr: 192.168.11.3

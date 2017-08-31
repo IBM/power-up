@@ -1,0 +1,243 @@
+---
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: v2.0
+
+location:
+    time_zone: America/Chicago
+    racks:
+        - label: rack1
+
+deployer:
+    networks:
+        external:
+            dev_label: enp1s0f0
+            dev_ipaddr: 192.168.1.10
+            prefix: 24
+        mgmt:
+            container_ipaddr: 192.168.5.2
+            bridge_ipaddr: 192.168.5.3
+            netmask: 255.255.255.0
+            vlan: 5
+        client:
+            container_ipaddr: 192.168.10.2
+            bridge_ipaddr: 192.168.10.3
+            netmask: 255.255.255.0
+            vlan: 10
+
+switches:
+    mgmt:
+        - label: mgmt1
+          userid: admin
+          password: passw0rd
+          rack_id: rack1
+          inband_interfaces:
+              - ipaddr: 192.168.5.10
+                port: 1
+          external_links:
+              - target: deployer
+                port: 1
+              - target: data1_1
+                port: 2
+              - target: data1_2
+                port: 3
+
+    data:
+        - label: data1_1
+          userid: admin
+          password: passw0rd
+          rack_id: rack1
+          external_links:
+              - target: mgmt1
+                ipaddr: 192.168.5.11
+                vip: 192.168.5.254
+                port: mgmt0
+              - target: data1_2
+                ipaddr: 10.0.0.1
+                prefix: 24
+                vlan: 4000
+                port:
+                    - 1
+                    - 2
+        - label: data1_1
+          userid: admin
+          password: passw0rd
+          rack_id: rack1
+          external_links:
+              - target: mgmt_1
+                ipaddr: 192.168.5.12
+                vip: 192.168.5.254
+                port: mgmt0
+              - target: data1_1
+                ipaddr: 10.0.0.2
+                network: 255.255.255.0
+                vlan: 4000
+                port:
+                    - 1
+                    - 2
+
+interfaces:
+    - label: bond1_interface1
+      description: primary interface for bond1
+      iface: eth1-bond1
+      method: manual
+      bond_master: bond1
+      bond_primary: eth0
+
+    - label: bond1_interface2
+      description: secondary interface for bond1
+      iface: eth2-bond1
+      method: manual
+      bond_master: bond1
+
+    - label: bond1
+      description: bond interface 1
+      iface: bond1
+      bond_mode: active-backup
+      bond_miimon: 100
+      bond_slaves: none
+
+    - label: bond1_vlan10
+      description: vlan10 interface off bond1
+      iface: bond1.10
+      method: manual
+
+    - label: bond1_br10
+      description: bridge interface off bond1 vlan10
+      iface: br10
+      method: static
+      address_start: 172.16.10.1
+      netmask: 255.255.255.0
+      bridge_ports: bond1.10
+      bridge_stp: off
+
+    - label: bond1_vlan20
+      description: vlan20 interface off bond1
+      iface: bond1.20
+      method: manual
+
+    - label: bond1_br20
+      description: bridge interface off bond1 vlan20
+      iface: br20
+      method: static
+      address_start: 172.16.20.1
+      netmask: 255.255.255.0
+      bridge_ports: bond1.20
+      bridge_stp: off
+
+networks:
+    - label: bond1_br10
+      interfaces:
+          - bond1_interface1
+          - bond1_interface2
+          - bond1
+          - bond1_vlan10
+          - bond1_br10
+
+    - label: bond1_br20
+      interfaces:
+          - bond1_interface1
+          - bond1_interface2
+          - bond1
+          - bond1_vlan20
+          - bond1_br20
+
+    - label: bond1_br10_br20
+      interfaces:
+          - bond1_interface1
+          - bond1_interface2
+          - bond1
+          - bond1_vlan10
+          - bond1_br10
+          - bond1_vlan20
+          - bond1_br20
+
+node_templates:
+    - label: controllers
+      ipmi:
+          userid: ADMIN
+          password: admin
+      os:
+          profile: ubuntu-16.04-server-ppc64el
+          users:
+              - name: user1
+                password: passw0rd
+                groups: sudo
+          install_device: /dev/sdj
+      physical_interfaces:
+          ipmi:
+              - switch: mgmt1
+                ports:
+                    - 10
+                    - 12
+          pxe:
+              - switch: mgmt1
+                ports:
+                    - 11
+                    - 13
+      networks:
+          - bond1_br10_br20
+
+    - label: compute
+      ipmi:
+          userid: ADMIN
+          password: admin
+      os:
+          profile: ubuntu-16.04-server-ppc64el
+          users:
+              - name: user1
+                password: passw0rd
+                groups: sudo
+          install_device: /dev/sdj
+      physical_interfaces:
+          ipmi:
+              - switch: mgmt1
+                ports:
+                    - 14
+                    - 16
+          pxe:
+              - switch: mgmt1
+                ports:
+                    - 15
+                    - 17
+      networks:
+          - bond1_br10
+
+    - label: storage
+      ipmi:
+          userid: ADMIN
+          password: admin
+      os:
+          profile: ubuntu-16.04-server-ppc64el
+          users:
+              - name: user1
+                password: passw0rd
+                groups: sudo
+          install_device: /dev/sdj
+      physical_interfaces:
+          ipmi:
+              - switch: mgmt1
+                ports:
+                    - 18
+                    - 20
+          pxe:
+              - switch: mgmt1
+                ports:
+                    - 19
+                    - 21
+      networks:
+          - bond1_br20
