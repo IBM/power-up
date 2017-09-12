@@ -23,21 +23,21 @@ import subprocess
 import re
 import yaml
 
-genesis_dir = 'cluster-genesis'
+
+GENESIS_DIR = 'cluster-genesis'
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
-home = os.path.expanduser('~')
-gen_path = FILE_PATH[:16 + FILE_PATH.find(genesis_dir)]
-gen_scripts_path = gen_path + 'scripts'
-gen_play_path = gen_path + 'playbooks'
-gen_passive_path = gen_path + 'passive'
+HOME = os.path.expanduser('~')
+GEN_PATH = FILE_PATH[:16 + FILE_PATH.find(GENESIS_DIR)]
+GEN_SCRIPTS_PATH = GEN_PATH + 'scripts'
+GEN_PLAY_PATH = GEN_PATH + 'playbooks'
+GEN_PASSIVE_PATH = GEN_PATH + 'passive'
 
 
 def load_localhost(filename):
     try:
         return yaml.safe_load(open(filename))
     except:
-        print('Could not load file: ' + filename)
-        sys.exit(1)
+        sys.exit('Could not load file: ' + filename)
 
 
 def container_running():
@@ -58,8 +58,8 @@ def container_addr():
     return cont_address.group(2)
 
 
-if os.path.isfile(gen_path + "playbooks/host_vars/localhost"):
-    localhost_content = load_localhost(gen_path + "playbooks/host_vars/localhost")
+if os.path.isfile(GEN_PATH + "playbooks/host_vars/localhost"):
+    localhost_content = load_localhost(GEN_PATH + "playbooks/host_vars/localhost")
     container_name = localhost_content['container_name']
     ssh_key_private = localhost_content['ssh_key_private']
-    ssh_key_private = home + '/.ssh/' + re.search('.+\.ssh/(.+)', ssh_key_private).group(1)
+    ssh_key_private = HOME + '/.ssh/' + re.search('.+\.ssh/(.+)', ssh_key_private).group(1)

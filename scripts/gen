@@ -27,10 +27,10 @@ source /etc/os-release
 cname=$(awk -F: '/container_name:/{print $2}' \
 ${GEN_PLAY_PATH}/host_vars/localhost)
 depaddr=$(awk -F= '/ansible_host=/{print $4}' ${GEN_PLAY_PATH}/hosts)
-echo 'deployer addr: '$depaddr
+# echo 'deployer addr: '$depaddr
 ansible_user=$(awk -F= '/ansible_user=/{print $2}' ${GEN_PLAY_PATH}/hosts)
 ansible_user=${ansible_user%" "*}
-echo 'ansible user: '$ansible_user
+# echo 'ansible user: '$ansible_user
 
 if [[ ! "$PATH" = *"cluster-genesis/scripts:"* ]] ||
     [ -z "$complete -p|grep 'gen'" ]; then
@@ -66,6 +66,12 @@ case "$1" in
     'setup')
     cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts setup.yml;;
+
+    'enable-deployer-networks')
+    sudo setcap 'cap_net_raw,cap_net_admin+eip' $(readlink -f $(which python))
+    cd "$GEN_SCRIPTS_PATH"/python
+    "$GEN_SCRIPTS_PATH"/python/enable_deployer_networks.py
+    sudo setcap 'cap_net_raw,cap_net_admin-eip' $(readlink -f $(which python));;
 
     'enable-mgmt-switch')
     cd "$GEN_PLAY_PATH"

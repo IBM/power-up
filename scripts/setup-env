@@ -17,7 +17,7 @@ ccmd="complete -W 'log logc loga status deploy enable-mgmt-switch tear-down \
 config.yml ssh_keyscan gather_mac_addresses set_data_switch_config \
 configure_operating_systems lxc-create install_1 install_2 inventory \
 show_mgmt_switches --help post-deploy post-deploy-passive deploy-passive \
-deploy-passive-retry setup' gen"
+enable-deployer-networks deploy-passive-retry setup' gen"
 eval "$ccmd"
 ccmd2="complete -W 'deploy post-deploy' tear-down"
 eval "$ccmd2"
@@ -60,5 +60,7 @@ if [ -z $P ]; then
     cp scripts/tear-down ~/bin
     cp scripts/cleanpath ~/bin
 else
-    echo "Please run setup-env from within the cluster-genesis directory"
+    echo "Please source setup-env from within the cluster-genesis directory"
+    echo "ie:"
+    echo "source scripts/setup-env"
 fi

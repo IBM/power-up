@@ -37,13 +37,17 @@ deploy (){
         if [ "$resp" = "t" ]; then exit; fi
     fi
 
-    ansible-playbook -i hosts enable_deployer_ifc.yml -K
+    sudo setcap 'cap_net_raw,cap_net_admin+eip' $(readlink -f $(which python))
+    cd "$GEN_SCRIPTS_PATH"/python
+    "$GEN_SCRIPTS_PATH"/python/enable_deployer_networks.py
+    sudo setcap 'cap_net_raw,cap_net_admin-eip' $(readlink -f $(which python))
     echo;
     if [ "$1" = "-p" ]; then
         read -p "Enter to continue, (t) to terminate " resp
         if [ "$resp" = "t" ]; then exit; fi
     fi
 
+    cd "$GEN_PLAY_PATH"
     ansible-playbook -i hosts enable_mgmt_switch.yml
     echo;
     if [ "$1" = "-p" ]; then
