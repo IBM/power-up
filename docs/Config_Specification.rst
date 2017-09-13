@@ -109,6 +109,7 @@ deployer:
   deployer:
       log_level:
       introspection:
+      gateway:
       networks:
           external:
               dev_label:
@@ -144,6 +145,22 @@ deployer:
 |   deployer:                      |   introspection: true                 |   | *false*                                                                                |          |
 |      introspection:              |                                       |   | *true*                                                                                 |          |
 |      ...                         |                                       |                                                                                            |          |
+|                                  |                                       |                                                                                            |          |
++----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                       |                                                                                            |          |
+| ::                               | ::                                    | Deployer shall act as cluster gateway. Evaluates to *false* if missing.                    | no       |
+|                                  |                                       |                                                                                            |          |
+|   deployer:                      |   gateway: true                       |   | *false*                                                                                |          |
+|      gateway:                    |                                       |   | *true*                                                                                 |          |
+|      ...                         |                                       |                                                                                            |          |
+|                                  |                                       | The deployer will be configured as the default gateway for all client nodes.               |          |
+|                                  |                                       |                                                                                            |          |
+|                                  |                                       | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables' NAT chain   |          |
+|                                  |                                       | and setting the 'dnsmasq' DHCP service to serve the deployer's client management bridge    |          |
+|                                  |                                       | address as the default gateway.                                                            |          |
+|                                  |                                       |                                                                                            |          |
+|                                  |                                       | Note: Specifying the 'gateway' explicitly on any of the client data networks will override |          |
+|                                  |                                       | this behavior.                                                                             |          |
 |                                  |                                       |                                                                                            |          |
 +----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
 |                                  |                                       |                                                                                            |          |
