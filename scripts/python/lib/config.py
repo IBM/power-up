@@ -46,6 +46,7 @@ class Config(object):
         CELL = 'cell'
         IPADDR = 'ipaddr'
         PORT = 'port'
+        PORTS = 'ports'
         TYPE = 'type'
         SWITCH = 'switch'
         RACK_ID = 'rack_id'
@@ -58,6 +59,9 @@ class Config(object):
         VLAN = 'vlan'
         NETMASK = 'netmask'
         PREFIX = 'prefix'
+        TARGET = 'target'
+        SWITCH = 'switch'
+        CLASS = 'class'
 
     def __init__(self):
         self.log = logging.getLogger(Logger.LOG_NAME)
@@ -525,25 +529,39 @@ class Config(object):
         for member in self.get_depl_netw_client_brg_ip():
             yield member
 
-    def get_depl_netw_client_vlan(self, index=None):
+    def get_depl_netw_client_vlan(self, index=None, if_type=None):
         """Get deployer networks client vlan
         Args:
             index (int, optional): List index
+            if_type (str, optional): Interface type ('ipmi', 'pxe', or 'data').
+                                     If omitted all types are returned.
 
         Returns:
             int: VLAN
         """
 
-        return self._get_members(
-            self.cfg.deployer.networks.client, self.CfgKey.VLAN, index)
+        if if_type is None:
+            network_list = self.cfg.deployer.networks.client
 
-    def yield_depl_netw_client_vlan(self):
+        else:
+            network_list = []
+            for network in self.cfg.deployer.networks.client:
+                if if_type == network.type:
+                    network_list.append(network)
+
+        return self._get_members(network_list, self.CfgKey.VLAN, index)
+
+    def yield_depl_netw_client_vlan(self, if_type=None):
         """Yield deployer networks client vlan
+        Args:
+            if_type (str, optional): Interface type ('ipmi', 'pxe', or 'data').
+                                     If omitted all types are returned.
+
         Returns:
             iter of str: VLAN
         """
 
-        for member in self.get_depl_netw_client_vlan():
+        for member in self.get_depl_netw_client_vlan(if_type=if_type):
             yield member
 
     def get_depl_netw_client_netmask(self, index=None):
@@ -653,6 +671,27 @@ class Config(object):
         """
 
         for member in self.get_sw_mgmt_label():
+            yield member
+
+    def get_sw_mgmt_class(self, index=None):
+        """Get switches mgmt class
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Class member or list
+        """
+
+        return self._get_members(
+            self.cfg.switches.mgmt, self.CfgKey.CLASS, index)
+
+    def yield_sw_mgmt_class(self):
+        """Yield switches mgmt class
+        Returns:
+            iter of str: Class
+        """
+
+        for member in self.get_sw_mgmt_class():
             yield member
 
     def get_sw_mgmt_hostname(self, index=None):
@@ -781,8 +820,8 @@ class Config(object):
         for member in self.get_sw_mgmt_rack_eia():
             yield member
 
-    def get_sw_mgmt_ibintf_cnt(self, switch_index):
-        """Get switches mgmt inband_interfaces ipaddr count
+    def get_sw_mgmt_interfaces_cnt(self, switch_index):
+        """Get switches mgmt interfaces ipaddr count
         Args:
             switch_index (int): Management switch index
 
@@ -790,10 +829,10 @@ class Config(object):
             int: Management switch inband interface count
         """
 
-        return len(self.cfg.switches.mgmt[switch_index].inband_interfaces)
+        return len(self.cfg.switches.mgmt[switch_index].interfaces)
 
-    def get_sw_mgmt_ibintf_ip(self, switch_index, index=None):
-        """Get switches mgmt inband_interfaces ipaddr
+    def get_sw_mgmt_interfaces_ip(self, switch_index, index=None):
+        """Get switches mgmt interfaces ipaddr
         Args:
             switch_index (int): Management switch index
             index (int, optional): List index
@@ -802,11 +841,11 @@ class Config(object):
             str or list of str: IP address member or list
         """
         return self._get_members(
-            self.cfg.switches.mgmt[switch_index].inband_interfaces,
+            self.cfg.switches.mgmt[switch_index].interfaces,
             self.CfgKey.IPADDR, index)
 
-    def yield_sw_mgmt_ibintf_ip(self, switch_index):
-        """Yield switches mgmt inband_interfaces ipaddr
+    def yield_sw_mgmt_interfaces_ip(self, switch_index):
+        """Yield switches mgmt interfaces ipaddr
         Args:
             switch_index (int): Management switch index
 
@@ -814,11 +853,14 @@ class Config(object):
             iter of str: IP address
         """
 
-        for member in self.get_sw_mgmt_ibintf_ip(switch_index):
-            yield member
+        try:
+            for member in self.get_sw_mgmt_interfaces_ip(switch_index):
+                yield member
+        except AttributeError:
+            return
 
-    def get_sw_mgmt_ibintf_ports(self, switch_index, index=None):
-        """Get switches mgmt inband_interfaces ports
+    def get_sw_mgmt_interfaces_vlan(self, switch_index, index=None):
+        """Get switches mgmt interfaces vlans
         Args:
             switch_index (int): Management switch index
             index (int, optional): List index
@@ -827,11 +869,37 @@ class Config(object):
             int or list of int: Port member or list
         """
         return self._get_members(
-            self.cfg.switches.mgmt[switch_index].inband_interfaces,
+            self.cfg.switches.mgmt[switch_index].interfaces,
+            self.CfgKey.VLAN, index)
+
+    def get_sw_mgmt_interfaces_netmask(self, switch_index, index=None):
+        """Get switches mgmt interfaces netmask
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Port member or list
+        """
+        return self._get_members(
+            self.cfg.switches.mgmt[switch_index].interfaces,
+            self.CfgKey.NETMASK, index)
+
+    def get_sw_mgmt_interfaces_port(self, switch_index, index=None):
+        """Get switches mgmt interfaces port
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            int or list of int: Port member or list
+        """
+        return self._get_members(
+            self.cfg.switches.mgmt[switch_index].interfaces,
             self.CfgKey.PORT, index)
 
-    def yield_sw_mgmt_ibintf_ports(self, switch_index):
-        """Yield switches mgmt inband_interfaces ports
+    def yield_sw_mgmt_interfaces_ports(self, switch_index):
+        """Yield switches mgmt interfaces ports
         Args:
             switch_index (int): Management switch index
 
@@ -839,8 +907,89 @@ class Config(object):
             iter of int: Port
         """
 
-        for member in self.get_sw_mgmt_ibintf_ports(switch_index):
+        for member in self.get_sw_mgmt_interfaces_ports(switch_index):
             yield member
+
+    def get_sw_mgmt_links_ip(self, switch_index, index=None):
+        """Get switches mgmt links ipaddr
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: IP address member or list
+        """
+        return self._get_members(
+            self.cfg.switches.mgmt[switch_index].links,
+            self.CfgKey.IPADDR, index)
+
+    def yield_sw_mgmt_links_ip(self, switch_index):
+        """Yield switches mgmt links ipaddr
+        Args:
+            switch_index (int): Management switch index
+
+        Returns:
+            iter of str: IP address
+        """
+
+        try:
+            for member in self.get_sw_mgmt_links_ip(switch_index):
+                yield member
+        except AttributeError:
+            return
+
+    def get_sw_mgmt_links_target(self, switch_index, index=None):
+        """Get switches mgmt links target
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Link Target member or list
+        """
+        return self._get_members(
+            self.cfg.switches.mgmt[switch_index].links,
+            self.CfgKey.TARGET, index)
+
+    def yield_sw_mgmt_links_target(self, switch_index):
+        """Yield switches mgmt links targets
+        Args:
+            switch_index (int): Management switch index
+
+        Returns:
+            iter of str: targets
+        """
+        try:
+            for member in self.get_sw_mgmt_links_target(switch_index):
+                yield member
+        except AttributeError:
+            return
+
+    def get_sw_mgmt_links_port(self, switch_index, index=None):
+        """Get switches mgmt links port
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Port member or list
+        """
+        return self._get_members(
+            self.cfg.switches.mgmt[switch_index].links,
+            self.CfgKey.PORTS, index)
+
+    def get_sw_mgmt_links_vlan(self, switch_index, index=None):
+        """Get switches mgmt links vlan
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: vlan member or list
+        """
+        return self._get_members(
+            self.cfg.switches.mgmt[switch_index].links,
+            self.CfgKey.VLAN, index)
 
     def get_sw_data_cnt(self):
         """Get switches data count
@@ -1430,4 +1579,40 @@ class Config(object):
 
         for member in self.get_ntmpl_phyintf_pxe_ports(
                 node_template_index, pxe_index):
+            yield member
+
+    def get_client_switch_ports(self, switch_label, if_type=None):
+        """Get physical interface ports associated with switch_label
+        Args:
+            switch_label (str): Switch Label
+            if_type (str, optional): Interface type ('ipmi', 'pxe', or 'data').
+                                     If omitted all types are returned.
+
+        Returns:
+            list of str: Ports
+        """
+
+        port_list = []
+
+        for template in self.cfg.node_templates:
+            for temp_if_type, items in template.physical_interfaces.items():
+                if if_type is None or if_type == temp_if_type:
+                    for item in items:
+                        if item.switch == switch_label:
+                            for port in item.ports:
+                                port_list.append(port)
+        return port_list
+
+    def yield_client_switch_ports(self, switch_label, if_type=None):
+        """Yield physical interface ports associated with switch_label
+        Args:
+            switch_label (str): Switch Label
+            if_type (str, optional): Interface type ('ipmi', 'pxe', or 'data').
+                                     If omitted all types are returned.
+
+        Returns:
+            iter of str: Ports
+        """
+
+        for member in self.get_client_switch_ports(switch_label, if_type):
             yield member

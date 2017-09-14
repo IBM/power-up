@@ -238,6 +238,7 @@ switches:
         mgmt:
             - label:
               hostname:
+              class:
               userid:
               password:
               ssh_key:
@@ -259,6 +260,7 @@ switches:
         data:
             - label:
               hostname:
+              class:
               userid:
               password:
               ssh_key:
@@ -358,12 +360,12 @@ switches:
 |             interfaces:         |         port: mgmt0                   | |   *vlan*   - VLAN.                                                                        |          |
 |                 - type:         |                                       | |   *port*   - Port.                                                                        |          |
 |                   ipaddr:       | example #2::                          |                                                                                             |          |
-|                   port:         |                                       |                                                                                             |          |
-|       data:                     |   interfaces:                         |                                                                                             |          |
-|           - ...                 |       - type: inband                  |                                                                                             |          |
-|             interfaces:         |         ipaddr: 192.168.5.20          |                                                                                             |          |
-|                 - type:         |         port: 15                      |                                                                                             |          |
-|                   ipaddr:       |                                       |                                                                                             |          |
+|                   port:         |                                       | | Subnet mask may be defined with:                                                          |          |
+|       data:                     |   interfaces:                         | |   *netmask* - Management network bitmask.                                                 |          |
+|           - ...                 |       - type: inband                  | |   --- or ---                                                                              |          |
+|             interfaces:         |         ipaddr: 192.168.5.20          | |   *prefix*  - Management network bit-length.                                              |          |
+|                 - type:         |         netmask: 255.255.255.0        |                                                                                             |          |
+|                   ipaddr:       |         port: 15                      |                                                                                             |          |
 |                   port:         |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+

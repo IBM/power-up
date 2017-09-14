@@ -23,7 +23,7 @@ import datetime
 
 from lib.switch_exception import SwitchException
 from lib.switch_common import SwitchCommon
-from lib.genesis import gen_passive_path, gen_path
+from lib.genesis import GEN_PASSIVE_PATH, GEN_PATH
 
 
 class Lenovo(SwitchCommon):
@@ -98,10 +98,10 @@ class Lenovo(SwitchCommon):
             self.userid = userid
             self.password = password
         elif self.mode == 'passive':
-            if os.path.isdir(gen_passive_path):
-                self.outfile = gen_passive_path + '/' + outfile
+            if os.path.isdir(GEN_PASSIVE_PATH):
+                self.outfile = GEN_PASSIVE_PATH + '/' + outfile
             else:
-                self.outfile = gen_path + '/' + outfile
+                self.outfile = GEN_PATH + '/' + outfile
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
@@ -246,17 +246,17 @@ class Lenovo(SwitchCommon):
             SwitchException if unable to program interface
         """
         interfaces = self.show_interfaces(vlan, host, netmask, format='std')
-        if interfaces[-1][0]['configured']:
+        if self.mode == 'active' and interfaces[-1][0]['configured']:
             self.log.info(
                 'Switch interface {} already configured'.format(interfaces[-1][0]['found ifc']))
             return
         if vlan is not None:
             self.create_vlan(vlan)
-        if intf is None:
+        if self.mode == 'active' and intf is None:
             intf = interfaces[-1][0]['avail ifc']
         self.send_cmd(self.CREATE_INTERFACE.format(intf, host, netmask, vlan))
         interfaces = self.show_interfaces(vlan, host, netmask, format='std')
-        if not interfaces[-1][0]['configured']:
+        if self.mode == 'active' and not interfaces[-1][0]['configured']:
             self.log.error(
                 'Failed configuring management interface ip {}'.format(intf))
             raise SwitchException(

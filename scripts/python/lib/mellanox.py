@@ -23,7 +23,7 @@ import netaddr
 import datetime
 
 from lib.switch_common import SwitchCommon
-from lib.genesis import gen_passive_path, gen_path
+from lib.genesis import GEN_PASSIVE_PATH, GEN_PATH
 from lib.switch_exception import SwitchException
 
 
@@ -116,10 +116,10 @@ class Mellanox(SwitchCommon):
             self.userid = userid
             self.password = password
         elif self.mode == 'passive':
-            if os.path.isdir(gen_passive_path):
-                self.outfile = gen_passive_path + '/' + outfile
+            if os.path.isdir(GEN_PASSIVE_PATH):
+                self.outfile = GEN_PASSIVE_PATH + '/' + outfile
             else:
-                self.outfile = gen_path + '/' + outfile
+                self.outfile = GEN_PATH + '/' + outfile
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
