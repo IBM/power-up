@@ -110,6 +110,7 @@ deployer:
       log_level:
       introspection:
       gateway:
+      env_variables:
       networks:
           external:
               dev_label:
@@ -126,95 +127,106 @@ deployer:
               netmask:
               vlan:
 
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-| Element                          | Example(s)                            | Description                                                                                | Required |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                       |                                                                                            |          |
-| ::                               | ::                                    | Minimum logger level to write to file. Options in order of decreasing verbosity:           | no       |
-|                                  |                                       |                                                                                            |          |
-|   deployer:                      |   log_level: debug                    |   | *debug*                                                                                |          |
-|      log_level:                  |                                       |   | *info*                                                                                 |          |
-|      ...                         | ::                                    |   | *warning*                                                                              |          |
-|                                  |                                       |   | *error*                                                                                |          |
-|                                  |   log_level: error                    |   | *critical*                                                                             |          |
-|                                  |                                       |                                                                                            |          |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                       |                                                                                            |          |
-| ::                               | ::                                    | Introspection shall be enabled. Evaluates to *false* if missing.                           | no       |
-|                                  |                                       |                                                                                            |          |
-|   deployer:                      |   introspection: true                 |   | *false*                                                                                |          |
-|      introspection:              |                                       |   | *true*                                                                                 |          |
-|      ...                         |                                       |                                                                                            |          |
-|                                  |                                       |                                                                                            |          |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                       |                                                                                            |          |
-| ::                               | ::                                    | Deployer shall act as cluster gateway. Evaluates to *false* if missing.                    | no       |
-|                                  |                                       |                                                                                            |          |
-|   deployer:                      |   gateway: true                       |   | *false*                                                                                |          |
-|      gateway:                    |                                       |   | *true*                                                                                 |          |
-|      ...                         |                                       |                                                                                            |          |
-|                                  |                                       | The deployer will be configured as the default gateway for all client nodes.               |          |
-|                                  |                                       |                                                                                            |          |
-|                                  |                                       | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables' NAT chain   |          |
-|                                  |                                       | and setting the 'dnsmasq' DHCP service to serve the deployer's client management bridge    |          |
-|                                  |                                       | address as the default gateway.                                                            |          |
-|                                  |                                       |                                                                                            |          |
-|                                  |                                       | Note: Specifying the 'gateway' explicitly on any of the client data networks will override |          |
-|                                  |                                       | this behavior.                                                                             |          |
-|                                  |                                       |                                                                                            |          |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                       |                                                                                            |          |
-| ::                               | ::                                    | Deployer external network interface configuration. The external network is used to connect | **yes**  |
-|                                  |                                       | to switch management ports on a network external to the Cluster Genesis environment.       |          |
-|   deployer:                      |   external:                           |                                                                                            |          |
-|       networks:                  |       dev_label: enp1s0f0             | | Required keys:                                                                           |          |
-|            external:             |       dev_ipaddr: 192.168.1.10        | |   *dev_label*  - Name of deployer's external interface                                   |          |
-|                dev_label:        |       netmask: 255.255.255.0          | |   *dev_ipaddr* - IP address assigned to deployer's external interface.                   |          |
-|                dev_ipaddr:       |                                       |                                                                                            |          |
-|                netmask:          | ::                                    | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
-|            ...                   |                                       | |   *netmask* - External network bitmask.                                                  |          |
-|       ...                        |    external:                          | |   *prefix*  - External network bit-length.                                               |          |
-|                                  |        dev_label: enp1s0f0            |                                                                                            |          |
-|                                  |        dev_ipaddr: 192.168.1.10       |                                                                                            |          |
-|                                  |        prefix: 24                     |                                                                                            |          |
-|                                  |                                       |                                                                                            |          |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                       |                                                                                            |          |
-| ::                               | ::                                    | Managment network configuration. The management network is used for swith management       | **yes**  |
-|                                  |                                       | interfaces.                                                                                |          |
-|   deployer:                      |   mgmt:                               |                                                                                            |          |
-|       networks:                  |       container_ipaddr: 192.168.5.2   | | Required keys:                                                                           |          |
-|           mgmt:                  |       bridge_ipaddr: 192.168.5.3      | |   *container_ipaddr* - IP address assigned container management interface.               |          |
-|               container_ipaddr:  |       netmask: 255.255.255.0          | |   *bridge_ipaddr*    - IP address assigned to deployer management bridge interface.      |          |
-|               bridge_ipaddr:     |       vlan: 5                         | |   *vlan*             - Management network vlan.                                          |          |
-|               netmask:           |                                       |                                                                                            |          |
-|               vlan:              | ::                                    | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
-|           ...                    |                                       | |   *netmask* - Management network bitmask.                                                |          |
-|       ...                        |   mgmt:                               | |   *prefix*  - Management network bit-length.                                             |          |
-|                                  |       container_ipaddr: 192.168.5.2   |                                                                                            |          |
-|                                  |       bridge_ipaddr: 192.168.5.3      |                                                                                            |          |
-|                                  |       prefix: 24                      |                                                                                            |          |
-|                                  |       vlan: 5                         |                                                                                            |          |
-|                                  |                                       |                                                                                            |          |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                       |                                                                                            |          |
-| ::                               | ::                                    | Client network configuration. The client network is used for client node BMC (IPMI)        | **yes**  |
-|                                  |                                       | and OS (PXE) interfaces. Ansible communicates with clients using this network during       |          |
-|   deployer:                      |   client:                             | "post deploy" operations.                                                                  |          |
-|       networks:                  |       container_ipaddr: 192.168.20.2  |                                                                                            |          |
-|           client:                |       bridge_ipaddr: 192.168.20.3     | | Required keys:                                                                           |          |
-|               container_ipaddr:  |       netmask: 255.255.255.0          | |   *container_ipaddr* - IP address assigned container management interface.               |          |
-|               bridge_ipaddr:     |       vlan: 20                        | |   *bridge_ipaddr*    - IP address assigned to deployer management bridge interface.      |          |
-|               netmask:           |                                       | |   *vlan*             - Management network vlan.                                          |          |
-|               vlan:              | ::                                    |                                                                                            |          |
-|                                  |                                       | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
-|                                  |   client:                             | |   *netmask* - Management network bitmask.                                                |          |
-|                                  |       container_ipaddr: 192.168.20.2  | |   *prefix*  - Management network bit-length.                                             |          |
-|                                  |       bridge_ipaddr: 192.168.20.3     |                                                                                            |          |
-|                                  |       prefix: 24                      |                                                                                            |          |
-|                                  |       vlan: 20                        |                                                                                            |          |
-|                                  |                                       |                                                                                            |          |
-+----------------------------------+---------------------------------------+--------------------------------------------------------------------------------------------+----------+
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+| Element                          | Example(s)                                 | Description                                                                                | Required |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Minimum logger level to write to file. Options in order of decreasing verbosity:           | no       |
+|                                  |                                            |                                                                                            |          |
+|   deployer:                      |   log_level: debug                         |   | *debug*                                                                                |          |
+|      log_level:                  |                                            |   | *info*                                                                                 |          |
+|      ...                         | ::                                         |   | *warning*                                                                              |          |
+|                                  |                                            |   | *error*                                                                                |          |
+|                                  |   log_level: error                         |   | *critical*                                                                             |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Introspection shall be enabled. Evaluates to *false* if missing.                           | no       |
+|                                  |                                            |                                                                                            |          |
+|   deployer:                      |   introspection: true                      |   | *false*                                                                                |          |
+|      introspection:              |                                            |   | *true*                                                                                 |          |
+|      ...                         |                                            |                                                                                            |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Deployer shall act as cluster gateway. Evaluates to *false* if missing.                    | no       |
+|                                  |                                            |                                                                                            |          |
+|   deployer:                      |   gateway: true                            |   | *false*                                                                                |          |
+|      gateway:                    |                                            |   | *true*                                                                                 |          |
+|      ...                         |                                            |                                                                                            |          |
+|                                  |                                            | The deployer will be configured as the default gateway for all client nodes.               |          |
+|                                  |                                            |                                                                                            |          |
+|                                  |                                            | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables' NAT chain   |          |
+|                                  |                                            | and setting the 'dnsmasq' DHCP service to serve the deployer's client management bridge    |          |
+|                                  |                                            | address as the default gateway.                                                            |          |
+|                                  |                                            |                                                                                            |          |
+|                                  |                                            | Note: Specifying the 'gateway' explicitly on any of the data networks will override this   |          |
+|                                  |                                            | behaviour.                                                                                 |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Apply environmental variables to the shell.                                                | no       |
+|                                  |                                            |                                                                                            |          |
+|   deployer:                      |   env_variables:                           | The example to the left would give the following result in bash:                           |          |
+|      env_variables:              |       https_proxy: http://192.168.1.2:3128 |                                                                                            |          |
+|      ...                         |       http_proxy: http://192.168.1.2:3128  | | export https_proxy="http://192.168.1.2:3128"                                             |          |
+|                                  |       no_proxy: localhost,127.0.0.1        | | export http_proxy="http://192.168.1.2:3128"                                              |          |
+|                                  |                                            | | export no_proxy="localhost,127.0.0.1"                                                    |          |
+|                                  |                                            |                                                                                            |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Deployer external network interface configuration. The external network is used to connect | **yes**  |
+|                                  |                                            | to switch management ports on a network external to the Cluster Genesis environment.       |          |
+|   deployer:                      |   external:                                |                                                                                            |          |
+|       networks:                  |       dev_label: enp1s0f0                  | | Required keys:                                                                           |          |
+|            external:             |       dev_ipaddr: 192.168.1.10             | |   *dev_label*  - Name of deployer's external interface                                   |          |
+|                dev_label:        |       netmask: 255.255.255.0               | |   *dev_ipaddr* - IP address assigned to deployer's external interface.                   |          |
+|                dev_ipaddr:       |                                            |                                                                                            |          |
+|                netmask:          | ::                                         | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
+|            ...                   |                                            | |   *netmask* - External network bitmask.                                                  |          |
+|       ...                        |    external:                               | |   *prefix*  - External network bit-length.                                               |          |
+|                                  |        dev_label: enp1s0f0                 |                                                                                            |          |
+|                                  |        dev_ipaddr: 192.168.1.10            |                                                                                            |          |
+|                                  |        prefix: 24                          |                                                                                            |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Managment network configuration. The management network is used for swith management       | **yes**  |
+|                                  |                                            | interfaces.                                                                                |          |
+|   deployer:                      |   mgmt:                                    |                                                                                            |          |
+|       networks:                  |       container_ipaddr: 192.168.5.2        | | Required keys:                                                                           |          |
+|           mgmt:                  |       bridge_ipaddr: 192.168.5.3           | |   *container_ipaddr* - IP address assigned container management interface.               |          |
+|               container_ipaddr:  |       netmask: 255.255.255.0               | |   *bridge_ipaddr*    - IP address assigned to deployer management bridge interface.      |          |
+|               bridge_ipaddr:     |       vlan: 5                              | |   *vlan*             - Management network vlan.                                          |          |
+|               netmask:           |                                            |                                                                                            |          |
+|               vlan:              | ::                                         | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
+|           ...                    |                                            | |   *netmask* - Management network bitmask.                                                |          |
+|       ...                        |   mgmt:                                    | |   *prefix*  - Management network bit-length.                                             |          |
+|                                  |       container_ipaddr: 192.168.5.2        |                                                                                            |          |
+|                                  |       bridge_ipaddr: 192.168.5.3           |                                                                                            |          |
+|                                  |       prefix: 24                           |                                                                                            |          |
+|                                  |       vlan: 5                              |                                                                                            |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                  |                                            |                                                                                            |          |
+| ::                               | ::                                         | Client network configuration. The client network is used for client node BMC (IPMI)        | **yes**  |
+|                                  |                                            | and OS (PXE) interfaces. Ansible communicates with clients using this network during       |          |
+|   deployer:                      |   client:                                  | "post deploy" operations.                                                                  |          |
+|       networks:                  |       container_ipaddr: 192.168.20.2       |                                                                                            |          |
+|           client:                |       bridge_ipaddr: 192.168.20.3          | | Required keys:                                                                           |          |
+|               container_ipaddr:  |       netmask: 255.255.255.0               | |   *container_ipaddr* - IP address assigned container management interface.               |          |
+|               bridge_ipaddr:     |       vlan: 20                             | |   *bridge_ipaddr*    - IP address assigned to deployer management bridge interface.      |          |
+|               netmask:           |                                            | |   *vlan*             - Management network vlan.                                          |          |
+|               vlan:              | ::                                         |                                                                                            |          |
+|                                  |                                            | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
+|                                  |   client:                                  | |   *netmask* - Management network bitmask.                                                |          |
+|                                  |       container_ipaddr: 192.168.20.2       | |   *prefix*  - Management network bit-length.                                             |          |
+|                                  |       bridge_ipaddr: 192.168.20.3          |                                                                                            |          |
+|                                  |       prefix: 24                           |                                                                                            |          |
+|                                  |       vlan: 20                             |                                                                                            |          |
+|                                  |                                            |                                                                                            |          |
++----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 
 switches:
 ----------
