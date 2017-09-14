@@ -24,22 +24,26 @@
 
     - name: "Read {{ config_local }}"
       include_vars:
-        name: config_file
+        name: config
         file: "{{ config_local }}"
 
     - block:
+        - name: "Log Level"
+          set_fact:
+            log_level: "{{ config['deployer']['log_level'] }}"
+
         - name: "Print Log Level in {{ config_local }}"
           debug:
-            msg: "Log Level: {{ config_file.log_level }}"
+            msg: "Log Level: {{ log_level }}"
 
         - name: "Update default Log Level"
           replace:
             dest: "{{ project_path_local }}/playbooks/group_vars/all"
             regexp: '^(log_level:).*$'
-            replace: '\1 {{ config_file.log_level }}'
+            replace: '\1 {{ log_level }}'
       when:
-        - config_file.log_level is defined
-        - config_file.log_level is not none
+        - config['deployer']['log_level'] is defined
+        - config['deployer']['log_level'] is not none
 
     - name: "Clear deployment-environment in group_vars/all"
       blockinfile:
@@ -52,47 +56,25 @@
           debug:
             msg: >
                 deployment_environment:
-                {{ config_file['deployment-environment'] }}
+                {{ config['deployer']['env_variables'] }}
 
         - name: "Add deployment-environment to group_vars/all"
           vars:
             output:
                 deployment_environment:
-                    "{{ config_file['deployment-environment'] }}"
+                    "{{ config['deployer']['env_variables'] }}"
           blockinfile:
             path: "{{ project_path_local }}/playbooks/group_vars/all"
             content: "{{ output | to_nice_yaml }}"
             marker: "# {mark} deployment_environment"
       when:
-        - config_file['deployment-environment'] is defined
-        - config_file['deployment-environment'] is not none
+        - config['deployer']['env_variables'] is defined
+        - config['deployer']['env_variables'] is not none
 
     - name: "Add empty deployment-environment to group_vars/all"
       blockinfile:
         dest: "{{ project_path_local }}/playbooks/group_vars/all"
         content: "deployment_environment: {}"
         marker: "# {mark} deployment_environment"
-      when: (config_file['deployment-environment'] is not defined) or
-            (config_file['deployment-environment'] is none)
-
-    - name: "Register container management IP address offset"
-      shell: "grep container-mgmt-ipaddr-offset {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
-      register: container_mgmt_ipaddr_offset
-
-    - name: "Update group_vars/all container_mgmt_ipv4_offset"
-      replace:
-        dest: "{{ project_path_local }}/playbooks/group_vars/all"
-        regexp: '^(container_mgmt_ipv4_offset:).*$'
-        replace: '\1 {{ container_mgmt_ipaddr_offset.stdout }}'
-      when: container_mgmt_ipaddr_offset.stdout != ""
-
-    - name: "Register container bridge IP address offset"
-      shell: "grep container-bridge-ipaddr-offset {{ config_local }} | grep -v '^ *#' | awk '{print $2}'"
-      register: container_bridge_ipaddr_offset
-
-    - name: "Update group_vars/all container_bridge_ipv4_offset"
-      replace:
-        dest: "{{ project_path_local }}/playbooks/group_vars/all"
-        regexp: '^(container_bridge_ipv4_offset:).*$'
-        replace: '\1 {{ container_bridge_ipaddr_offset.stdout }}'
-      when: container_bridge_ipaddr_offset.stdout != ""
+      when: (config['deployer']['env_variables'] is not defined) or
+            (config['deployer']['env_variables'] is none)
