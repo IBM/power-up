@@ -72,6 +72,18 @@
         ipaddr_bridge_cidr_client: "{{ config['deployer']['networks']['client']['bridge_ipaddr'] }}/{{ config['deployer']['networks']['client']['prefix'] }}"
       when: config['deployer']['networks']['client']['netmask'] is not defined
 
+    - name: "Create lxc.conf"
+      vars:
+        ipaddr_mgmt_cidr: "{{ config['deployer']['networks']['mgmt']['container_ipaddr'] }}"
+        ipaddr_mgmt_client_cidr: "{{ config['deployer']['networks']['client']['container_ipaddr'] }}"
+        bridge_mgmt: "br{{ config['deployer']['networks']['mgmt']['vlan'] }}"
+        bridge_mgmt_client: "br{{ config['deployer']['networks']['client']['vlan'] }}"
+      template:
+        src: "{{ playbook_dir }}/templates/localhost/lxc-conf.j2"
+        dest: "{{ playbook_dir }}/lxc.conf"
+        mode: "0644"
+      when: not networks_only
+
     - name: "Ubuntu: Create bridge interfaces for VLAN Support"
       vars:
         primary_port: "{{ mgmt_network_interface }}"
