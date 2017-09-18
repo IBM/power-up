@@ -1,5 +1,5 @@
 ---
-# Copyright 2016 IBM Corp.
+# Copyright 2017 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -16,6 +16,5 @@
 # limitations under the License.
 
 scripts_path: "{{ project_path }}/scripts"
-inventory: "{{ project_path }}/inventory.yml"
 power_time_out_sec: 60
 power_wait_sec: 5

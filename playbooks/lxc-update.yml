@@ -45,18 +45,28 @@
             dest: "{{ project_path_local }}/os_images/ubuntu-16.04.3-server-ppc64el.iso"
             sha1sum: 3048e855b83787a23dc7fdd7e72496e264059d44
   tasks:
-    - name: "Get list of OS images from config.yml cobbler-profile keys"
-      shell: "grep cobbler-profile {{ config_local }} | awk '{print $2}'"
-      register: os_image_list
+    - name: "Read {{ config_local }}"
+      include_vars:
+        name: config
+        file: "{{ config_local }}"
+
+    - name: "Get list of OS images from config.yml"
+      set_fact:
+        os_image_list: "{{ item.os.profile }}"
+      with_items:
+        - "{{ config.node_templates }}"
+      when:
+        - item.os.profile is defined
+        - item.os.profile is not none
 
     - name: "Loop through both lists"
       set_fact:
-        images: "{{ item[0]['images'] }}"
+        images: "{{ item[0].images }}"
       with_nested:
         - "{{ os_image_links }}"
-        - "{{ os_image_list.stdout_lines }}"
-      when: ( item[0]['name'] == (item[1]|splitext)[0] ) or
-            ( item[0]['name'] == item[1] )
+        - "{{ os_image_list }}"
+      when: ( item[0].name == (item[1]|splitext)[0] ) or
+            ( item[0].name == item[1] )
       register: image_list
 
     - name: "Compile results into single list with unique entries"
@@ -73,12 +83,30 @@
         checksum: "sha1:{{ item.sha1sum }}"
       with_items: "{{ image_list_unique }}"
 
+    - block:
+      - name: "Management bridge ipaddr/netmask"
+        set_fact:
+          ipaddr_bridge_netmask_mgmt: "{{ config.deployer.networks.mgmt.bridge_ipaddr }}/{{ config.deployer.networks.mgmt.netmask }}"
+      - name: "Management subnet"
+        set_fact:
+          mgmt_subnet: "{{ ipaddr_bridge_netmask_mgmt | ipaddr('subnet') }}"
+      when: config.deployer.networks.mgmt.netmask is defined
+
+    - block:
+      - name: "Management bridge ipaddr/prefix"
+        set_fact:
+          ipaddr_bridge_cidr_mgmt: "{{ config.deployer.networks.mgmt.bridge_ipaddr }}/{{ config.deployer.networks.mgmt.prefix }}"
+      - name: "Management subnet"
+        set_fact:
+          mgmt_subnet: "{{ ipaddr_bridge_cidr_mgmt | ipaddr('subnet') }}"
+      when: config.deployer.networks.mgmt.netmask is not defined
+
     - name: "Check if POSTROUTING nat rule already exists for client network"
-      shell: "iptables -L POSTROUTING -t nat | grep {{ container_mgmt_subnet }} || true"
+      shell: "iptables -L POSTROUTING -t nat | grep {{ mgmt_subnet }} || true"
       register: postrouting_nat_client_net
       become: yes
       become_method: sudo
-      when: deployer_gateway
+      when: config.deployer.gateway
 
     - name: "If deployer-gateway is true create iptables nat rule"
       command: |
@@ -86,21 +114,21 @@
         -t nat
         -A POSTROUTING
         -p all
-        -s {{ container_mgmt_subnet }}
-        ! -d {{ container_mgmt_subnet }}
+        -s {{ mgmt_subnet }}
+        ! -d {{ mgmt_subnet }}
         -j MASQUERADE
       become: yes
       become_method: sudo
       when:
-        - deployer_gateway
+        - config.deployer.gateway
         - postrouting_nat_client_net.stdout == ""
 
 - hosts: deployer
   environment: "{{ deployment_environment }}"
   vars:
-    scripts_path_local: "{{ hostvars['localhost']['scripts_path_local'] }}"
-    images_local: "{{ hostvars['localhost']['project_path_local'] }}/os_images"
-    config_local: "{{ hostvars['localhost']['config_local'] }}"
+    scripts_path_local: "{{ hostvars.localhost.scripts_path_local }}"
+    images_local: "{{ hostvars.localhost.project_path_local }}/os_images"
+    config_local: "{{ hostvars.localhost.config_local }}"
   tasks:
     - name: "Print local scripts/config paths"
       debug:
@@ -116,7 +144,7 @@
         src: selinuxfs
         fstype: selinuxfs
         opts: remount,ro
-      when: hostvars['localhost']['ansible_distribution'] in ['RedHat','CentOS']
+      when: hostvars.localhost.ansible_distribution in ['RedHat','CentOS']
       become: yes
       become_method: sudo
 
@@ -180,22 +208,7 @@
     - name: "Copy config file into deployment container"
       copy:
         src: "{{ config_local }}"
-        dest: "{{ inventory }}"
-
-    - name: "Add default Ansible user to inventory.yml"
-      lineinfile:
-        line: "ansible_user: root"
-        dest: "{{ inventory }}"
-        state: present
-        insertafter: '^password-default*'
-
-    - name: "Add SSH private key location to inventory.yml"
-      lineinfile:
-        line: "ansible_ssh_private_key_file: \
-               {{ hostvars['localhost']['ssh_key_private'] }}"
-        dest: "{{ inventory }}"
-        state: present
-        insertafter: '^ansible_user:*'
+        dest: "{{ project_path }}"
 
     - name: "Copy scripts into deployment container"
       synchronize:
