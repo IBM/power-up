@@ -6,8 +6,8 @@
 Welcome to Cluster Genesis User's Guide documentation!
 ======================================================
 
-:Version: 1.3
-:Date: 2017-06-26
+:Version: 1.4
+:Date: 2017-09-22
 :Document Owner:
     OpenPOWER Cluster Genesis Team
 :Authors:
