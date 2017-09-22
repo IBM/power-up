@@ -42,6 +42,7 @@ class Switch(object):
     _mac_cisco = '([\dA-F]{4}\.){2}[\dA-F]{4}'
     _mac_all = "%s|%s" % (_mac_iee802, _mac_cisco)
     _mac_regex = re.compile(_mac_all, re.I)
+    _port_regex = re.compile('eth\d+\/\d+/\d+', re.I)
 
     _show_macs_cmd = '\"show mac-address-table\"'
     _clear_macs_cmd = '\"clear mac-address-table dynamic\"'
@@ -115,8 +116,10 @@ class PassiveSwitch(Switch):
                         self.log.debug('Found mac address: %s' % line.rstrip())
                         mac_line_list.append(line.split())
                     elif mac_header_re.search(line):
-                        self.log.debug('Found possible header: %s' % line.rstrip())
-                        header = single_s.sub('\g<1>\g<2>', line.lower()).split()
+                        self.log.debug(
+                            'Found possible header: %s' % line.rstrip())
+                        header = (
+                            single_s.sub('\g<1>\g<2>', line.lower()).split())
                         if set(["macaddress", "port"]) <= set(header):
                             self.log.debug('header: %s' % header)
                             mac_index = header.index("macaddress")
@@ -132,9 +135,12 @@ class PassiveSwitch(Switch):
                     mac_index = index
 
         if port_index is None and mac_line_list:
-            if mac_index == 1:
+            for index, value in enumerate(mac_line_list[0]):
+                if self._port_regex.search(value):
+                    port_index = index
+            if port_index is None and mac_index == 1:
                 port_index = 0
-            else:
+            elif port_index is None:
                 port_index = 1
 
         for line in mac_line_list:
@@ -145,10 +151,7 @@ class PassiveSwitch(Switch):
                 if mac[i] != ":":
                     mac = mac[:i] + ":" + mac[i:]
 
-            if "/" in line[port_index]:
-                port = str(line[port_index].split("/", 1)[1])
-            else:
-                port = str(line[port_index])
+            port = line[port_index].lower().lstrip("eth")
 
             if port in port_to_mac:
                 port_to_mac[port].append(mac)

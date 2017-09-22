@@ -94,7 +94,7 @@ class InventoryAddPorts(object):
                          result[1]])
                     log.info(
                         'Node Port Defined in Inventory - Template: %s '
-                        'Type: %s Rack: %s Port: %02d MAC: %s IP: %s' %
+                        'Type: %s Rack: %s Port: %s MAC: %s IP: %s' %
                         (template, port_type, rack, port, result[0],
                          result[1]))
                 elif str(port) in mgmt_sw_cfg_mac_lists[rack]:
@@ -106,7 +106,7 @@ class InventoryAddPorts(object):
                                  ipaddr])
                             log.warning(
                                 'Node Port MAC/IP NOT Defined in Inventory - '
-                                'Template: %s Type: %s Rack: %s Port: %02d '
+                                'Template: %s Type: %s Rack: %s Port: %s '
                                 'MAC: %s IP: %s' %
                                 (template, port_type, rack, port, mac, ipaddr))
                         else:
@@ -115,7 +115,7 @@ class InventoryAddPorts(object):
                                  '-'])
                             log.warning(
                                 'No DHCP Lease Found for Port MAC Address - '
-                                'Template: %s Type: %s Rack: %s Port: %02d '
+                                'Template: %s Type: %s Rack: %s Port: %s '
                                 'MAC: %s' %
                                 (template, port_type, rack, port, mac))
                 else:
@@ -123,7 +123,7 @@ class InventoryAddPorts(object):
                         [False, template, port_type, rack, port, '-', '-'])
                     log.warning(
                         'No Entries Found in MGMT Switch MAC Address Table - '
-                        'Template: %s Type: %s Rack: %s Port: %02d' %
+                        'Template: %s Type: %s Rack: %s Port: %s' %
                         (template, port_type, rack, port))
 
         self.table.append(['----------------'])
