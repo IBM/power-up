@@ -12,6 +12,7 @@ the fields and the YAML file format are documented below.
 Each section represents a top level dictionary key:
 
 | `version:`_
+| `global:`_
 | `location:`_
 | `deployer:`_
 | `switches:`_
@@ -46,6 +47,48 @@ version:
 |             |                  |                                                                                                                                      |          |
 +-------------+------------------+--------------------------------------------------------------------------------------------------------------------------------------+----------+
 
+global:
+--------
+
+::
+
+  global:
+      log_level:
+      introspection:
+      env_variables:
+
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+| Element                           | Example(s)                                 | Description                                                                                | Required |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                   |                                            |                                                                                            |          |
+| ::                                | ::                                         | Minimum logger level to write to file. Options in order of decreasing verbosity:           | **yes**  |
+|                                   |                                            |                                                                                            |          |
+|   deployer:                       |   log_level: debug                         |   | *debug*                                                                                |          |
+|      log_level:                   |                                            |   | *info*                                                                                 |          |
+|      ...                          | ::                                         |   | *warning*                                                                              |          |
+|                                   |                                            |   | *error*                                                                                |          |
+|                                   |   log_level: error                         |   | *critical*                                                                             |          |
+|                                   |                                            |                                                                                            |          |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                   |                                            |                                                                                            |          |
+| ::                                | ::                                         | Introspection shall be enabled. Evaluates to *false* if missing.                           | no       |
+|                                   |                                            |                                                                                            |          |
+|   deployer:                       |   introspection: true                      |   | *false*                                                                                |          |
+|      introspection:               |                                            |   | *true*                                                                                 |          |
+|      ...                          |                                            |                                                                                            |          |
+|                                   |                                            |                                                                                            |          |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                   |                                            |                                                                                            |          |
+| ::                                | ::                                         | Apply environmental variables to the shell.                                                | no       |
+|                                   |                                            |                                                                                            |          |
+|   deployer:                       |   env_variables:                           | The example to the left would give the following result in bash:                           |          |
+|      env_variables:               |       https_proxy: http://192.168.1.2:3128 |                                                                                            |          |
+|      ...                          |       http_proxy: http://192.168.1.2:3128  | | export https_proxy="http://192.168.1.2:3128"                                             |          |
+|                                   |       no_proxy: localhost,127.0.0.1        | | export http_proxy="http://192.168.1.2:3128"                                              |          |
+|                                   |                                            | | export no_proxy="localhost,127.0.0.1"                                                    |          |
+|                                   |                                            |                                                                                            |          |
+|                                   |                                            |                                                                                            |          |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 
 location:
 ----------
@@ -107,126 +150,84 @@ deployer:
 ::
 
   deployer:
-      log_level:
-      introspection:
       gateway:
-      env_variables:
       networks:
-          external:
-              dev_label:
-              dev_ipaddr:
-              netmask:
           mgmt:
-              container_ipaddr:
-              bridge_ipaddr:
-              netmask:
-              vlan:
-          client:
-              container_ipaddr:
-              bridge_ipaddr:
-              netmask:
-              vlan:
+              - device:
+                interface_ipaddr:
+                container_ipaddr:
+                bridge_ipaddr:
+                vlan:
+                netmask:
+                prefix:
 
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-| Element                          | Example(s)                                 | Description                                                                                | Required |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Minimum logger level to write to file. Options in order of decreasing verbosity:           | no       |
-|                                  |                                            |                                                                                            |          |
-|   deployer:                      |   log_level: debug                         |   | *debug*                                                                                |          |
-|      log_level:                  |                                            |   | *info*                                                                                 |          |
-|      ...                         | ::                                         |   | *warning*                                                                              |          |
-|                                  |                                            |   | *error*                                                                                |          |
-|                                  |   log_level: error                         |   | *critical*                                                                             |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Introspection shall be enabled. Evaluates to *false* if missing.                           | no       |
-|                                  |                                            |                                                                                            |          |
-|   deployer:                      |   introspection: true                      |   | *false*                                                                                |          |
-|      introspection:              |                                            |   | *true*                                                                                 |          |
-|      ...                         |                                            |                                                                                            |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Deployer shall act as cluster gateway. Evaluates to *false* if missing.                    | no       |
-|                                  |                                            |                                                                                            |          |
-|   deployer:                      |   gateway: true                            |   | *false*                                                                                |          |
-|      gateway:                    |                                            |   | *true*                                                                                 |          |
-|      ...                         |                                            |                                                                                            |          |
-|                                  |                                            | The deployer will be configured as the default gateway for all client nodes.               |          |
-|                                  |                                            |                                                                                            |          |
-|                                  |                                            | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables' NAT chain   |          |
-|                                  |                                            | and setting the 'dnsmasq' DHCP service to serve the deployer's client management bridge    |          |
-|                                  |                                            | address as the default gateway.                                                            |          |
-|                                  |                                            |                                                                                            |          |
-|                                  |                                            | Note: Specifying the 'gateway' explicitly on any of the data networks will override this   |          |
-|                                  |                                            | behaviour.                                                                                 |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Apply environmental variables to the shell.                                                | no       |
-|                                  |                                            |                                                                                            |          |
-|   deployer:                      |   env_variables:                           | The example to the left would give the following result in bash:                           |          |
-|      env_variables:              |       https_proxy: http://192.168.1.2:3128 |                                                                                            |          |
-|      ...                         |       http_proxy: http://192.168.1.2:3128  | | export https_proxy="http://192.168.1.2:3128"                                             |          |
-|                                  |       no_proxy: localhost,127.0.0.1        | | export http_proxy="http://192.168.1.2:3128"                                              |          |
-|                                  |                                            | | export no_proxy="localhost,127.0.0.1"                                                    |          |
-|                                  |                                            |                                                                                            |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Deployer external network interface configuration. The external network is used to connect | **yes**  |
-|                                  |                                            | to switch management ports on a network external to the Cluster Genesis environment.       |          |
-|   deployer:                      |   external:                                |                                                                                            |          |
-|       networks:                  |       dev_label: enp1s0f0                  | | Required keys:                                                                           |          |
-|            external:             |       dev_ipaddr: 192.168.1.10             | |   *dev_label*  - Name of deployer's external interface                                   |          |
-|                dev_label:        |       netmask: 255.255.255.0               | |   *dev_ipaddr* - IP address assigned to deployer's external interface.                   |          |
-|                dev_ipaddr:       |                                            |                                                                                            |          |
-|                netmask:          | ::                                         | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
-|            ...                   |                                            | |   *netmask* - External network bitmask.                                                  |          |
-|       ...                        |    external:                               | |   *prefix*  - External network bit-length.                                               |          |
-|                                  |        dev_label: enp1s0f0                 |                                                                                            |          |
-|                                  |        dev_ipaddr: 192.168.1.10            |                                                                                            |          |
-|                                  |        prefix: 24                          |                                                                                            |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Managment network configuration. The management network is used for swith management       | **yes**  |
-|                                  |                                            | interfaces.                                                                                |          |
-|   deployer:                      |   mgmt:                                    |                                                                                            |          |
-|       networks:                  |       container_ipaddr: 192.168.5.2        | | Required keys:                                                                           |          |
-|           mgmt:                  |       bridge_ipaddr: 192.168.5.3           | |   *container_ipaddr* - IP address assigned container management interface.               |          |
-|               container_ipaddr:  |       netmask: 255.255.255.0               | |   *bridge_ipaddr*    - IP address assigned to deployer management bridge interface.      |          |
-|               bridge_ipaddr:     |       vlan: 5                              | |   *vlan*             - Management network vlan.                                          |          |
-|               netmask:           |                                            |                                                                                            |          |
-|               vlan:              | ::                                         | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
-|           ...                    |                                            | |   *netmask* - Management network bitmask.                                                |          |
-|       ...                        |   mgmt:                                    | |   *prefix*  - Management network bit-length.                                             |          |
-|                                  |       container_ipaddr: 192.168.5.2        |                                                                                            |          |
-|                                  |       bridge_ipaddr: 192.168.5.3           |                                                                                            |          |
-|                                  |       prefix: 24                           |                                                                                            |          |
-|                                  |       vlan: 5                              |                                                                                            |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
-|                                  |                                            |                                                                                            |          |
-| ::                               | ::                                         | Client network configuration. The client network is used for client node BMC (IPMI)        | **yes**  |
-|                                  |                                            | and OS (PXE) interfaces. Ansible communicates with clients using this network during       |          |
-|   deployer:                      |   client:                                  | "post deploy" operations.                                                                  |          |
-|       networks:                  |       container_ipaddr: 192.168.20.2       |                                                                                            |          |
-|           client:                |       bridge_ipaddr: 192.168.20.3          | | Required keys:                                                                           |          |
-|               container_ipaddr:  |       netmask: 255.255.255.0               | |   *container_ipaddr* - IP address assigned container management interface.               |          |
-|               bridge_ipaddr:     |       vlan: 20                             | |   *bridge_ipaddr*    - IP address assigned to deployer management bridge interface.      |          |
-|               netmask:           |                                            | |   *vlan*             - Management network vlan.                                          |          |
-|               vlan:              | ::                                         |                                                                                            |          |
-|                                  |                                            | | Subnet mask must be defined with *netmask* OR *prefix* (not both!):                      |          |
-|                                  |   client:                                  | |   *netmask* - Management network bitmask.                                                |          |
-|                                  |       container_ipaddr: 192.168.20.2       | |   *prefix*  - Management network bit-length.                                             |          |
-|                                  |       bridge_ipaddr: 192.168.20.3          |                                                                                            |          |
-|                                  |       prefix: 24                           |                                                                                            |          |
-|                                  |       vlan: 20                             |                                                                                            |          |
-|                                  |                                            |                                                                                            |          |
-+----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+          client:
+              - type:
+                device:
+                container_ipaddr:
+                bridge_ipaddr:
+                vlan:
+                netmask:
+                prefix:
+
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+| Element                           | Example(s)                                 | Description                                                                                | Required |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                   |                                            |                                                                                            |          |
+| ::                                | ::                                         | Deployer shall act as cluster gateway. Evaluates to *false* if missing.                    | no       |
+|                                   |                                            |                                                                                            |          |
+|   deployer:                       |   gateway: true                            |   | *false*                                                                                |          |
+|      gateway:                     |                                            |   | *true*                                                                                 |          |
+|      ...                          |                                            |                                                                                            |          |
+|                                   |                                            | The deployer will be configured as the default gateway for all client nodes.               |          |
+|                                   |                                            |                                                                                            |          |
+|                                   |                                            | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables' NAT chain   |          |
+|                                   |                                            | and setting the 'dnsmasq' DHCP service to serve the deployer's client management bridge    |          |
+|                                   |                                            | address as the default gateway.                                                            |          |
+|                                   |                                            |                                                                                            |          |
+|                                   |                                            | Note: Specifying the 'gateway' explicitly on any of the data networks will override this   |          |
+|                                   |                                            | behaviour.                                                                                 |          |
+|                                   |                                            |                                                                                            |          |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                   |                                            |                                                                                            |          |
+| ::                                | ::                                         | Management network interface configuration.                                                | **yes**  |
+|                                   |                                            |                                                                                            |          |
+|   deployer:                       |   mgmt:                                    | | Required keys:                                                                           |          |
+|       networks:                   |       - device: enp1s0f0                   | |   *device* - Management network interface device.                                        |          |
+|           mgmt:                   |         interface_ipaddr: 192.168.1.2      |                                                                                            |          |
+|               - device:           |         netmask: 255.255.255.0             | | Optional keys:                                                                           |          |
+|                 interface_ipaddr: |       - device: enp1s0f0                   | |   *vlan* - Management network vlan (tagged).                                             |          |
+|                 container_ipaddr: |         container_ipaddr: 192.168.5.2      |                                                                                            |          |
+|                 bridge_ipaddr:    |         bridge_ipaddr: 192.168.5.3         | | IP address must be defined with:                                                         |          |
+|                 vlan:             |         vlan: 5                            | |   *interface_ipaddr* - Management interface IP address (non-tagged).                     |          |
+|                 netmask:          |         prefix: 24                         | |   --- or ---                                                                             |          |
+|                 prefix:           |                                            | |   *container_ipaddr* - Container management interface IP address (tagged).               |          |
+|           ...                     |                                            | |   *bridge_ipaddr*    - Deployer management bridge interface IP address (tagged).         |          |
+|       ...                         |                                            |                                                                                            |          |
+|                                   |                                            | | Subnet mask must be defined with:                                                        |          |
+|                                   |                                            | |   *netmask* - Management network bitmask.                                                |          |
+|                                   |                                            | |   --- or ---                                                                             |          |
+|                                   |                                            | |   *prefix*  - Management network bit-length.                                             |          |
+|                                   |                                            |                                                                                            |          |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
+|                                   |                                            |                                                                                            |          |
+| ::                                | ::                                         | Client node BMC (IPMI) and OS (PXE) network interface configuration. Ansible communicates  | **yes**  |
+|                                   |                                            | with clients using this network during "post deploy" operations.                           |          |
+|   deployer:                       |   client:                                  |                                                                                            |          |
+|       networks:                   |       - type: ipmi                         | | Required keys:                                                                           |          |
+|           client:                 |         device: enp1s0f0                   | |   *type*             - IPMI or PXE network (ipmi/pxe).                                   |          |
+|               - type:             |         container_ipaddr: 192.168.10.2     | |   *device*           - Management network interface device.                              |          |
+|                 device:           |         bridge_ipaddr: 192.168.10.3        | |   *container_ipaddr* - Container management interface IP address.                        |          |
+|                 container_ipaddr: |         vlan: 10                           | |   *bridge_ipaddr*    - Deployer management bridge interface IP address.                  |          |
+|                 bridge_ipaddr:    |         netmask: 255.255.255.0             | |   *vlan*             - Management network vlan.                                          |          |
+|                 vlan:             |       - type: pxe                          |                                                                                            |          |
+|                 netmask:          |         device: enp1s0f0                   | | Subnet mask must be defined with:                                                        |          |
+|                 prefix:           |         container_ipaddr: 192.168.20.2     | |   *netmask* - Management network bitmask.                                                |          |
+|                                   |         bridge_ipaddr: 192.168.20.3        | |   --- or ---                                                                             |          |
+|                                   |         vlan: 20                           | |   *prefix*  - Management network bit-length.                                             |          |
+|                                   |         prefix: 24                         |                                                                                            |          |
+|                                   |                                            |                                                                                            |          |
++-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 
 switches:
 ----------
@@ -242,12 +243,18 @@ switches:
               ssh_key:
               rack_id:
               rack_eia:
-              inband_interfaces:
-                  - ipaddr:
+              interfaces:
+                  - type:
+                    ipaddr:
+                    vlan:
                     port:
-              external_links:
+              links:
                   - target:
-                    port:
+                    ipaddr:
+                    vip:
+                    netmask:
+                    prefix:
+                    ports:
         data:
             - label:
               hostname:
@@ -256,11 +263,18 @@ switches:
               ssh_key:
               rack_id:
               rack_eia:
-              external_links:
+              interfaces:
+                  - type:
+                    ipaddr:
+                    vlan:
+                    port:
+              links:
                   - target:
                     ipaddr:
                     vip:
-                    port:
+                    netmask:
+                    prefix:
+                    ports:
 
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
 | Element                         | Example(s)                            | Description                                                                                 | Required |
@@ -270,29 +284,29 @@ switches:
 | ::                              | ::                                    | Management switch configuration. Each physical switch is defined as an item in the *mgmt:*  | **yes**  |
 |                                 |                                       | list.                                                                                       |          |
 |   switches:                     |   mgmt:                               |                                                                                             |          |
-|       mgmt:                     |       - label: mgmt_switch_1          | | Required keys:                                                                            |          |
+|       mgmt:                     |       - label: mgmt_switch            | | Required keys:                                                                            |          |
 |           - label:              |         userid: admin                 | |   *label*  - Unique label used to reference this switch elsewhere in the config file.     |          |
 |             userid:             |         password: abc123              | |   *userid* [1]_ - Userid for switch management account.                                   |          |
 |             password:           |         hostname: switch23423         |                                                                                             |          |
 |             hostname:           |         rack_id: rack1                | | "Password" must [1]_ be defined with *password* OR *ssh_key* (not both!):                 |          |
 |             rack_id:            |         rack_eia: 20                  | |   *password* - Plain text password associated with *userid*.                              |          |
-|             rack_eia:           |         inband_interfaces:            | |   *ssh_key*  - Path to SSH private key file associated with *userid*.                     |          |
-|             inband_interfaces:  |             - ipaddr: 192.168.1.20    |                                                                                             |          |
-|                 - ipaddr:       |               port: 1                 | | Optional keys:                                                                            |          |
-|                   port:         |         external_links:               | |   *hostname* - Hostname associated with switch management network interface.              |          |
-|             external_links:     |             - target: deployer        | |   *rack_id*  - Reference to rack *label* defined in the `locations: racks:=               |          |
-|                 - target:       |               port: 1                 |                  <location_racks_>`_ element.                                               |          |
-|                   port:         |             - target: data_switch_1   | |   *rack_eia* - Switch position within rack.                                               |          |
-|       ...                       |               port: 2                 | |   *inband_interfaces* - See inband_interfaces_.                                           |          |
-|                                 |                                       | |   *external_links*    - See external_links_.                                              |          |
-|                                 |                                       |                                                                                             |          |
-|                                 |                                       | .. [1] *userid* and *password*/*ssh_key* are not required when running in passive switch    |          |
-|                                 |                                       |    mode.                                                                                    |          |
+|             rack_eia:           |         interfaces:                   | |   *ssh_key*  - Path to SSH private key file associated with *userid*.                     |          |
+|             interfaces:         |             - type: outband           |                                                                                             |          |
+|                 - type:         |               ipaddr: 192.168.1.10    | | Optional keys:                                                                            |          |
+|                   ipaddr:       |               port: mgmt0             | |   *hostname* - Hostname associated with switch management network interface.              |          |
+|                   vlan:         |             - type: inband            | |   *rack_id*  - Reference to rack *label* defined in the                                   |          |
+|                   port:         |               ipaddr: 192.168.5.20    |                  `locations: racks:= <location_racks_>`_ element.                           |          |
+|             links:              |               port: 15                | |   *rack_eia* - Switch position within rack.                                               |          |
+|                 - target:       |         links:                        | |   *interfaces* - See interfaces_.                                                         |          |
+|                   ports:        |             - target: deployer        | |   *links*    - See links_.                                                                |          |
+|       ...                       |               ports: 1                |                                                                                             |          |
+|                                 |             - target: data_switch     | .. [1] *userid* and *password*/*ssh_key* are not required when running in passive switch    |          |
+|                                 |               ports: 2                |    mode.                                                                                    |          |
 |                                 |                                       |                                                                                             |          |
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
 | .. _switches_data:              |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
-| ::                              | ::                                    | Data switch configuration. Each physical switch is defined as an item in the *data:* list.  | **yes**  |
+| ::                              | example #1::                          | Data switch configuration. Each physical switch is defined as an item in the *data:* list.  | **yes**  |
 |                                 |                                       |                                                                                             |          |
 |   switches:                     |   data:                               | Key/value specs are identical to `mgmt switches <switches_mgmt_>`_.                         |          |
 |       data:                     |       - label: data_switch_1          |                                                                                             |          |
@@ -301,85 +315,109 @@ switches:
 |             password:           |         hostname: switch84579         |                                                                                             |          |
 |             hostname:           |         rack_id: rack1                |                                                                                             |          |
 |             rack_id:            |         rack_eia: 21                  |                                                                                             |          |
-|             rack_eia:           |         inband_interfaces:            |                                                                                             |          |
-|             inband_interfaces:  |             - ipaddr: 192.168.1.21    |                                                                                             |          |
-|                 - ipaddr:       |               port: 1                 |                                                                                             |          |
-|                   port:         |         external_links:               |                                                                                             |          |
-|             external_links:     |             - target: deployer        |                                                                                             |          |
-|                 - target:       |               port: 1                 |                                                                                             |          |
-|                   port:         |             - target: data_switch     |                                                                                             |          |
-|       ...                       |               port: 2                 |                                                                                             |          |
+|             rack_eia:           |         interfaces:                   |                                                                                             |          |
+|             interfaces:         |             - type: inband            |                                                                                             |          |
+|                 - type:         |               ipaddr: 192.168.1.21    |                                                                                             |          |
+|                   ipaddr:       |               port: 15                |                                                                                             |          |
+|                   port:         |         links:                        |                                                                                             |          |
+|             links:              |             - target: mgmt_switch     |                                                                                             |          |
+|                 - target:       |               ports: 1                |                                                                                             |          |
+|                   ports:        |             - target: data_switch_2   |                                                                                             |          |
+|       ...                       |               ports: 2                |                                                                                             |          |
+|                                 |                                       |                                                                                             |          |
+|                                 | example #2::                          |                                                                                             |          |
+|                                 |                                       |                                                                                             |          |
+|                                 |   data:                               |                                                                                             |          |
+|                                 |       - label: data_switch            |                                                                                             |          |
+|                                 |         userid: admin                 |                                                                                             |          |
+|                                 |         password: abc123              |                                                                                             |          |
+|                                 |         hostname: switch84579         |                                                                                             |          |
+|                                 |         rack_id: rack1                |                                                                                             |          |
+|                                 |         rack_eia: 21                  |                                                                                             |          |
+|                                 |         interfaces:                   |                                                                                             |          |
+|                                 |             - type: outband           |                                                                                             |          |
+|                                 |               ipaddr: 192.168.1.21    |                                                                                             |          |
+|                                 |               port: mgmt0             |                                                                                             |          |
+|                                 |         links:                        |                                                                                             |          |
+|                                 |             - target: mgmt_switch     |                                                                                             |          |
+|                                 |               ports: mgmt0            |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
-| .. _inband_interfaces:          |                                       |                                                                                             |          |
+| .. _interfaces:                 |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
-| ::                              | ::                                    | Switch inband interface configuration.                                                      | no       |
+| ::                              | example #1::                          | Switch interface configuration.                                                             | no       |
 |                                 |                                       |                                                                                             |          |
-|   switches:                     |   inband_interfaces:                  |                                                                                             |          |
-|       mgmt:                     |       - ipaddr: 192.168.1.20          | | Required keys:                                                                            |          |
-|           - ...                 |         port: 1                       | |   *ipaddr* - IP address.                                                                  |          |
-|             inband_interfaces:  |                                       | |   *port*   - Port number.                                                                 |          |
-|                 - ipaddr:       |                                       |                                                                                             |          |
+|   switches:                     |   interfaces:                         | | Required keys:                                                                            |          |
+|       mgmt:                     |       - type: outband                 | |   *type*   - In-Band or Out-of-Band (inband/outband).                                     |          |
+|           - ...                 |         ipaddr: 192.168.1.20          | |   *ipaddr* - IP address.                                                                  |          |
+|             interfaces:         |         port: mgmt0                   | |   *vlan*   - VLAN.                                                                        |          |
+|                 - type:         |                                       | |   *port*   - Port.                                                                        |          |
+|                   ipaddr:       | example #2::                          |                                                                                             |          |
 |                   port:         |                                       |                                                                                             |          |
-|       data:                     |                                       |                                                                                             |          |
-|           - ...                 |                                       |                                                                                             |          |
-|             inband_interfaces:  |                                       |                                                                                             |          |
-|                 - ipaddr:       |                                       |                                                                                             |          |
+|       data:                     |   interfaces:                         |                                                                                             |          |
+|           - ...                 |       - type: inband                  |                                                                                             |          |
+|             interfaces:         |         ipaddr: 192.168.5.20          |                                                                                             |          |
+|                 - type:         |         port: 15                      |                                                                                             |          |
+|                   ipaddr:       |                                       |                                                                                             |          |
 |                   port:         |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
-| .. _external_links:             |                                       |                                                                                             |          |
+| .. _links:                      |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
 | ::                              | example #1::                          | Switch link configuration. Links can be configured between any switches and/or the          | no       |
 |                                 |                                       | deployer.                                                                                   |          |
 |   switches:                     |   mgmt:                               |                                                                                             |          |
 |       mgmt:                     |       - label: mgmt_switch            | | Required keys:                                                                            |          |
 |           - ...                 |         ...                           | |   *target* - Reference to destination target. This value must be set to 'deployer' or     |          |
-|             external_links:     |         inband_interfaces:            |                correspond to another switch's *label* (switches_mgmt_, switches_data_).     |          |
-|                 - target:       |             - ipaddr: 192.168.5.10    | |   *port*   - Source port number (not target port!). This can either be a single port or a |          |
-|                   port:         |               port: 1                 |                list of ports. If a list is given then the links will be aggregated.         |          |
-|       data:                     |         external_links:               |                                                                                             |          |
-|           - ...                 |             - target: deployer        | | Optional keys:                                                                            |          |
-|             external_links:     |               port: 10                | |   *ipaddr* - Management interface IP address.                                             |          |
-|                 - target:       |             - target: data_switch     | |   *vlan*   - Management interface vlan                                                    |          |
-|                   port:         |               port: 11                | |   *vip*    - Virtual IP used for redundant switch configurations.                         |          |
-|           - ...                 |   data:                               |                                                                                             |          |
-|             external_links:     |       - label: data_switch            | | Subnet mask may be defined with *netmask* OR *prefix* (not both!):                        |          |
-|                 - target:       |         ...                           | |   *netmask* - Management network bitmask.                                                 |          |
-|                   ipaddr:       |         external_links:               | |   *prefix*  - Management network bit-length.                                              |          |
-|                   vip:          |             - target: mgmt_switch     |                                                                                             |          |
-|                   netmask:      |               ipaddr: 192.168.5.11    | In example #1 port 10 of "mgmt_switch" is cabled directly to the deployer and port 11 of    |          |
-|                   vlan:         |               vlan: 5                 | "mgmt_switch" is cabled to the mangement port 0 of "data_switch". An inband management      |          |
-|                   port:         |               port: mgmt0             | interface is configured with an IP address of '192.168.5.10' for "mgmt_switch", and the     |          |
-|                                 |                                       | dedicated management port 0 of "data_switch" is configured with an IP address of            |          |
-|                                 | example #2::                          | "192.168.5.11" on vlan "5".                                                                 |          |
-|                                 |                                       |                                                                                             |          |
-|                                 |   data:                               | In example #2 a redundant data switch configuration is shown. Ports 7 and 8 (on both        |          |
-|                                 |       - label: data_1_1               | switches) are configured as an aggrated peer link on vlan "4000" with IP address of         |          |
-|                                 |         ...                           | "10.0.0.1/24" and "10.0.0.2/24".                                                            |          |
-|                                 |         external_links:               |                                                                                             |          |
-|                                 |             - target: mgmt_1          |                                                                                             |          |
+|             links:              |         interfaces:                   |                correspond to another switch's *label* (switches_mgmt_, switches_data_).     |          |
+|                 - target:       |             - type: inband            | |   *ports*   - Source port numbers (not target ports!). This can either be a single port   |          |
+|                   ports:        |               ipaddr: 192.168.5.10    |                 or a list of ports. If a list is given then the links will be aggregated.   |          |
+|       data:                     |               port: 15                |                                                                                             |          |
+|           - ...                 |         links:                        | | Optional keys:                                                                            |          |
+|             links:              |             - target: deployer        | |   *ipaddr* - Management interface IP address.                                             |          |
+|                 - target:       |               ports: 10               | |   *vlan*   - Management interface vlan.                                                   |          |
+|                   port:         |             - target: data_switch     | |   *vip*    - Virtual IP used for redundant switch configurations.                         |          |
+|           - ...                 |               ports: 11               |                                                                                             |          |
+|             links:              |   data:                               | | Subnet mask must be defined with:                                                         |          |
+|                 - target:       |       - label: data_switch            | |   *netmask* - Management network bitmask.                                                 |          |
+|                   ipaddr:       |         ...                           | |   --- or ---                                                                              |          |
+|                   vip:          |         interfaces:                   | |   *prefix*  - Management network bit-length.                                              |          |
+|                   netmask:      |             - type: outband           |                                                                                             |          |
+|                   vlan:         |               ipaddr: 192.168.5.10    | In example #1 port 10 of "mgmt_switch" is cabled directly to the deployer and port 11 of    |          |
+|                   ports:        |               vlan: 5                 | "mgmt_switch" is cabled to the mangement port 0 of "data_switch". An inband management      |          |
+|                                 |               port: mgmt0             | interface is configured with an IP address of '192.168.5.10' for "mgmt_switch", and the     |          |
+|                                 |         links:                        | dedicated management port 0 of "data_switch" is configured with an IP address of            |          |
+|                                 |             - target: mgmt_switch     | "192.168.5.11" on vlan "5".                                                                 |          |
+|                                 |               ports: mgmt0            |                                                                                             |          |
+|                                 |                                       | In example #2 a redundant data switch configuration is shown. Ports 7 and 8 (on both        |          |
+|                                 | example #2::                          | switches) are configured as an aggrated peer link on vlan "4000" with IP address of         |          |
+|                                 |                                       | "10.0.0.1/24" and "10.0.0.2/24".                                                            |          |
+|                                 |   data:                               |                                                                                             |          |
+|                                 |       - label: data_1                 |                                                                                             |          |
+|                                 |         ...                           |                                                                                             |          |
+|                                 |         links:                        |                                                                                             |          |
+|                                 |             - target: mgmt            |                                                                                             |          |
 |                                 |               ipaddr: 192.168.5.31    |                                                                                             |          |
 |                                 |               vip: 192.168.5.254      |                                                                                             |          |
-|                                 |               port: mgmt0             |                                                                                             |          |
-|                                 |             - target: data_1_2        |                                                                                             |          |
+|                                 |               ports: mgmt0            |                                                                                             |          |
+|                                 |             - target: data_2          |                                                                                             |          |
 |                                 |               ipaddr: 10.0.0.1        |                                                                                             |          |
 |                                 |               netmask: 255.255.255.0  |                                                                                             |          |
 |                                 |               vlan: 4000              |                                                                                             |          |
-|                                 |               port:                   |                                                                                             |          |
+|                                 |               ports:                  |                                                                                             |          |
 |                                 |                   - 7                 |                                                                                             |          |
 |                                 |                   - 8                 |                                                                                             |          |
-|                                 |       - label: data_1_2               |                                                                                             |          |
-|                                 |         external_links:               |                                                                                             |          |
-|                                 |             - target: mgmt_1          |                                                                                             |          |
-|                                 |               ipaddr: 192.168.5.31    |                                                                                             |          |
+|                                 |       - label: data_2                 |                                                                                             |          |
+|                                 |         links:                        |                                                                                             |          |
+|                                 |             - target: mgmt            |                                                                                             |          |
+|                                 |               ipaddr: 192.168.5.32    |                                                                                             |          |
 |                                 |               vip: 192.168.5.254      |                                                                                             |          |
-|                                 |               port: mgmt0             |                                                                                             |          |
-|                                 |             - target: data_1_1        |                                                                                             |          |
+|                                 |               ports: mgmt0            |                                                                                             |          |
+|                                 |             - target: data_2          |                                                                                             |          |
 |                                 |               ipaddr: 10.0.0.2        |                                                                                             |          |
 |                                 |               network: 255.255.255.0  |                                                                                             |          |
 |                                 |               vlan: 4000              |                                                                                             |          |
-|                                 |               port:                   |                                                                                             |          |
+|                                 |               ports:                  |                                                                                             |          |
 |                                 |                   - 7                 |                                                                                             |          |
 |                                 |                   - 8                 |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
