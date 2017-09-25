@@ -104,6 +104,29 @@ if [ -d $GEN_PATH ]; then
     fi
 fi
 ##################################################
+if [ ! -z "$cname" ]; then
+    read -p "Destroy container: $cname ? (y/n) " resp
+    if [ $resp == "y" ]; then
+        dep=$(sudo lxc-ls -f|grep -m 1 $cname)
+        echo $dep
+        depaddr=${dep##*,}
+        depaddr=${depaddr%-*}
+        depaddr=${depaddr// /}
+        echo "removing host key from known_hosts for container: "$depaddr
+        ssh-keygen -R $depaddr
+        echo;
+        echo "destroying container " $cname
+        sudo lxc-stop -n $cname
+        sudo lxc-destroy -n $cname
+    fi
+fi
+##################################################
+read -p "Reset BMCs on cluster nodes? (y/n) " resp
+if [ $resp == "y" ]; then
+    cd "$GEN_SCRIPTS_PATH"
+    ./python/bmc_reset.py /var/oprc/inventory.yml debug
+fi
+##################################################
 cmd=""
 read -p "Remove Genesis management ip address from management switch ? (y/n) " resp
 if [ $resp == "y" ]; then
@@ -176,23 +199,6 @@ if [ ! -z "$bridgemgmtclient" ]; then
             sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclient
             sudo rm /etc/sysconfig/network-scripts/ifcfg-$bridgemgmtclientinterface
         fi
-    fi
-fi
-##################################################
-if [ ! -z "$cname" ]; then
-    read -p "Destroy container: $cname ? (y/n) " resp
-    if [ $resp == "y" ]; then
-        dep=$(sudo lxc-ls -f|grep -m 1 $cname)
-        echo $dep
-        depaddr=${dep##*,}
-        depaddr=${depaddr%-*}
-        depaddr=${depaddr// /}
-        echo "removing host key from known_hosts for container: "$depaddr
-        ssh-keygen -R $depaddr
-        echo;
-        echo "destroying container " $cname
-        sudo lxc-stop -n $cname
-        sudo lxc-destroy -n $cname
     fi
 fi
 ###################################################
