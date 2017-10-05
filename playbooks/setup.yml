@@ -30,7 +30,7 @@
     - block:
         - name: "Log Level"
           set_fact:
-            log_level: "{{ config.deployer.log_level }}"
+            log_level: "{{ config.global.log_level }}"
 
         - name: "Print Log Level in {{ config_local }}"
           debug:
@@ -42,8 +42,8 @@
             regexp: '^(log_level:).*$'
             replace: '\1 {{ log_level }}'
       when:
-        - config.deployer.log_level is defined
-        - config.deployer.log_level is not none
+        - config.global.log_level is defined
+        - config.global.log_level is not none
 
     - name: "Clear deployment-environment in group_vars/all"
       blockinfile:
@@ -56,25 +56,25 @@
           debug:
             msg: >
                 deployment_environment:
-                {{ config.deployer.env_variables }}
+                {{ config.global.env_variables }}
 
         - name: "Add deployment-environment to group_vars/all"
           vars:
             output:
                 deployment_environment:
-                    "{{ config.deployer.env_variables }}"
+                    "{{ config.global.env_variables }}"
           blockinfile:
             path: "{{ project_path_local }}/playbooks/group_vars/all"
             content: "{{ output | to_nice_yaml }}"
             marker: "# {mark} deployment_environment"
       when:
-        - config.deployer.env_variables is defined
-        - config.deployer.env_variables is not none
+        - config.global.env_variables is defined
+        - config.global.env_variables is not none
 
     - name: "Add empty deployment-environment to group_vars/all"
       blockinfile:
         dest: "{{ project_path_local }}/playbooks/group_vars/all"
         content: "deployment_environment: {}"
         marker: "# {mark} deployment_environment"
-      when: (config.deployer.env_variables is not defined) or
-            (config.deployer.env_variables is none)
+      when: (config.global.env_variables is not defined) or
+            (config.global.env_variables is none)

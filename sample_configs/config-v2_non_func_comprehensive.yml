@@ -17,6 +17,15 @@
 
 version: v2.0
 
+global:
+    log_level: info
+    introspection: false
+    env_variables:
+        https_proxy: http://192.168.1.2:3128
+        http_proxy: http://192.168.1.2:3128
+        no_proxy: localhost,127.0.0.1
+
+
 location:
     time_zone: UTC
     data_center: dataeast
@@ -27,7 +36,6 @@ location:
           cell: 42
 
 deployer:
-    log_level: debug
     networks:
         external:
             dev_label: enp1s0f0

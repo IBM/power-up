@@ -17,6 +17,9 @@
 
 version: v2.0
 
+global:
+    log_level: info
+
 location:
     time_zone: America/Chicago
     racks:
