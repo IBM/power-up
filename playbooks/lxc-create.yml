@@ -21,8 +21,6 @@
   hosts: localhost
   vars:
     networks_only: False
-  handlers:
-    - include: handlers/restart_networking.yml
   environment: "{{ deployment_environment }}"
   tasks:
     - name: "Read {{ config_local }}"
@@ -44,96 +42,6 @@
         dest: "{{ config_local_backup }}"
         mode: 0444
 
-    - block:
-      - name: "Management bridge ipaddr/netmask"
-        set_fact:
-          ipaddr_bridge_netmask_mgmt: "{{ config.deployer.networks.mgmt.bridge_ipaddr }}/{{ config.deployer.networks.mgmt.netmask }}"
-      - name: "Management bridge ipaddr/prefix"
-        set_fact:
-          ipaddr_bridge_cidr_mgmt: "{{ ipaddr_bridge_netmask_mgmt | ipaddr('host/prefix') }}"
-      when: config.deployer.networks.mgmt.netmask is defined
-
-    - name: "Management bridge ipaddr/prefix"
-      set_fact:
-        ipaddr_bridge_cidr_mgmt: "{{ config.deployer.networks.mgmt.bridge_ipaddr }}/{{ config.deployer.networks.mgmt.prefix }}"
-      when: config.deployer.networks.mgmt.netmask is not defined
-
-    - block:
-      - name: "Management container ipaddr/netmask"
-        set_fact:
-          ipaddr_container_netmask_mgmt: "{{ config.deployer.networks.mgmt.container_ipaddr }}/{{ config.deployer.networks.mgmt.netmask }}"
-      - name: "Management container ipaddr/prefix"
-        set_fact:
-          ipaddr_container_cidr_mgmt: "{{ ipaddr_container_netmask_mgmt | ipaddr('host/prefix') }}"
-      when: config.deployer.networks.mgmt.netmask is defined
-
-    - name: "Management container ipaddr/prefix"
-      set_fact:
-        ipaddr_container_cidr_mgmt: "{{ config.deployer.networks.mgmt.container_ipaddr }}/{{ config.deployer.networks.mgmt.prefix }}"
-      when: config.deployer.networks.mgmt.netmask is not defined
-
-    - block:
-      - name: "Client bridge ipaddr/netmask"
-        set_fact:
-          ipaddr_bridge_netmask_client: "{{ config.deployer.networks.client.bridge_ipaddr }}/{{ config.deployer.networks.client.netmask }}"
-      - name: "Client bridge ipaddr/prefix"
-        set_fact:
-          ipaddr_bridge_cidr_client: "{{ ipaddr_bridge_netmask_client | ipaddr('host/prefix') }}"
-      when: config.deployer.networks.client.netmask is defined
-
-    - name: "Client bridge ipaddr/prefix"
-      set_fact:
-        ipaddr_bridge_cidr_client: "{{ config.deployer.networks.client.bridge_ipaddr }}/{{ config.deployer.networks.client.prefix }}"
-      when: config.deployer.networks.client.netmask is not defined
-
-    - block:
-      - name: "Client container ipaddr/netmask"
-        set_fact:
-          ipaddr_container_netmask_client: "{{ config.deployer.networks.client.container_ipaddr }}/{{ config.deployer.networks.client.netmask }}"
-      - name: "Client container ipaddr/prefix"
-        set_fact:
-          ipaddr_container_cidr_client: "{{ ipaddr_container_netmask_client | ipaddr('host/prefix') }}"
-      when: config.deployer.networks.client.netmask is defined
-
-    - name: "Client container ipaddr/prefix"
-      set_fact:
-        ipaddr_container_cidr_client: "{{ config.deployer.networks.client.container_ipaddr }}/{{ config.deployer.networks.client.prefix }}"
-      when: config.deployer.networks.client.netmask is not defined
-
-    - name: "Create lxc.conf"
-      vars:
-        ipaddr_mgmt_cidr: "{{ ipaddr_container_cidr_mgmt }}"
-        ipaddr_client_cidr: "{{ ipaddr_container_cidr_client }}"
-        bridge_mgmt: "br{{ config.deployer.networks.mgmt.vlan }}"
-        bridge_client: "br{{ config.deployer.networks.client.vlan }}"
-      template:
-        src: "{{ playbook_dir }}/templates/localhost/lxc-conf.j2"
-        dest: "{{ playbook_dir }}/lxc.conf"
-        mode: "0644"
-      when: not networks_only
-
-    - name: "Ubuntu: Create bridge interfaces for VLAN Support"
-      vars:
-        primary_port: "{{ mgmt_network_interface }}"
-        ipaddr_cidr: "{{ item.ipaddr_cidr }}"
-        vlan: "{{ item.vlan }}"
-        bridge: "br{{ item.vlan }}"
-      template:
-        src: "{{ playbook_dir }}/templates/localhost/bridge-vlan-ubuntu.j2"
-        dest: "/etc/network/interfaces.d/{{ bridge }}"
-        owner: "root"
-        group: "root"
-        mode: "0644"
-      with_items:
-        - { ipaddr_cidr: "{{ ipaddr_bridge_cidr_mgmt }}",
-            vlan: "{{ config.deployer.networks.mgmt.vlan }}"}
-        - { ipaddr_cidr: "{{ ipaddr_bridge_cidr_client }}",
-            vlan: "{{ config.deployer.networks.client.vlan }}"}
-      notify: "restart networking"
-      become: yes
-      become_method: sudo
-      when: ansible_distribution == 'Ubuntu'
-
     - name: "RHEL/CentOS: Enable IP Forwarding"
       lineinfile:
         dest: /etc/sysctl.conf
@@ -142,35 +50,6 @@
       become: yes
       become_method: sudo
       when: ansible_distribution in ['RedHat','CentOS']
-
-    - name: "RHEL/CentOS: Create bridge interfaces for VLAN Support"
-      vars:
-        primary_port: "{{ mgmt_network_interface }}"
-        ipaddr_cidr: "{{ item.ipaddr_cidr }}"
-        vlan: "{{ item[0].vlan }}"
-        bridge: "br{{ item[0].vlan }}"
-      template:
-        src: "{{ item[1].temp }}"
-        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item[1].name }}{{ item[0].vlan }}"
-        owner: "root"
-        group: "root"
-        mode: "0644"
-      with_nested:
-        -   - { ipaddr_cidr: "{{ ipaddr_bridge_cidr_mgmt }}",
-                vlan: "{{ config.deployer.networks.mgmt.vlan }}"}
-            - { ipaddr_cidr: "{{ ipaddr_bridge_cidr_client }}",
-                vlan: "{{ config.deployer.networks.client.vlan }}"}
-        -   - { temp: "{{ playbook_dir }}/templates/localhost/vlan-rhel.j2",
-                name: "{{ mgmt_network_interface }}."}
-            - { temp: "{{ playbook_dir }}/templates/localhost/bridge-rhel.j2",
-                name: "br"}
-      notify: "restart networking"
-      become: yes
-      become_method: sudo
-      when: ansible_distribution in ['RedHat','CentOS']
-
-    - name: "Flush handlers"
-      meta: flush_handlers
 
     - name: "Create private/public ssh key pair"
       user:
@@ -201,9 +80,16 @@
         seconds: 5
       when: not networks_only
 
-    - name: "Register container internal ip address"
+    - name: "Register container info"
       command: lxc-info -n {{ container_name }}
       register: container_info
+      when: not networks_only
+      become: yes
+      become_method: sudo
+
+    - name: "Register container internal ip address"
+      shell: lxc-info -Hin {{ container_name }} | sed -e '/^10\./!d'
+      register: container_ipaddr
       when: not networks_only
       become: yes
       become_method: sudo
@@ -216,7 +102,7 @@
         line: >
           deployer ansible_user={{ user }}
           ansible_ssh_private_key_file={{ ssh_key_private }}
-          ansible_host={{ config.deployer.networks.mgmt.container_ipaddr }}
+          ansible_host={{ container_ipaddr.stdout }}
 
     - block:
       - name: "Print container information"
@@ -237,7 +123,7 @@
       - name: |
           Use ssh-keyscan to collect container host keys (retry until ssh is up)
         command: |
-          /usr/bin/ssh-keyscan -H {{ config.deployer.networks.mgmt.container_ipaddr }}
+          /usr/bin/ssh-keyscan -H {{ container_ipaddr.stdout }}
         register: ssh_keyscan_output
         until: ssh_keyscan_output.stdout != ''
         retries: 6

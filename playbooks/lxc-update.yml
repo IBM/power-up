@@ -83,46 +83,6 @@
         checksum: "sha1:{{ item.sha1sum }}"
       with_items: "{{ image_list_unique }}"
 
-    - block:
-      - name: "Management bridge ipaddr/netmask"
-        set_fact:
-          ipaddr_bridge_netmask_mgmt: "{{ config.deployer.networks.mgmt.bridge_ipaddr }}/{{ config.deployer.networks.mgmt.netmask }}"
-      - name: "Management subnet"
-        set_fact:
-          mgmt_subnet: "{{ ipaddr_bridge_netmask_mgmt | ipaddr('subnet') }}"
-      when: config.deployer.networks.mgmt.netmask is defined
-
-    - block:
-      - name: "Management bridge ipaddr/prefix"
-        set_fact:
-          ipaddr_bridge_cidr_mgmt: "{{ config.deployer.networks.mgmt.bridge_ipaddr }}/{{ config.deployer.networks.mgmt.prefix }}"
-      - name: "Management subnet"
-        set_fact:
-          mgmt_subnet: "{{ ipaddr_bridge_cidr_mgmt | ipaddr('subnet') }}"
-      when: config.deployer.networks.mgmt.netmask is not defined
-
-    - name: "Check if POSTROUTING nat rule already exists for client network"
-      shell: "iptables -L POSTROUTING -t nat | grep {{ mgmt_subnet }} || true"
-      register: postrouting_nat_client_net
-      become: yes
-      become_method: sudo
-      when: config.deployer.gateway
-
-    - name: "If deployer-gateway is true create iptables nat rule"
-      command: |
-        iptables
-        -t nat
-        -A POSTROUTING
-        -p all
-        -s {{ mgmt_subnet }}
-        ! -d {{ mgmt_subnet }}
-        -j MASQUERADE
-      become: yes
-      become_method: sudo
-      when:
-        - config.deployer.gateway
-        - postrouting_nat_client_net.stdout == ""
-
 - hosts: deployer
   environment: "{{ deployment_environment }}"
   vars:
