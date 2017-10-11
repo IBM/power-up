@@ -418,7 +418,7 @@ class Config(object):
 
         return self._get_members(
             self.cfg.deployer.networks.client,
-            self.CfgKey.CONTAINER_IPADDR,
+            self.CfgKey.TYPE,
             index)
 
     def yield_depl_netw_client_type(self):

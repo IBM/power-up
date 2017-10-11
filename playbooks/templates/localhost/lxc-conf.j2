@@ -1,4 +1,4 @@
-{#
+{#-
   Copyright 2017 IBM Corp.
 
   All Rights Reserved.
@@ -14,28 +14,30 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-#}
+-#}
 lxc.network.type = veth
-{% if ansible_distribution == 'Ubuntu' %}
+{%- if distribution == 'Ubuntu' %}
 lxc.network.link = lxcbr0
-{% elif ansible_distribution in ['RedHat','CentOS'] %}
+{% elif distribution in ['RedHat','CentOS'] %}
 lxc.network.link = virbr0
-{% endif %}
+{% endif -%}
 lxc.network.flags = up
 lxc.network.hwaddr = 00:16:3e:xx:xx:xx
 
+{% for net in networks -%}
 lxc.network.type = veth
-lxc.network.ipv4 = {{ ipaddr_mgmt_cidr }}
-lxc.network.link = {{ bridge_mgmt }}
+lxc.network.ipv4 = {{ net.ipaddr }}/{{ net.prefix }}
+{%- if net.type is defined %}
+lxc.network.link = br-{{ net.type }}-{{ net.vlan }}
+{% else %}
+lxc.network.link = br-mgmt-{{ net.vlan }}
+{% endif -%}
 lxc.network.flags = up
 lxc.network.hwaddr = 00:16:3e:xx:xx:xx
 
-lxc.network.type = veth
-lxc.network.ipv4 = {{ ipaddr_client_cidr }}
-lxc.network.link = {{ bridge_client }}
-lxc.network.flags = up
-lxc.network.hwaddr = 00:16:3e:xx:xx:xx
+{% endfor -%}
 
 lxc.aa_profile=unconfined
 lxc.cgroup.devices.allow=a *:* rmw
 lxc.start.auto = 1
+
