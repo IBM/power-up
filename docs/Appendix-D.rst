@@ -2,7 +2,7 @@
 Appendix - D Example system 1 Simple Flat Cluster
 =================================================
 
-.. figure:: _images/cluster-genesis-simple_flat_cluster.png
+.. figure:: _images/simple_flat_cluster.png
      :height: 350
      :align: center
 

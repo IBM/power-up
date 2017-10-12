@@ -38,12 +38,12 @@ version:
 location:
 ---------
 
-See :ref:`Config Specification - Location Section <Config_Specification:location:>`.
+See :ref:`Config Specification - Location Section <Config-Specification:location:>`.
 
 switches:
 ---------
 
-See :ref:`Config Specification - Switches Section <Config_Specification:switches:>`.
+See :ref:`Config Specification - Switches Section <Config-Specification:switches:>`.
 
 nodes:
 ------

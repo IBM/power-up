@@ -217,7 +217,7 @@ and the *Lenovo RackSwitch G8052 Installation guide*)
    access information in the config.yml file.  The diagram below shows the intitial switch setup
    and the corresponding config file entries;
 
-   .. figure:: _images/cluster-genesis-initial-switch-setup.png
+   .. figure:: _images/initial-switch-setup.png
         :height: 350
         :align: center
 
@@ -276,7 +276,7 @@ and the *Lenovo RackSwitch G8052 Installation guide*)
 
    .. _fig-network-setup:
 
-   .. figure:: _images/cluster-genesis-switch-management-network-setup.png
+   .. figure:: _images/switch-management-network-setup.png
         :height: 350
         :align: center
 

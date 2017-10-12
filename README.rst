@@ -13,9 +13,9 @@ Resources
 
 For additional instructions and developer resources:
 
-* `Release Table <docs/release_table.rst>`_
+* `Release Table <docs/Release-Table.rst>`_
 * `User's Guide <http://cluster-genesis.readthedocs.io>`_ at 'Read the Docs'
-* `Developer's Guide <docs/OPCG_dev_guide.rst>`_
+* `Developer's Guide <docs/Dev-Guide.rst>`_
 * IRC:  #cluster-genesis channel on freenode.net
 
 

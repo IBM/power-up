@@ -39,7 +39,7 @@ Installing and Running the Genesis code. Step by Step Instructions
     These lines can be removed using the "tear-down" script.
 
 #. If introspection is enabled then follow the instructions in
-   `Building Necessary Config Files <OPCG_build_introspection.rst#building-necessary-config-files>`_
+   `Building Necessary Config Files <Build-Introspection.rst#building-necessary-config-files>`_
    to set the 'IS_BUILDROOT_CONFIG' and 'IS_KERNEL_CONFIG' environment
    variables.
 #. copy your config.yml file to the ~/cluster-genesis directory (see
