@@ -58,22 +58,22 @@
         ssh_key_file: "{{ ssh_key_private }}"
       when: not networks_only
 
-    - name: "Create LXC deployment container"
-      lxc_container:
-        name: "{{ container_name }}"
-        template: ubuntu
-        template_options:
-          --user {{ user }}
-          --auth-key {{ ssh_key_public }}
-          --release trusty
-          --packages python,aptitude
-        config: "{{ project_path_local }}/playbooks/lxc.conf"
-        container_command: |
-          cp -p /etc/sudoers /etc/sudoers.orig
-          echo -e "{{ user }}\tALL=NOPASSWD: ALL" >> /etc/sudoers
-      when: not networks_only
-      become: yes
-      become_method: sudo
+    # - name: "Create LXC deployment container"
+    #   lxc_container:
+    #     name: "{{ container_name }}"
+    #     template: ubuntu
+    #     template_options:
+    #       --user {{ user }}
+    #       --auth-key {{ ssh_key_public }}
+    #       --release trusty
+    #       --packages python,aptitude
+    #     config: "{{ project_path_local }}/playbooks/lxc.conf"
+    #     container_command: |
+    #       cp -p /etc/sudoers /etc/sudoers.orig
+    #       echo -e "{{ user }}\tALL=NOPASSWD: ALL" >> /etc/sudoers
+    #   when: not networks_only
+    #   become: yes
+    #   become_method: sudo
 
     - name: "Pause 5 seconds"
       pause:

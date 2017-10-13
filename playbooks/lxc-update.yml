@@ -108,27 +108,27 @@
       become: yes
       become_method: sudo
 
-    - name: "Update apt cache and upgrade (safe)"
-      apt:
-        update_cache: yes
-        upgrade: safe
-      become: yes
-      become_method: sudo
+    # - name: "Update apt cache and upgrade (safe)"
+    #   apt:
+    #     update_cache: yes
+    #     upgrade: safe
+    #   become: yes
+    #   become_method: sudo
 
-    - name: "Install distro packages"
-      apt:
-        name: "{{ item }}"
-      with_items:
-        - python-pip
-        - python-dev
-        - libffi-dev
-        - libssl-dev
-        - python-netaddr
-        - python-pysnmp4
-        - ipmitool
-        - git
-      become: yes
-      become_method: sudo
+    # - name: "Install distro packages"
+    #   apt:
+    #     name: "{{ item }}"
+    #   with_items:
+    #     - python-pip
+    #     - python-dev
+    #     - libffi-dev
+    #     - libssl-dev
+    #     - python-netaddr
+    #     - python-pysnmp4
+    #     - ipmitool
+    #     - git
+    #   become: yes
+    #   become_method: sudo
 
     - name: "Install python pip packages"
       pip:
