@@ -21,14 +21,16 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
+import os
+import subprocess
 import getpass
 
 import lib.argparse_gen as argparse_gen
-import enable_deployer_networks
 from lib.logger import Logger
 from lib.config import Config
 from lib.db import Database
 from lib.container import Container
+from lib.genesis import GEN_SCRIPTS_PATH
 
 
 class Gen(object):
@@ -63,7 +65,17 @@ class Gen(object):
             sys.exit(1)
 
     def _create_bridges(self):
-        enable_deployer_networks.enable_deployer_network()
+        # enable_deployer_networks.enable_deployer_network()
+        os.chdir(GEN_SCRIPTS_PATH + '/python')
+        subprocess.check_output(['bash', '-c',
+                                 "sudo setcap 'cap_net_raw,cap_net_admin+eip'"
+                                 " $(readlink -f $(which python))"])
+        p = subprocess.Popen(GEN_SCRIPTS_PATH +
+                             "/python/enable_deployer_networks.py")
+        out, err = p.communicate()
+        subprocess.check_output(['bash', '-c',
+                                 "sudo setcap 'cap_net_raw,cap_net_admin-eip'"
+                                 " $(readlink -f $(which python))"])
 
     def _create_container(self):
         cont = Container()
@@ -105,7 +117,7 @@ class Gen(object):
 
         # Invoke subcommand method
         if cmd == argparse_gen.Cmd.SETUP.value:
-            self._check_root_user(cmd)
+            # self._check_root_user(cmd)
             if self.args.bridges:
                 self._create_bridges()
         if cmd == argparse_gen.Cmd.CONFIG.value:
