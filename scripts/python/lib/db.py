@@ -29,6 +29,7 @@ from orderedattrdict.yamlutils import AttrDictYAMLLoader
 from lib.validate_config_schema import ValidateConfigSchema
 from lib.validate_config_logic import ValidateConfigLogic
 from lib.logger import Logger
+from lib.genesis import GEN_PATH
 
 
 class Database(object):
@@ -39,8 +40,8 @@ class Database(object):
         db_file (string): Database file
     """
 
-    CFG_FILE = '../../config.yml'
-    INV_FILE = '../../inventory.yml'
+    CFG_FILE = GEN_PATH + 'config.yml'
+    INV_FILE = GEN_PATH + 'inventory.yml'
     FILE_MODE = 0o666
 
     def __init__(self):
@@ -56,6 +57,7 @@ class Database(object):
                 raise Exception()
             except Exception:
                 self.log.error('Could not find config file: ' + self.cfg_file)
+                print('Could not find config file: ' + self.cfg_file)
                 sys.exit(1)
 
         # Create inventory file if it does not exist
