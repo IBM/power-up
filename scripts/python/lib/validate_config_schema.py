@@ -88,7 +88,7 @@ class Deployer(jsl.Document):
 
 
 class Interfaces(jsl.Document):
-    name = jsl.fields.StringField()
+    label = jsl.fields.StringField()
     description = jsl.fields.StringField()
     iface = jsl.fields.StringField()
     address_start = jsl.fields.IPv4Field()
@@ -177,6 +177,9 @@ class ValidateConfigSchema(object):
 
     def __init__(self, config):
         self.log = logging.getLogger(Logger.LOG_NAME)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        self.log.addHandler(ch)
         self.config = config
 
     def validate_config_schema(self):
@@ -191,7 +194,8 @@ class ValidateConfigSchema(object):
             validate(
                 self.config, schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as error:
-            self.log.error('Schema validation failed:' + '\n' + str(
-                error.message))
+            self.log.error('Schema validation failed:' + '\n' +
+                           'Config file section: ' + str(error.path[0]) + ':' +
+                           '\n' + str(error.message))
             sys.exit(1)
         self.log.info('Config schema validation completed successfully')

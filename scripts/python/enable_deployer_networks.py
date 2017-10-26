@@ -21,10 +21,10 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import sys
 import os
 import re
-import logging
 import subprocess
 import platform
 import time
+import logging
 from netaddr import IPNetwork
 from pyroute2 import IPRoute
 
@@ -33,10 +33,9 @@ from lib.logger import Logger
 from lib.genesis import GEN_PATH
 
 IPR = IPRoute()
-log = None
 
 
-def enable_deployer_network(root_log=None):
+def enable_deployer_network():
     """creates or modifies the network elements on the deployer which allow
     communication between the Genesis container and the cluster nodes
     and switches. The management networks can utilize the default linux
@@ -47,18 +46,14 @@ def enable_deployer_network(root_log=None):
     This function is idempotent.
     """
     cfg = Config()
-    if root_log is None:
-        log = logging.getLogger(Logger.LOG_NAME)
-    else:
-        log = root_log
-        log.set_level(cfg.get_globals_log_level())
-    log.debug('------------------- enable_deployer_networks ----------------------')
+    LOG.setLevel(cfg.get_globals_log_level())
+    LOG.debug('------------------- enable_deployer_networks ----------------------')
 
     # if inv.is_passive_mgmt_switches():
-    #     self.log.info('Passive Management Switch(es) specified')
+    #     self.LOG.info('Passive Management Switch(es) specified')
     # return
 
-    log.info('Configuring deployer management networks')
+    LOG.info('Configuring deployer management networks')
     dev_label = cfg.get_depl_netw_mgmt_device()
     interface_ipaddr = cfg.get_depl_netw_mgmt_intf_ip()
     container_ipaddr = cfg.get_depl_netw_mgmt_cont_ip()
@@ -74,7 +69,7 @@ def enable_deployer_network(root_log=None):
                         bridge_ipaddr=bridge_ipaddr[i],
                         vlan=vlan[i])
 
-    log.info('Configuring deployer client networks')
+    LOG.info('Configuring deployer client networks')
     type_ = cfg.get_depl_netw_client_type()
     dev_label = cfg.get_depl_netw_client_device()
     interface_ipaddr = cfg.get_depl_netw_client_intf_ip()
@@ -105,7 +100,7 @@ def _create_network(
     ifc_addresses = _get_ifc_addresses()
 
     if not IPR.link_lookup(ifname=dev_label):
-        log.error('External interface {} not found'.format(dev_label))
+        LOG.error('External interface {} not found'.format(dev_label))
         sys.exit('\n              Error. External interface {} not found.\n'
                  .format(dev_label))
 
@@ -113,11 +108,11 @@ def _create_network(
         # if a bridge_ipaddr is not specied, then a bridge will not be created.
         # if address not already on device, then add it.
         if not interface_ipaddr + '/' + str(netprefix) in ifc_addresses[dev_label]:
-            log.info('Adding address {} to link {}'.format(interface_ipaddr, dev_label))
+            LOG.info('Adding address {} to link {}'.format(interface_ipaddr, dev_label))
             index = IPR.link_lookup(ifname=dev_label)
             IPR.addr('add', index=index, address=interface_ipaddr, mask=netprefix)
         else:
-            log.info('Address {} already exists on link {}'.format(interface_ipaddr, dev_label))
+            LOG.info('Address {} already exists on link {}'.format(interface_ipaddr, dev_label))
 
         # Check to see if the device and address is configured in any interface definition
         # file. If not, then write a definition file.
@@ -131,14 +126,14 @@ def _create_network(
             f.close()
             if re.findall(r'^ *auto\s+' + dev_label + '\s', interfaces, re.MULTILINE):
                 ifc_cfgd = True
-                log.info('Device {} already configured in network configuration file {}'.
+                LOG.info('Device {} already configured in network configuration file {}'.
                          format(dev_label, filename))
             interfaces = interfaces.split('iface')
             for line in interfaces:
                 if dev_label in line:
                     if re.findall(r'^ *address\s+' + interface_ipaddr, line, re.MULTILINE):
                         addr_cfgd = True
-                        log.info('Address {} configured in {}'.format(interface_ipaddr, filename))
+                        LOG.info('Address {} configured in {}'.format(interface_ipaddr, filename))
 
         broadcast = None
         netmask = str(IPNetwork('255.255.255.255/' + str(netprefix)).netmask)
@@ -167,7 +162,7 @@ def _create_network(
                 addr.get_attr('IFA_ADDRESS') + '/' + str(addr['prefixlen']))
             existing_network_addr = str(existing_network.network)
             if existing_network_addr == network_addr:
-                log.info(
+                LOG.info(
                     'Removing address {}/{} from interface {}'
                     .format(adr, pfx, dev_label))
                 IPR.addr(
@@ -186,11 +181,11 @@ def _create_network(
             link = dev_label + '.{}'.format(vlan)
         # if the vlan link already exists on another bridge then display warning
         if _is_ifc_attached_elsewhere(link, br_label):
-            log.warning('Link {} already in use on another bridge.'.format(link))
+            LOG.warning('Link {} already in use on another bridge.'.format(link))
             print('Warning: Link {} already in use on another bridge.'.format(link))
 
         if not IPR.link_lookup(ifname=link):
-            log.debug('creating vlan interface: {}'.format(link))
+            LOG.debug('creating vlan interface: {}'.format(link))
             IPR.link(
                 "add",
                 ifname=link,
@@ -225,7 +220,7 @@ def _write_ifc_cfg_file(ifc, ip=None, mask=None, broadcast=None, ifc_cfgd=False)
         broadcast (str) interface broadcast address
     """
     file_name = GEN_PATH + ifc + '-genesis-generated'
-    log.info('Writing {} config file'.format(file_name))
+    LOG.info('Writing {} config file'.format(file_name))
     f = open(file_name, 'w')
     f.write('# Cluster genesis generated\n')
     if not ifc_cfgd:
@@ -260,9 +255,9 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
         ifc (str) name of the interface to be added to the bridge.
     """
     opsys = platform.dist()[0]
-    log.debug('OS: ' + opsys)
+    LOG.debug('OS: ' + opsys)
     if opsys not in ('Ubuntu', 'redhat'):
-        log.error('Unsupported Operating System')
+        LOG.error('Unsupported Operating System')
         sys.exit('Unsupported Operating System')
     network = IPNetwork(ip + '/' + str(prefix))
     network_addr = str(network.network)
@@ -270,7 +265,7 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
     netmask = str(network.netmask)
     if opsys == 'Ubuntu':
         if mode == 'a' and os.path.exists('/etc/network/interfaces.d/' + bridge):
-            log.info('Appending to bridge config file {} IP addr {}'.format(bridge, ip))
+            LOG.info('Appending to bridge config file {} IP addr {}'.format(bridge, ip))
             os.system(
                 'cp /etc/network/interfaces.d/{} {}{} '
                 .format(bridge, GEN_PATH, bridge))
@@ -302,7 +297,7 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
                 .format(GEN_PATH, bridge, bridge))
             os.system('rm ' + GEN_PATH + bridge)
             return
-        log.info('Wrting bridge configuration file: {} IP addr: {}'.format(bridge, ip))
+        LOG.info('Wrting bridge configuration file: {} IP addr: {}'.format(bridge, ip))
         f = open(GEN_PATH + bridge, 'w')
         f.write("# This file should not be edited manually\n")
         f.write('auto {}\n'.format(ifc))
@@ -322,7 +317,7 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
             .format(GEN_PATH, bridge, bridge))
         os.system('rm ' + GEN_PATH + bridge)
         return
-    log.error('Support for Red Hat not yet implemented')
+    LOG.error('Support for Red Hat not yet implemented')
     sys.exit('Support for Red Hat not yet implemented')
 
 
@@ -364,7 +359,7 @@ def _setup_bridge(bridge, ip=None, prefix=None, ifc=None):
         prefix (int or str) Network mask length (ie 24)
         ifc (str) An interface name
     """
-    log.info(
+    LOG.info(
         'Setting up bridge {} with ifc {} and address {}'
         .format(bridge, ifc, ip))
     if not IPR.link_lookup(ifname=bridge):
@@ -382,10 +377,10 @@ def _setup_bridge(bridge, ip=None, prefix=None, ifc=None):
             index=IPR.link_lookup(ifname=ifc)[0],
             master=IPR.link_lookup(ifname=bridge)[0])
     if not _wait_for_ifc_up(ifc):
-        log.error('Failed to bring up interface {}'.format(ifc))
+        LOG.error('Failed to bring up interface {}'.format(ifc))
         sys.exit('Failed to bring up interface {}'.format(ifc))
     if not _wait_for_ifc_up(bridge):
-        log.error('Failed to bring up bridge {}'.format(bridge))
+        LOG.error('Failed to bring up bridge {}'.format(bridge))
         sys.exit('Failed to bring up bridge {}'.format(bridge))
 
 
@@ -399,10 +394,10 @@ def _is_addr_on_link(ip, link):
     addr_list = IPR.get_addr(label=link)
     for addr in addr_list:
         if ip == addr.get_attr('IFA_ADDRESS'):
-            log.debug(
+            LOG.debug(
                 'Address {} found on link {}'.format(ip, link))
             return True
-    log.debug('Address {} not found on link {}'.format(ip, link))
+    LOG.debug('Address {} not found on link {}'.format(ip, link))
     return False
 
 
@@ -460,12 +455,17 @@ def _wait_for_ifc_up(ifname, timespan=10):
         if _ == 4:
             print('Waiting for interface {} to come up. '.format(ifname))
         if _is_ifc_up(ifname):
-            log.info('Interface {} is up'.format(ifname))
+            LOG.info('Interface {} is up'.format(ifname))
             return True
         time.sleep(0.5)
-    log.info('Timeout waiting for interface {} to come up'.format(ifname))
+    LOG.info('Timeout waiting for interface {} to come up'.format(ifname))
     return False
 
 
 if __name__ == '__main__':
-    enable_deployer_network(Logger(Logger.LOG_NAME))
+    LOG = Logger(Logger.LOG_NAME)
+    LOG = logging.getLogger(Logger.LOG_NAME)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    LOG.addHandler(ch)
+    enable_deployer_network()
