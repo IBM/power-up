@@ -89,7 +89,7 @@ def get_args():
         help='Configure PXE network gateway and NAT record')
 
     parser_setup.add_argument(
-        '-a, --all',
+        '-a', '--all',
         action='store_true',
         help='Apply all actions')
 
@@ -116,7 +116,7 @@ def get_args():
         deploy=True)
 
     parser_deploy.add_argument(
-        '-a, --all',
+        '-a', '--all',
         action='store_true',
         help='Apply all actions')
 

@@ -65,7 +65,7 @@ def get_args():
         help='Destroy the {} container.'.format(PROJECT))
 
     parser_deployer.add_argument(
-        '-a, --all',
+        '-a', '--all',
         action='store_true',
         help='Apply all actions')
 
