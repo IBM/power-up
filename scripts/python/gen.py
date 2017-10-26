@@ -45,7 +45,10 @@ class Gen(object):
     def __init__(self, args, log=None):
         if log is not None:
             cfg = Config()
-            log.set_level(cfg.get_globals_log_level())
+            try:
+                log.set_level(cfg.get_globals_log_level())
+            except:
+                print('Unable to read log level from config file')
         self.args = args
 
     def _check_root_user(self, cmd):

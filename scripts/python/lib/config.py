@@ -136,7 +136,10 @@ class Config(object):
             str: Log level
         """
 
-        return self.cfg.globals.log_level
+        try:
+            return self.cfg.globals.log_level
+        except AttributeError:
+            raise Exception('Unable to read log level from config file')
 
     def get_loc_time_zone(self):
         """Get location time_zone
