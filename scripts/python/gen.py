@@ -131,6 +131,9 @@ class Gen(object):
             self._check_non_root_user(cmd)
             if self.args.config_file:
                 self._config_file()
+            else:
+                print('\n  Please specify an option for "gen {cmd}"\n'
+                      '  Try "gen {cmd} -h" for help'.format(cmd=cmd))
 
 
 if __name__ == '__main__':

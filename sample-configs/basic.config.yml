@@ -17,7 +17,7 @@
 
 version: v2.0
 
-global:
+globals:
     log_level: info
 
 location:
@@ -26,20 +26,24 @@ location:
 
 deployer:
     networks:
-        external:
-            dev_label: enp1s0f0
-            dev_ipaddr: 192.168.1.10
-            prefix: 24
         mgmt:
-            container_ipaddr: 192.168.5.2
-            bridge_ipaddr: 192.168.5.3
-            netmask: 255.255.255.0
-            vlan: 5
+            - device: enP10p1s0f0
+              interface_ipaddr: 192.168.5.2
+              netmask: 255.255.255.0
+              vlan: 5
         client:
-            container_ipaddr: 192.168.10.2
-            bridge_ipaddr: 192.168.10.3
-            netmask: 255.255.255.0
-            vlan: 10
+            - type: ipmi
+              device: enP10p1s0f0
+              container_ipaddr: 192.168.30.2
+              bridge_ipaddr: 192.168.30.3
+              netmask: 255.255.255.0
+              vlan: 30
+            - type: pxe
+              device: enP10p1s0f0
+              container_ipaddr: 192.168.40.2
+              bridge_ipaddr: 192.168.40.3
+              netmask: 255.255.255.0
+              vlan: 40
 
 switches:
     mgmt:
@@ -52,6 +56,17 @@ switches:
           external_links:
               - target: deployer
                 port: 1
+
+interfaces:
+    - label: manual1
+      description: manual network 1
+      iface: eth0
+      method: manual
+
+networks:
+    - label: manual1
+      interfaces:
+          - manual1
 
 node_templates:
     - label: ubuntu1604

@@ -194,8 +194,12 @@ class ValidateConfigSchema(object):
             validate(
                 self.config, schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as error:
-            self.log.error('Schema validation failed:' + '\n' +
-                           'Config file section: ' + str(error.path[0]) + ':' +
-                           '\n' + str(error.message))
+            if len(error.path):
+                err_loc = error.path[0]
+            else:
+                err_loc = 'missing section'
+            self.log.error(' Schema validation failed:\n' +
+                           ' Config file section: ' + str(err_loc) + '\n ' +
+                           str(error.message))
             sys.exit(1)
         self.log.info('Config schema validation completed successfully')
