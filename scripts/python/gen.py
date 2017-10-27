@@ -31,6 +31,7 @@ from lib.config import Config
 from lib.db import Database
 from lib.container import Container
 from lib.genesis import GEN_SCRIPTS_PATH
+from lib.exception import UserException
 
 
 class Gen(object):
@@ -44,7 +45,11 @@ class Gen(object):
 
     def __init__(self, args, log=None):
         if log is not None:
-            cfg = Config()
+            try:
+                cfg = Config()
+            except UserException as exc:
+                print(exc)
+                sys.exit(1)
             try:
                 log.set_level(cfg.get_globals_log_level())
             except:

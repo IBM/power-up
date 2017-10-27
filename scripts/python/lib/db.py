@@ -20,7 +20,6 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
 import os
 import logging
 import yaml
@@ -30,6 +29,7 @@ from lib.validate_config_schema import ValidateConfigSchema
 from lib.validate_config_logic import ValidateConfigLogic
 from lib.logger import Logger
 from lib.genesis import GEN_PATH
+from lib.exception import UserException
 
 
 class Database(object):
@@ -53,12 +53,9 @@ class Database(object):
 
         # Check if config file exists
         if not os.path.isfile(self.cfg_file):
-            try:
-                raise Exception()
-            except Exception:
-                self.log.error('Could not find config file: ' + self.cfg_file)
-                print('Could not find config file: ' + self.cfg_file)
-                sys.exit(1)
+            msg = 'Could not find config file: ' + self.cfg_file
+            self.log.error(msg)
+            raise UserException(msg)
 
         # Create inventory file if it does not exist
         if not os.path.isfile(self.inv_file):
@@ -74,8 +71,9 @@ class Database(object):
         try:
             return yaml.load(open(yaml_file), Loader=AttrDictYAMLLoader)
         except:
-            self.log.error('Could not load file: ' + yaml_file)
-            sys.exit(1)
+            msg = 'Could not load file: ' + yaml_file
+            self.log.error(msg)
+            raise UserException(msg)
 
     def _dump_yaml_file(self, yaml_file, content):
         """Dump to YAML file
@@ -91,9 +89,9 @@ class Database(object):
                 indent=4,
                 default_flow_style=False)
         except:
-            self.log.error(
-                'Could not dump inventory to file: ' + yaml_file)
-            sys.exit(1)
+            msg = 'Could not dump inventory to file: ' + yaml_file
+            self.log.error(msg)
+            raise UserException
 
     def load_config(self):
         """Load config from database
