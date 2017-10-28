@@ -28,14 +28,6 @@
         name: config
         file: "{{ config_local }}"
 
-    - name: "Print local project path"
-      debug:
-        msg: "Project name: {{ project_path_local }}"
-
-    - name: "Print back-up config file path"
-      debug:
-        msg: "Config file backup: {{ config_local_backup }}"
-
     - name: "Back-up config file"
       copy:
         src: "{{ config_local }}"
@@ -58,35 +50,6 @@
         ssh_key_file: "{{ ssh_key_private }}"
       when: not networks_only
 
-    # - name: "Create LXC deployment container"
-    #   lxc_container:
-    #     name: "{{ container_name }}"
-    #     template: ubuntu
-    #     template_options:
-    #       --user {{ user }}
-    #       --auth-key {{ ssh_key_public }}
-    #       --release trusty
-    #       --packages python,aptitude
-    #     config: "{{ project_path_local }}/playbooks/lxc.conf"
-    #     container_command: |
-    #       cp -p /etc/sudoers /etc/sudoers.orig
-    #       echo -e "{{ user }}\tALL=NOPASSWD: ALL" >> /etc/sudoers
-    #   when: not networks_only
-    #   become: yes
-    #   become_method: sudo
-
-    - name: "Pause 5 seconds"
-      pause:
-        seconds: 5
-      when: not networks_only
-
-    - name: "Register container info"
-      command: lxc-info -n {{ container_name }}
-      register: container_info
-      when: not networks_only
-      become: yes
-      become_method: sudo
-
     - name: "Register container internal ip address"
       shell: lxc-info -Hin {{ container_name }} | sed -e '/^10\./!d'
       register: container_ipaddr
@@ -105,10 +68,6 @@
           ansible_host={{ container_ipaddr.stdout }}
 
     - block:
-      - name: "Print container information"
-        debug:
-          msg: "{{ container_info.stdout.split('\n') }}"
-
       - name: Remove any existing known_hosts file
         file:
           path: "{{ known_hosts }}"

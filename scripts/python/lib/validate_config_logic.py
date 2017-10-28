@@ -20,10 +20,10 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
 import logging
 
 from lib.logger import Logger
+from lib.exception import UserException
 
 
 class ValidateConfigLogic(object):
@@ -47,12 +47,10 @@ class ValidateConfigLogic(object):
         """
 
         if self.config.version != self.CONFIG_VERSION:
-            try:
-                raise Exception()
-            except Exception:
-                self.log.error(
-                    'Config version %s is not supported' % self.config.version)
-                sys.exit(1)
+            exc = "Config version '{}' is not supported".format(
+                self.config.version)
+            self.log.error(exc)
+            raise UserException(exc)
 
     def _validate_netmask_prefix(self):
         """Validate netmask and prefix
@@ -80,17 +78,13 @@ class ValidateConfigLogic(object):
                     prefix = None
 
                 if netmask is None and prefix is None:
-                    try:
-                        raise Exception()
-                    except Exception:
-                        self.log.error("%s - %s" % (element, msg_either))
-                        sys.exit(1)
+                    exc = self.log.error("%s - %s" % (element, msg_either))
+                    self.log.error(exc)
+                    raise UserException(exc)
                 if netmask is not None and prefix is not None:
-                    try:
-                        raise Exception()
-                    except Exception:
-                        self.log.error("%s - %s" % (element, msg_both))
-                        sys.exit(1)
+                    exc = self.log.error("%s - %s" % (element, msg_both))
+                    self.log.error(exc)
+                    raise UserException(exc)
 
     def validate_config_logic(self):
         """Config logic validation"""

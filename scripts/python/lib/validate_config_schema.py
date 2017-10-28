@@ -20,13 +20,13 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
 import logging
 import jsonschema
 from jsonschema import validate
 import jsl
 
 from lib.logger import Logger
+from lib.exception import UserException
 
 
 def _string_int_field(**kwargs):
@@ -177,9 +177,6 @@ class ValidateConfigSchema(object):
 
     def __init__(self, config):
         self.log = logging.getLogger(Logger.LOG_NAME)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        self.log.addHandler(ch)
         self.config = config
 
     def validate_config_schema(self):
@@ -194,12 +191,13 @@ class ValidateConfigSchema(object):
             validate(
                 self.config, schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as error:
-            if len(error.path):
-                err_loc = error.path[0]
+            if error.path:
+                err_loc = str(error.path[0])
             else:
                 err_loc = 'missing section'
-            self.log.error(' Schema validation failed:\n' +
-                           ' Config file section: ' + str(err_loc) + '\n ' +
-                           str(error.message))
-            sys.exit(1)
+            exc = 'Schema validation failed:' + '\n' + \
+                'Config file section: ' + err_loc + ':' + '\n' + \
+                str(error.message)
+            self.log.error(exc)
+            raise UserException(exc)
         self.log.info('Config schema validation completed successfully')

@@ -30,8 +30,8 @@ from lib.logger import Logger
 from lib.config import Config
 from lib.db import Database
 from lib.container import Container
-from lib.genesis import GEN_SCRIPTS_PATH
 from lib.exception import UserException
+from lib.genesis import GEN_SCRIPTS_PATH
 
 
 class Gen(object):
@@ -89,18 +89,24 @@ class Gen(object):
         cont = Container()
         try:
             cont.check_permissions(getpass.getuser())
-        except Exception as exc:
-            print("Error:", exc, file=sys.stderr)
+        except UserException as exc:
+            print('Error:', exc, file=sys.stderr)
             sys.exit(1)
         try:
             cont.create(self.args.create_container)
-        except Exception as exc:
-            print("Error:", exc, file=sys.stderr)
+        except UserException as exc:
+            print('Error:', exc, file=sys.stderr)
             sys.exit(1)
+        print('Success: Container was created')
 
     def _config_file(self):
         dbase = Database()
-        dbase.validate_config()
+        try:
+            dbase.validate_config()
+        except UserException as exc:
+            print('Error:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('Success: Config file validation passed')
 
     def launch(self):
         """Launch actions"""
@@ -142,5 +148,9 @@ class Gen(object):
 
 
 if __name__ == '__main__':
-    GEN = Gen(argparse_gen.get_parsed_args(), Logger(Logger.LOG_NAME))
+    args = argparse_gen.get_parsed_args()
+    GEN = Gen(args, Logger(
+        Logger.LOG_NAME,
+        args.log_level_file[0],
+        args.log_level_print[0]))
     GEN.launch()

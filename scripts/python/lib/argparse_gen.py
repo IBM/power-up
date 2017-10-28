@@ -30,6 +30,9 @@ VALIDATE_DESC = 'Validate deployment environment'
 DEPLOY_DESC = 'Deploy cluster'
 GITHUB = 'https://github.com/open-power-ref-design-toolkit/cluster-genesis'
 EPILOG = 'home page:\n  %s' % GITHUB
+LOG_LEVEL_CHOICES = ['nolog', 'debug', 'info', 'warning', 'error', 'critical']
+LOG_LEVEL_FILE = ['info']
+LOG_LEVEL_PRINT = ['nolog']
 
 
 class Cmd(Enum):
@@ -47,6 +50,26 @@ def get_args():
         epilog=EPILOG,
         formatter_class=RawTextHelpFormatter)
     subparsers = parser.add_subparsers()
+    common_parser = ArgumentParser(add_help=False)
+
+    # Common arguments
+    common_parser.add_argument(
+        '-f', '--log-level-file',
+        nargs=1,
+        default=LOG_LEVEL_FILE,
+        choices=LOG_LEVEL_CHOICES,
+        metavar='<Log level>',
+        help='Add log to file\nChoices: {{{}}}\nDefault: {}'.format(
+            ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_FILE[0]))
+
+    common_parser.add_argument(
+        '-p', '--log-level-print',
+        nargs=1,
+        default=LOG_LEVEL_PRINT,
+        choices=LOG_LEVEL_CHOICES,
+        metavar='<Log level>',
+        help='Add log to stdout/stderr\nChoices: {{{}}}\nDefault: {}'.format(
+            ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_PRINT[0]))
 
     # Subparsers
     parser_setup = subparsers.add_parser(
@@ -54,24 +77,31 @@ def get_args():
         description='%s - %s' % (PROJECT, SETUP_DESC),
         help=SETUP_DESC,
         epilog=EPILOG,
+        parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
+
     parser_config = subparsers.add_parser(
         CONFIG_CMD,
         description='%s - %s' % (PROJECT, CONFIG_DESC),
         help=CONFIG_DESC,
         epilog=EPILOG,
+        parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
+
     parser_validate = subparsers.add_parser(
         VALIDATE_CMD,
         description='%s - %s' % (PROJECT, VALIDATE_DESC),
         help=VALIDATE_DESC,
         epilog=EPILOG,
+        parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
+
     parser_deploy = subparsers.add_parser(
         DEPLOY_CMD,
         description='%s - %s' % (PROJECT, DEPLOY_DESC),
         help=DEPLOY_DESC,
         epilog=EPILOG,
+        parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
 
     # 'setup' subcommand arguments
@@ -91,7 +121,7 @@ def get_args():
     parser_setup.add_argument(
         '-a', '--all',
         action='store_true',
-        help='Apply all actions')
+        help='TBD')
 
     # 'config' subcommand arguments
     parser_config.set_defaults(
@@ -118,9 +148,53 @@ def get_args():
     parser_deploy.add_argument(
         '-a', '--all',
         action='store_true',
-        help='Apply all actions')
+        help='TBD')
+
+    # Check arguments
+    args = parser.parse_args()
+    try:
+        if args.setup:
+            _check_setup(args, parser_setup)
+    except AttributeError:
+        pass
+    try:
+        if args.config:
+            _check_config(args, parser_config)
+    except AttributeError:
+        pass
+    try:
+        if args.validate:
+            _check_validate(args, parser_validate)
+    except AttributeError:
+        pass
+    try:
+        if args.deploy:
+            _check_deploy(args, parser_deploy)
+    except AttributeError:
+        pass
 
     return parser
+
+
+def _check_setup(args, subparser):
+    if not args.bridges and not args.gateway and not args.all:
+        subparser.error(
+            'one of the arguments --bridges --gateway -a/--all is required')
+
+
+def _check_config(args, subparser):
+    if not args.create_container:
+        subparser.error('one of the arguments --create-container is required')
+
+
+def _check_validate(args, subparser):
+    if not args.config_file:
+        subparser.error('one of the arguments --config-file is required')
+
+
+def _check_deploy(args, subparser):
+    if not args.all:
+        subparser.error('one of the arguments -a/--all is required')
 
 
 def get_parsed_args():

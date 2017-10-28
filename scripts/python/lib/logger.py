@@ -45,7 +45,7 @@ class Logger(object):
         os.path.sep +
         LOG_FILE)
 
-    def __init__(self, file_):
+    def __init__(self, file_, log_level_file=None, log_level_print=None):
         self.logger = logging.getLogger(os.path.basename(file_))
         self.logger.setLevel(self.DEFAULT_LOG_LEVEL)
         self.handler = logging.FileHandler(self.LOGGER_PATH)
