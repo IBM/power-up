@@ -35,6 +35,7 @@ from lib.logger import Logger
 from lib.config import Config
 from lib.exception import UserException
 from lib.ssh import SSH_CONNECTION, SSH_Exception
+from lib.genesis import GEN_PATH
 
 
 class Container(object):
@@ -49,12 +50,13 @@ class Container(object):
     ARCHITECTURE = {u'x86_64': 'amd64', u'ppc64le': 'ppc64el'}
     RESOLV_CONF = '/etc/resolv.conf'
     RESOLV_CONF_BASE = '/etc/resolvconf/resolv.conf.d/base'
-    CONTAINER_INI = os.path.realpath('../../container.ini')
     RSA_BIT_LENGTH = 2048
     PRIVATE_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen')
     PUBLIC_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen.pub')
     PROJECT_PATH = '/opt/cluster-genesis'
     VENV_PATH = PROJECT_PATH + '/gen-venv'
+    CONTAINER_INI = GEN_PATH + 'container.ini'
+    CONTAINER_CONFIG_PATH = GEN_PATH + 'playbooks/lxc-conf.yml'
 
     def __init__(self):
         self.log = logging.getLogger(Logger.LOG_NAME)

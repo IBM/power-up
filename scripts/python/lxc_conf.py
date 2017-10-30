@@ -21,13 +21,19 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
-import os.path
+import os
 import platform
+import pwd
+import re
+import os.path
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, \
     TemplateSyntaxError, TemplateAssertionError
 
 from lib.logger import Logger
 from lib.config import Config
+from lib.genesis import GEN_PLAY_PATH, OPSYS
+
+USERNAME = pwd.getpwuid(os.getuid())[0]
 
 
 class LxcConf(object):
@@ -37,9 +43,9 @@ class LxcConf(object):
         log(object): log
     """
 
-    TEMPLATE_DIR = os.path.realpath('../../playbooks/templates/localhost')
+    TEMPLATE_DIR = GEN_PLAY_PATH + 'templates/localhost'
     TEMPLATE_FILE = 'lxc-conf.j2'
-    LXC_CONF = os.path.realpath('../../playbooks/lxc-conf.yml')
+    LXC_CONF = GEN_PLAY_PATH + 'lxc-conf.yml'
     TYPE = 'type'
     VLAN = 'vlan'
     IPADDR = 'ipaddr'
@@ -50,22 +56,28 @@ class LxcConf(object):
         if log is not None:
             log.set_level(self.cfg.get_globals_log_level())
         self.log = log
+        if OPSYS not in ('Ubuntu', 'redhat'):
+            raise Exception('Unsupported Operating System')
 
     def create(self):
         """Create lxc-conf.yml"""
-
         env = Environment(loader=FileSystemLoader(self.TEMPLATE_DIR))
         try:
             template = env.get_template(self.TEMPLATE_FILE)
         except TemplateNotFound as exc:
             self.log.error('Template not found: %s' % exc.name)
+            print('Template not found: %s' % exc.name)
             sys.exit(1)
         except TemplateAssertionError as exc:
             self.log.error('Template assertion error: %s in %s, line %d' % (
                 exc.message, exc.filename, exc.lineno))
+            print('Template assertion error: %s in %s, line %d' % (
+                exc.message, exc.filename, exc.lineno))
             sys.exit(1)
         except TemplateSyntaxError as exc:
             self.log.error('Template syntax error: %s in %s, line %d' % (
+                exc.message, exc.filename, exc.lineno))
+            print('Template syntax error: %s in %s, line %d' % (
                 exc.message, exc.filename, exc.lineno))
             sys.exit(1)
 
@@ -87,15 +99,55 @@ class LxcConf(object):
                 nets.append(net)
         distname, _, _ = platform.linux_distribution()
 
+        uid_range, gid_range = self.get_lxc_uid_gid_range()
+        assert(int(uid_range.split()[0]) + int(uid_range.split()[1]) > 101000)
+        assert(int(gid_range.split()[0]) + int(gid_range.split()[1]) > 101000)
+
         try:
             with open(self.LXC_CONF, 'w') as lxc_conf:
                 lxc_conf.write(template.render(
-                    distribution=distname, networks=nets))
+                    distribution=distname, networks=nets,
+                    uidrange=uid_range, gidrange=gid_range))
         except:
             self.log.error('Failed to create: %s' % self.LXC_CONF)
             sys.exit(1)
 
         self.log.info('Successfully created: %s' % self.LXC_CONF)
+        print('Successfully created: %s' % self.LXC_CONF)
+
+        os.system('cp ' + GEN_PLAY_PATH + 'lxc-conf.yml /home/' + USERNAME +
+                  '/.config/lxc/default.conf')
+
+    def get_lxc_uid_gid_range(self):
+        username = pwd.getpwuid(os.getuid())[0]
+        if OPSYS == 'Ubuntu':
+            try:
+                f = open('/etc/subuid', 'r')
+                data = f.read()
+                uid_range = re.search(username + r':(\d+):(\d+)',
+                                      data, re.MULTILINE)
+                uid_range = uid_range.group(1) + ' ' + uid_range.group(2)
+            except IOError as e:
+                self.log.error(e)
+                raise Exception(e)
+            except AttributeError as e:
+                self.log.error('Error getting uid for user: {}'.format(username))
+                raise Exception(e)
+
+            try:
+                f = open('/etc/subgid', 'r')
+                data = f.read()
+                gid_range = re.search(username + r':(\d+):(\d+)',
+                                      data, re.MULTILINE)
+                gid_range = gid_range.group(1) + ' ' + gid_range.group(2)
+            except IOError as e:
+                self.log.error(e)
+                raise
+            except AttributeError as e:
+                self.log.error('Error getting uid for user: {}'.format(username))
+                raise
+
+            return uid_range, gid_range
 
 
 if __name__ == '__main__':

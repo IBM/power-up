@@ -18,6 +18,7 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
+import platform
 import os.path
 import subprocess
 import re
@@ -27,10 +28,11 @@ import yaml
 GENESIS_DIR = 'cluster-genesis'
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 HOME = os.path.expanduser('~')
-GEN_PATH = FILE_PATH[:16 + FILE_PATH.find(GENESIS_DIR)]
-GEN_SCRIPTS_PATH = GEN_PATH + 'scripts'
-GEN_PLAY_PATH = GEN_PATH + 'playbooks'
-GEN_PASSIVE_PATH = GEN_PATH + 'passive'
+GEN_PATH = FILE_PATH[:1 + len(GENESIS_DIR) + FILE_PATH.find(GENESIS_DIR)]
+GEN_SCRIPTS_PATH = GEN_PATH + 'scripts/'
+GEN_PLAY_PATH = GEN_PATH + 'playbooks/'
+GEN_PASSIVE_PATH = GEN_PATH + 'passive/'
+OPSYS = platform.dist()[0]
 
 
 def load_localhost(filename):

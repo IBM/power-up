@@ -25,6 +25,7 @@ import os
 import subprocess
 import getpass
 
+import lxc_conf
 import lib.argparse_gen as argparse_gen
 from lib.logger import Logger
 from lib.config import Config
@@ -91,6 +92,13 @@ class Gen(object):
             cont.check_permissions(getpass.getuser())
         except UserException as exc:
             print('Error:', exc, file=sys.stderr)
+            sys.exit(1)
+        try:
+            print('Creating config file')
+            conf = lxc_conf.LxcConf(Logger(Logger.LOG_NAME))
+            conf.create()
+        except Exception as exc:
+            print("Error:", exc, file=sys.stderr)
             sys.exit(1)
         try:
             cont.create(self.args.create_container)
