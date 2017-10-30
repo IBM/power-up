@@ -13,14 +13,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ccmd="complete -W 'log logc loga status deploy enable-mgmt-switch tear-down \
-config.yml ssh_keyscan gather_mac_addresses set_data_switch_config \
-configure_operating_systems lxc-create install_1 install_2 inventory \
-show_mgmt_switches --help post-deploy post-deploy-passive deploy-passive \
-enable-deployer-networks deploy-passive-retry setup' gen"
-eval "$ccmd"
-ccmd2="complete -W 'deployer deploy post-deploy' teardown"
-eval "$ccmd2"
+
+# gen auto completion
+. scripts/gen-ac
+sudo cp scripts/gen-ac /etc/bash_completion.d
+
 P=`pwd`
 P0="$P"
 P=${P#*"cluster-genesis"}
@@ -39,8 +36,7 @@ if [ -z $P ]; then
 
     if [ -z "$(grep -m1 `pwd`"/scripts:" ~/.bashrc)" ] || \
     [ -z "$(grep -m1 `pwd`"/scripts/python:" ~/.bashrc)" ] || \
-    [ -z "$(grep -m1 `pwd`"/deployenv/bin:" ~/.bashrc)" ] || \
-    [ -z "$(grep -m1 "complete -W 'log" ~/.bashrc)" ]; then
+    [ -z "$(grep -m1 `pwd`"/deployenv/bin:" ~/.bashrc)" ]; then
         echo $'\n'"OK for Cluster Genesis to add setup statements to your"
         echo $".bashrc file. (statements can be removed by running tear-down)"
         echo;
@@ -55,18 +51,15 @@ if [ -z $P ]; then
             if [ -z "$(grep -m1 `pwd`"/deployenv/bin:" ~/.bashrc)" ]; then
                 echo "PATH="`pwd`"/deployenv/bin:\$PATH" >> ~/.bashrc
             fi
-            if [ -z "$(grep -m1 "complete -W 'log" ~/.bashrc)" ]; then
-                echo $ccmd >> ~/.bashrc
-            fi
-            if [ -z "$(grep -m1 "complete -W 'redeploy" ~/.bashrc)" ]; then
-                echo $ccmd2 >> ~/.bashrc
-            fi
         fi
     fi
     if [ ! -d ~/bin ]; then
         mkdir ~/bin
         export PATH=$PATH:$HOME/bin
     fi
+
+    #gen auto completion
+    sudo cp scripts/gen-ac /etc/bash_completion.d
 
     cp scripts/cleanpath ~/bin
     cp scripts/python/teardown.py ~/bin
