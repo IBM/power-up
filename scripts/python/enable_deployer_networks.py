@@ -47,7 +47,7 @@ def enable_deployer_network():
     This function is idempotent.
     """
     cfg = Config()
-    LOG.setLevel(cfg.get_globals_log_level())
+    LOG.setLevel(cfg.get_globals_log_level().upper())
     LOG.debug('------------------- enable_deployer_networks ----------------------')
 
     # if inv.is_passive_mgmt_switches():
