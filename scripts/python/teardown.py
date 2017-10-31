@@ -77,7 +77,6 @@ class Teardown(object):
                 self._destroy_deployer_container()
             if self.args.gateway:
                 self._teardown_deployer_gateway()
-            return
 
 
 if __name__ == '__main__':

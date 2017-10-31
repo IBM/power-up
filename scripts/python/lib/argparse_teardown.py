@@ -69,7 +69,21 @@ def get_args():
         action='store_true',
         help='Apply all actions')
 
+    # Check arguments
+    args = parser.parse_args()
+    try:
+        if args.deployer:
+            _check_deployer(args, parser_deployer)
+    except AttributeError:
+        raise
+
     return parser
+
+
+def _check_deployer(args, subparser):
+    if not args.networks and not args.gateway and not args.all:
+        subparser.error(
+            'one of the arguments --networks --gateway -a/--all is required')
 
 
 def get_parsed_args():
