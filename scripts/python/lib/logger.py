@@ -34,6 +34,7 @@ class Logger(object):
 
     DEFAULT_LOG_LEVEL = getattr(logging, WARNING)
     DEFAULT_HANDLER_LEVEL = getattr(logging, DEBUG)
+    DEFAULT_STREAM_HANDLER_LEVEL = getattr(logging, DEBUG)
     LOGGER_PATH = os.path.abspath(
         os.path.dirname(os.path.abspath(__file__)) +
         os.path.sep +
@@ -55,6 +56,10 @@ class Logger(object):
                 '%(asctime)s - %(filename)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(self.handler)
 
+        self.stream_handler = logging.StreamHandler()
+        self.stream_handler.setLevel(self.DEFAULT_STREAM_HANDLER_LEVEL)
+        self.logger.addHandler(self.stream_handler)
+
     def set_level(self, log_level_str):
         log_levels = (
             self.DEBUG, self.INFO, self.WARNING, self.ERROR, self.CRITICAL)
@@ -69,6 +74,20 @@ class Logger(object):
         log_level = getattr(logging, self.log_level_str)
         self.logger.setLevel(log_level)
         self.handler.setLevel(log_level)
+
+    def set_display_level(self, log_level_str):
+        log_levels = (
+            self.DEBUG, self.INFO, self.WARNING, self.ERROR, self.CRITICAL)
+        self.log_level_str = log_level_str.upper()
+        if self.log_level_str not in log_levels:
+            try:
+                raise Exception()
+            except:
+                self.logger.error('Invalid log level: ' + self.log_level_str)
+                sys.exit(1)
+
+        log_level = getattr(logging, self.log_level_str)
+        self.stream_handler.setLevel(log_level)
 
     def get_level(self):
         return self.log_level_str
