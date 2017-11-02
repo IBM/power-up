@@ -108,16 +108,6 @@
       become: yes
       become_method: sudo
 
-    - name: "Copy config file into deployment container"
-      copy:
-        src: "{{ config_local }}"
-        dest: "{{ project_path }}"
-
-    - name: "Copy scripts into deployment container"
-      synchronize:
-        src: "{{ scripts_path_local }}"
-        dest: "{{ project_path }}"
-
     - name: "Copy OS images and configs into deployment container"
       synchronize:
         src: "{{ images_local }}"

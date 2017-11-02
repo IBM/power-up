@@ -28,7 +28,6 @@ import ConfigParser
 from enum import Enum
 from orderedattrdict import AttrDict
 from Crypto.PublicKey import RSA
-
 import lxc
 
 from lib.logger import Logger
@@ -46,8 +45,9 @@ class Container(object):
         PIP = 'pkgs-pip'
         VENV = 'pkgs-pip-venv'
 
-    LXC_USERNET = '/etc/lxc/lxc-usernet'
+    ROOTFS = AttrDict({'dist': 'ubuntu', 'release': 'trusty', 'arch': None})
     ARCHITECTURE = {u'x86_64': 'amd64', u'ppc64le': 'ppc64el'}
+    LXC_USERNET = '/etc/lxc/lxc-usernet'
     RESOLV_CONF = '/etc/resolv.conf'
     RESOLV_CONF_BASE = '/etc/resolvconf/resolv.conf.d/base'
     RSA_BIT_LENGTH = 2048
@@ -57,18 +57,23 @@ class Container(object):
     VENV_PATH = PROJECT_PATH + '/gen-venv'
     CONTAINER_INI = GEN_PATH + 'container.ini'
     CONTAINER_CONFIG_PATH = GEN_PATH + 'playbooks/lxc-conf.yml'
+    CONFIG_FILE = 'config.yml'
+    SCRIPTS_DIR = 'scripts'
+    PYTHON_SCRIPTS_DIR = 'scripts/python'
 
     def __init__(self):
         self.log = logging.getLogger(Logger.LOG_NAME)
         self.cfg = Config()
-        self.rootfs = AttrDict(
-            {'dist': 'ubuntu', 'release': 'trusty', 'arch': None})
-        for key in self.ARCHITECTURE.keys():
-            if key == platform.machine():
-                self.rootfs.arch = self.ARCHITECTURE[key]
-                break
-        else:
-            raise UserException('Unsupported hardware platform')
+
+        self.rootfs = self.ROOTFS
+
+        # Check if architecture is supported
+        arch = platform.machine()
+        if arch not in self.ARCHITECTURE.keys():
+            msg = "Unsupported architecture '{}'".format(arch)
+            self.log.error(msg)
+            raise UserException(msg)
+        self.rootfs.arch = self.ARCHITECTURE[arch]
 
         self.cont = None
         self.cont_name = None
@@ -82,6 +87,55 @@ class Container(object):
         self.log.info(
             "Successfully ran '{}' in the container '{}'".format(
                 ' '.join(cmd), self.cont_name))
+
+    def _open_sftp(self, ssh):
+        try:
+            return ssh.open_sftp_session()
+        except Exception as exc:
+            error = "Failed to open sftp session to the '{}' container - {}"
+            error = error.format(self.cont_name, exc)
+            self.log.error(error)
+            raise UserException(error)
+        self.log.debug("Opened sftp session to the '{}' container".format(
+            self.cont_name))
+
+    def _close_ssh(self, ssh):
+        try:
+            ssh.close()
+        except Exception as exc:
+            error = "Failed to close sftp session to the '{}' container - {}"
+            error = error.format(self.cont_name, exc)
+            self.log.error(error)
+            raise UserException(error)
+        self.log.debug("Closed sftp session to the '{}' container".format(
+            self.cont_name))
+
+    def _mkdir_sftp(self, sftp, dir_):
+        try:
+            sftp.mkdir(dir_)
+        except Exception as exc:
+            error = (
+                "Failed via sftp to create the '{}' directory in the '{}'"
+                " container - {}")
+            error = error.format(dir_, self.cont_name, exc)
+            self.log.error(error)
+            raise UserException(error)
+        msg = "Created via sftp the '{}' directory in the '{}' container"
+        self.log.debug(msg.format(dir_, self.cont_name))
+
+    def _copy_sftp(self, sftp, src, dst):
+        try:
+            sftp.put(src, dst)
+        except Exception as exc:
+            error = (
+                "Failed via sftp to copy '{}' to '{}' in the '{}' container"
+                " - {}")
+            error = error.format(src, dst, self.cont_name, exc)
+            self.log.error(error)
+            raise UserException(error)
+        self.log.debug(
+            "Copied via sftp '{}' to '{}' in the '{}' container".format(
+                src, dst, self.cont_name))
 
     def check_permissions(self, user):
         # Enumerate LXC bridge
@@ -124,7 +178,7 @@ class Container(object):
                 msg += ' (%s %s %s <number>)' % \
                     (allow.user, allow.type, allow.bridge)
             self.log.error(msg)
-            raise Exception(msg)
+            raise UserException(msg)
 
         # Success
         self.log.info(
@@ -139,28 +193,20 @@ class Container(object):
         if self.cont.defined:
             msg = "Container '%s' already exists" % name
             self.log.error(msg)
-            raise Exception(msg)
-
-        # Check if architecture is supported
-        arch = platform.machine()
-        if arch not in self.ARCHITECTURE.keys():
-            msg = "Unsupported container architecture '%s'" % arch
-            self.log.error(msg)
-            raise Exception(msg)
-        self.rootfs.arch = self.ARCHITECTURE[arch]
+            raise UserException(msg)
 
         # Create container
         if not self.cont.create('download', lxc.LXC_CREATE_QUIET, self.rootfs):
             msg = "Failed to create container '%s'" % name
             self.log.error(msg)
-            raise Exception(msg)
+            raise UserException(msg)
         self.log.info("Created container '%s'" % name)
 
         # Start container
         if not self.cont.start():
             msg = "Failed to start container '%s'" % name
             self.log.error(msg)
-            raise Exception(msg)
+            raise UserException(msg)
         self.log.info("Started container '%s'" % name)
 
         # Get nameservers from /etc/resolv.conf outside container
@@ -170,10 +216,10 @@ class Container(object):
                 for line in resolv_conf:
                     if re.search(r'^nameserver', line):
                         nameservers.append(line.strip())
-        except:
-            msg = 'Failed to read: %s' % self.RESOLV_CONF
+        except Exception as exc:
+            msg = "Failed to read '{}' - '{}'".format(self.RESOLV_CONF, exc)
             self.log.error(msg)
-            raise Exception(msg)
+            raise UserException(msg)
 
         # Update '/etc/resolv.conf' in container by updating
         # '/etc/resolvconf/resolv.conf.d/base'
@@ -181,6 +227,10 @@ class Container(object):
             entry = 'a|%s' % line
             self._lxc_run_command(
                 ['ex', '-sc', entry, '-cx', self.RESOLV_CONF_BASE])
+
+        # Sleep to allow /etc/resolv.conf to update
+        # Future enhancement is to poll for change
+        self._lxc_run_command(["sleep", "5"])
 
         # Create user
         self._lxc_run_command(
@@ -218,7 +268,6 @@ class Container(object):
             '-cx', '/root/.ssh/authorized_keys'])
 
         # Update/Upgrade container distro packages
-        self._lxc_run_command(["sleep", "5"])
         self._lxc_run_command(["apt-get", "update"])
         self._lxc_run_command(["apt-get", "dist-upgrade", "-y"])
 
@@ -229,7 +278,7 @@ class Container(object):
         except ConfigParser.Error as exc:
             msg = exc.message.replace('\n', ' - ')
             self.log.error(msg)
-            raise Exception(msg)
+            raise UserException(msg)
 
         # Install distro container packages
         if ini.has_section(self.Packages.DISTRO.value):
@@ -256,11 +305,11 @@ class Container(object):
             '--system-site-packages',
             self.VENV_PATH])
 
-        # Configure SSH connection
+        # Open SSH to container
         cont_ipaddr = self.cont.get_ips(
             interface='eth0', family='inet', timeout=5)[0]
         try:
-            ssh_cont = SSH_CONNECTION(
+            ssh = SSH_CONNECTION(
                 cont_ipaddr,
                 username='root',
                 key_filename=self.PRIVATE_SSH_KEY_FILE)
@@ -278,8 +327,49 @@ class Container(object):
             for pkg, ver in ini.items(self.Packages.VENV.value):
                 cmd.append('{}=={}'.format(pkg, ver))
             cmd.extend(['&&', 'deactivate'])
-            status, stdout_, stderr_ = ssh_cont.send_cmd(' '.join(cmd))
+            status, stdout_, stderr_ = ssh.send_cmd(' '.join(cmd))
             if status:
-                error = 'Failed venv pip install'.format(self.VENV_PATH)
+                error = 'Failed venv pip install'
                 self.log.error(error)
                 raise UserException(error)
+
+        # Open sftp session to container
+        sftp = self._open_sftp(ssh)
+
+        # Copy config file to container
+        self._copy_sftp(
+            sftp,
+            os.path.join(GEN_PATH, self.CONFIG_FILE),
+            os.path.join(self.PROJECT_PATH, self.CONFIG_FILE))
+
+        # Copy scripts/python directory to container
+        self._mkdir_sftp(sftp, os.path.join(
+            self.PROJECT_PATH, self.SCRIPTS_DIR))
+        self._mkdir_sftp(sftp, os.path.join(
+            self.PROJECT_PATH, self.PYTHON_SCRIPTS_DIR))
+        for dirpath, dirnames, filenames in os.walk(os.path.join(
+                GEN_PATH, self.PYTHON_SCRIPTS_DIR)):
+            for dirname in dirnames:
+                self._mkdir_sftp(
+                    sftp,
+                    os.path.join(
+                        self.PROJECT_PATH,
+                        os.path.relpath(dirpath, GEN_PATH),
+                        dirname))
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                if os.path.islink(filepath):
+                    error = "Symbolic links are not supported '{}'".format(
+                        filepath)
+                    self.log.error(error)
+                    raise UserException(error)
+                self._copy_sftp(
+                    sftp,
+                    os.path.join(dirpath, filename),
+                    os.path.join(
+                        self.PROJECT_PATH,
+                        os.path.relpath(dirpath, GEN_PATH),
+                        filename))
+
+        # Close ssh session to container
+        self._close_ssh(ssh)

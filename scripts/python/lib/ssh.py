@@ -125,6 +125,9 @@ class SSH_CONNECTION(paramiko.SSHClient):
                 print('%s: %s' % (host, str(exc)))
             raise SSH_Exception('Connection Failure - {}'.format(exc))
 
+    def close_ssh(self):
+        return self.close()
+
     def send_cmd(self, cmd):
         try:
             _, stdout, stderr = self.exec_command(cmd)
@@ -138,3 +141,6 @@ class SSH_CONNECTION(paramiko.SSHClient):
         stderr_ = stderr.read()
         status = stdout.channel.recv_exit_status()
         return status, stdout_, stderr_
+
+    def open_sftp_session(self):
+        return self.open_sftp()
