@@ -63,6 +63,13 @@ class Container(object):
         self.cfg = Config()
         self.rootfs = AttrDict(
             {'dist': 'ubuntu', 'release': 'trusty', 'arch': None})
+        for key in self.ARCHITECTURE.keys():
+            if key == platform.machine():
+                self.rootfs.arch = self.ARCHITECTURE[key]
+                break
+        else:
+            raise UserException('Unsupported hardware platform')
+
         self.cont = None
         self.cont_name = None
 

@@ -31,7 +31,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound, \
 
 from lib.logger import Logger
 from lib.config import Config
-from lib.genesis import GEN_PLAY_PATH, OPSYS
+from lib.genesis import GEN_PLAY_PATH, HOME, OPSYS
 
 USERNAME = pwd.getpwuid(os.getuid())[0]
 
@@ -115,8 +115,12 @@ class LxcConf(object):
         self.log.info('Successfully created: %s' % self.LXC_CONF)
         print('Successfully created: %s' % self.LXC_CONF)
 
-        os.system('cp ' + GEN_PLAY_PATH + 'lxc-conf.yml /home/' + USERNAME +
-                  '/.config/lxc/default.conf')
+        if not os.path.exists(os.path.join(HOME, '.config')):
+            os.mkdir(os.path.join(HOME, '.config'))
+        if not os.path.exists(os.path.join(HOME, '.config', 'lxc')):
+            os.mkdir(os.path.join(HOME, '.config', 'lxc'))
+        os.system('cp ' + os.path.join(GEN_PLAY_PATH, 'lxc-conf.yml') + ' ' +
+                  os.path.join(HOME, '.config', 'lxc', 'default.conf'))
 
     def get_lxc_uid_gid_range(self):
         username = pwd.getpwuid(os.getuid())[0]
