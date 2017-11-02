@@ -101,7 +101,7 @@ class Container(object):
         # Check bridge permissions
         for line in open(self.LXC_USERNET, 'r'):
             match = re.search(
-                r'^\s*(r\w+)\s+(\w+)\s+([\w-]+)\s+(\d+)\s*$', line)
+                r'^\s*(\w+)\s+(\w+)\s+([\w-]+)\s+(\d+)\s*$', line)
             if match is not None:
                 allows[:] = [
                     allow for allow in allows
