@@ -28,7 +28,7 @@ _gen()
         return 0
     fi
 
-    opts="-h --help --create-container -a --all -f -p"
+    opts="-h --help --create-container --mgmt-switch -a --all -f -p"
 
     if [[ ${cur} == -* ]] && [[ ${prev} == config ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )

@@ -32,6 +32,7 @@ PASSIVE = 'passive'
 
 def configure_mgmt_switches():
 
+    LOG = Logger(Logger.LOG_NAME)
     cfg = Config()
     LOG.set_level(cfg.get_globals_log_level())
     LOG.debug('------------------- configure_mgmt_switches -------------------')
@@ -155,13 +156,13 @@ def configure_mgmt_switches():
 
             for port in cfg.yield_client_switch_ports(switch_label, if_type):
                 if mode == 'passive' or sw.is_port_in_access_mode(port):
-                    LOG.info('Port %s is already in access mode' % (port))
+                    LOG.debug('Port %s is already in access mode' % (port))
                 else:
                     LOG.error('Port %s is not in access mode' % (port))
                     sys.exit('Port %s is not in access mode' % (port))
 
                 if vlan == sw.show_native_vlan(port):
-                    LOG.info(
+                    LOG.debug(
                         'Management VLAN %s is already added to access port %s'
                         % (vlan, port))
                 else:
@@ -174,6 +175,6 @@ def configure_mgmt_switches():
 
 
 if __name__ == '__main__':
-    LOG = Logger(Logger.LOG_NAME)
+    # LOG = Logger(Logger.LOG_NAME)
     # LOG.set_display_level('debug')
     configure_mgmt_switches()

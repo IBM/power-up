@@ -25,6 +25,7 @@ import os
 import subprocess
 import getpass
 
+import configure_mgmt_switches
 import lxc_conf
 import lib.argparse_gen as argparse_gen
 from lib.logger import Logger
@@ -71,6 +72,14 @@ class Gen(object):
                 "Error: '%s %s ...' should not be run as root" %
                 (sys.argv[0], cmd),
                 file=sys.stderr)
+            sys.exit(1)
+
+    def _config_mgmt_switches(self):
+        try:
+            configure_mgmt_switches.configure_mgmt_switches()
+        except UserException as exc:
+            print('Error occured while configuring managment switches: \n' +
+                  exc)
             sys.exit(1)
 
     def _create_bridges(self):
@@ -146,6 +155,8 @@ class Gen(object):
             self._check_non_root_user(cmd)
             if self.args.create_container:
                 self._create_container()
+            if self.args.mgmt_switches:
+                self._config_mgmt_switches()
         if cmd == argparse_gen.Cmd.VALIDATE.value:
             self._check_non_root_user(cmd)
             if self.args.config_file:
@@ -159,6 +170,6 @@ if __name__ == '__main__':
     args = argparse_gen.get_parsed_args()
     GEN = Gen(args, Logger(
         Logger.LOG_NAME,
-        args.log_level_file[0],
-        args.log_level_print[0]))
+        args.log_level_file[0].upper(),
+        args.log_level_print[0].upper()))
     GEN.launch()

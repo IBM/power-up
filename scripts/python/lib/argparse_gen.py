@@ -32,7 +32,7 @@ GITHUB = 'https://github.com/open-power-ref-design-toolkit/cluster-genesis'
 EPILOG = 'home page:\n  %s' % GITHUB
 LOG_LEVEL_CHOICES = ['nolog', 'debug', 'info', 'warning', 'error', 'critical']
 LOG_LEVEL_FILE = ['info']
-LOG_LEVEL_PRINT = ['nolog']
+LOG_LEVEL_PRINT = ['info']
 
 
 class Cmd(Enum):
@@ -132,6 +132,11 @@ def get_args():
         metavar='<Container name>',
         help='Create deployer container')
 
+    parser_config.add_argument(
+        '--mgmt-switches',
+        action='store_true',
+        help='Configure the cluster management switches')
+
     # 'validate' subcommand arguments
     parser_validate.set_defaults(
         validate=True)
@@ -183,8 +188,9 @@ def _check_setup(args, subparser):
 
 
 def _check_config(args, subparser):
-    if not args.create_container:
-        subparser.error('one of the arguments --create-container is required')
+    if not args.create_container and not args.mgmt_switches:
+        subparser.error('one of the arguments --create-container'
+                        '--mgmt_switches is required')
 
 
 def _check_validate(args, subparser):
