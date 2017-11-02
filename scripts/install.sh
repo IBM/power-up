@@ -48,9 +48,9 @@ sudo -E -H pip install --upgrade pip
 sudo -E -H pip install --upgrade setuptools
 sudo -E -H pip install --upgrade wheel
 if [[ $VERSION_ID == "14.04" || $ID == "rhel" ]]; then
-    sudo -E -H pip install lxc-python2
+    sudo -E -H pip install --upgrade lxc-python2
 fi
-sudo -E -H pip install virtualenv
+sudo -E -H pip install --upgrade virtualenv
 virtualenv --no-wheel --system-site-packages deployenv
 source deployenv/bin/activate
 pip install 'ansible~=2.3.0.0' orderedattrdict pyroute2 pyghmi
