@@ -49,16 +49,33 @@ class Logger(object):
     def __init__(self, file_, log_level_file=None, log_level_print=None):
         self.logger = logging.getLogger(os.path.basename(file_))
         self.logger.setLevel(self.DEFAULT_LOG_LEVEL)
+
         self.handler = logging.FileHandler(self.LOGGER_PATH)
-        self.handler.setLevel(self.DEFAULT_HANDLER_LEVEL)
+        if log_level_file and log_level_file != 'nolog':
+            self.handler.setLevel(log_level_file.upper())
+        else:
+            self.handler.setLevel(self.DEFAULT_HANDLER_LEVEL)
         self.handler.setFormatter(
             logging.Formatter(
                 '%(asctime)s - %(filename)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(self.handler)
 
         self.stream_handler = logging.StreamHandler()
-        self.stream_handler.setLevel(self.DEFAULT_STREAM_HANDLER_LEVEL)
-        self.logger.addHandler(self.stream_handler)
+        if log_level_print and log_level_print != 'nolog':
+            self.stream_handler.setLevel(log_level_print.upper())
+        else:
+            self.stream_handler.setLevel(self.DEFAULT_STREAM_HANDLER_LEVEL)
+
+        if not self.logger.handlers:
+            if log_level_file != 'nolog':
+                self.logger.addHandler(self.handler)
+            if log_level_print != 'nolog':
+                self.logger.addHandler(self.stream_handler)
+
+        if log_level_file == 'nolog':
+            self.logger.removeHandler(self.handler)
+
+        if log_level_print == 'nolog':
+            self.logger.removeHandler(self.stream_handler)
 
     def set_level(self, log_level_str):
         log_levels = (

@@ -170,6 +170,6 @@ if __name__ == '__main__':
     args = argparse_gen.get_parsed_args()
     GEN = Gen(args, Logger(
         Logger.LOG_NAME,
-        args.log_level_file[0].upper(),
-        args.log_level_print[0].upper()))
+        args.log_level_file[0],
+        args.log_level_print[0]))
     GEN.launch()
