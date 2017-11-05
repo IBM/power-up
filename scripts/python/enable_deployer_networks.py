@@ -25,7 +25,6 @@ import pwd
 import subprocess
 import platform
 import time
-import logging
 from netaddr import IPNetwork
 from pyroute2 import IPRoute
 
@@ -46,8 +45,10 @@ def enable_deployer_network():
     tagged.  Networks can share a physical port or specify unique ports.
     This function is idempotent.
     """
+    global LOG
     cfg = Config()
-    LOG.setLevel(cfg.get_globals_log_level().upper())
+    LOG = Logger(Logger.LOG_NAME)
+    LOG.set_level(cfg.get_globals_log_level().upper())
     LOG.debug('------------------- enable_deployer_networks ----------------------')
 
     # if inv.is_passive_mgmt_switches():
@@ -483,9 +484,4 @@ def _wait_for_ifc_up(ifname, timespan=10):
 
 
 if __name__ == '__main__':
-    LOG = Logger(Logger.LOG_NAME)
-    LOG = logging.getLogger(Logger.LOG_NAME)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    LOG.addHandler(ch)
     enable_deployer_network()

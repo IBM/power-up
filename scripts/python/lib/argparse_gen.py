@@ -149,6 +149,11 @@ def get_args():
         metavar='CONFIG FILE',
         help='Schema and logic config file validation')
 
+    parser_validate.add_argument(
+        '--cluster-hardware',
+        action='store_true',
+        help='Cluster hardware discovery and validation')
+
     # 'deploy' subcommand arguments
     parser_deploy.set_defaults(
         deploy=True)
@@ -193,12 +198,16 @@ def _check_setup(args, subparser):
 def _check_config(args, subparser):
     if not args.create_container and not args.mgmt_switches:
         subparser.error('one of the arguments --create-container'
-                        '--mgmt_switches is required')
+                        ' --mgmt_switches is required')
 
 
 def _check_validate(args, subparser):
+    if args.cluster_hardware:
+        return
+
     if args.config_file == ABSENT:
-        subparser.error('one of the arguments --config-file is required')
+        subparser.error('one of the arguments --config-file --cluster-hardware'
+                        ' is required')
 
 
 def _check_deploy(args, subparser):

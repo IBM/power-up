@@ -28,14 +28,14 @@ _gen()
         return 0
     fi
 
-    opts="-h --help --create-container --mgmt-switch -a --all -f -p"
+    opts="-h --help --create-container --mgmt-switches -a --all -f -p"
 
     if [[ ${cur} == -* ]] && [[ ${prev} == config ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
         return 0
     fi
 
-    opts="-h --help --config-file --config-file-logic --cluster -a --all -f -p"
+    opts="-h --help --config-file --cluster-hardware -a --all -f -p"
 
     if [[ ${cur} == -* ]] && [[ ${prev} == validate ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )

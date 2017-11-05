@@ -21,10 +21,9 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
-import os
-import subprocess
 import getpass
 
+import enable_deployer_networks
 import configure_mgmt_switches
 import lxc_conf
 import lib.argparse_gen as argparse_gen
@@ -32,7 +31,6 @@ from lib.logger import Logger
 from lib.config import Config
 from lib.db import Database
 from lib.exception import UserException
-from lib.genesis import GEN_SCRIPTS_PATH
 import lib.genesis as gen
 
 
@@ -83,17 +81,7 @@ class Gen(object):
             sys.exit(1)
 
     def _create_bridges(self):
-        # enable_deployer_networks.enable_deployer_network()
-        os.chdir(GEN_SCRIPTS_PATH + '/python')
-        subprocess.check_output(['bash', '-c',
-                                 "sudo setcap 'cap_net_raw,cap_net_admin+eip'"
-                                 " $(readlink -f $(which python))"])
-        p = subprocess.Popen(GEN_SCRIPTS_PATH +
-                             "/python/enable_deployer_networks.py")
-        out, err = p.communicate()
-        subprocess.check_output(['bash', '-c',
-                                 "sudo setcap 'cap_net_raw,cap_net_admin-eip'"
-                                 " $(readlink -f $(which python))"])
+        enable_deployer_networks.enable_deployer_network()
 
     def _create_container(self):
         from lib.container import Container
@@ -154,7 +142,7 @@ class Gen(object):
                 print(
                     'Error: Invalid subcommand in container', file=sys.stderr)
                 sys.exit(1)
-            # self._check_root_user(cmd)
+            self._check_root_user(cmd)
             if self.args.bridges:
                 self._create_bridges()
 
