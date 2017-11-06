@@ -31,9 +31,9 @@ import lib.argparse_gen as argparse_gen
 from lib.logger import Logger
 from lib.config import Config
 from lib.db import Database
-from lib.container import Container
 from lib.exception import UserException
 from lib.genesis import GEN_SCRIPTS_PATH
+import lib.genesis as gen
 
 
 class Gen(object):
@@ -96,6 +96,8 @@ class Gen(object):
                                  " $(readlink -f $(which python))"])
 
     def _create_container(self):
+        from lib.container import Container
+
         cont = Container()
         try:
             cont.check_permissions(getpass.getuser())
@@ -148,15 +150,25 @@ class Gen(object):
 
         # Invoke subcommand method
         if cmd == argparse_gen.Cmd.SETUP.value:
+            if gen.is_container():
+                print(
+                    'Error: Invalid subcommand in container', file=sys.stderr)
+                sys.exit(1)
             # self._check_root_user(cmd)
             if self.args.bridges:
                 self._create_bridges()
+
         if cmd == argparse_gen.Cmd.CONFIG.value:
+            if gen.is_container():
+                print(
+                    'Error: Invalid subcommand in container', file=sys.stderr)
+                sys.exit(1)
             self._check_non_root_user(cmd)
             if self.args.create_container:
                 self._create_container()
             if self.args.mgmt_switches:
                 self._config_mgmt_switches()
+
         if cmd == argparse_gen.Cmd.VALIDATE.value:
             self._check_non_root_user(cmd)
             if self.args.config_file:

@@ -34,7 +34,7 @@ from lib.logger import Logger
 from lib.config import Config
 from lib.exception import UserException
 from lib.ssh import SSH_CONNECTION, SSH_Exception
-from lib.genesis import GEN_PATH
+import lib.genesis as gen
 
 
 class Container(object):
@@ -53,17 +53,21 @@ class Container(object):
     RSA_BIT_LENGTH = 2048
     PRIVATE_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen')
     PUBLIC_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen.pub')
-    PROJECT_PATH = '/opt/cluster-genesis'
-    VENV_PATH = PROJECT_PATH + '/gen-venv'
-    CONTAINER_INI = GEN_PATH + 'container.ini'
-    CONTAINER_CONFIG_PATH = GEN_PATH + 'playbooks/lxc-conf.yml'
-    CONFIG_FILE = 'config.yml'
-    SCRIPTS_DIR = 'scripts'
-    PYTHON_SCRIPTS_DIR = 'scripts/python'
 
     def __init__(self):
         self.log = logging.getLogger(Logger.LOG_NAME)
         self.cfg = Config()
+
+        self.cont_package_path = gen.get_container_package_path()
+        self.cont_id_file = gen.get_container_id_file()
+        self.cont_venv_path = gen.get_container_venv_path()
+        self.cont_scripts_path = gen.get_container_scripts_path()
+        self.cont_python_path = gen.get_container_python_path()
+        self.depl_package_path = gen.get_package_path()
+        self.depl_python_path = gen.get_python_path()
+        self.config_file = gen.get_config_file_name()
+
+        self.cont_ini = os.path.join(self.depl_package_path, 'container.ini')
 
         self.rootfs = self.ROOTFS
 
@@ -274,7 +278,7 @@ class Container(object):
         # Read INI file
         ini = ConfigParser.SafeConfigParser(allow_no_value=True)
         try:
-            ini.read(self.CONTAINER_INI)
+            ini.read(self.cont_ini)
         except ConfigParser.Error as exc:
             msg = exc.message.replace('\n', ' - ')
             self.log.error(msg)
@@ -296,14 +300,14 @@ class Container(object):
 
         # Create project
         self._lxc_run_command(
-            ['mkdir', self.PROJECT_PATH])
+            ['mkdir', self.cont_package_path])
 
         # Create virtual environment
         self._lxc_run_command([
             'virtualenv',
             '--no-wheel',
             '--system-site-packages',
-            self.VENV_PATH])
+            self.cont_venv_path])
 
         # Open SSH to container
         cont_ipaddr = self.cont.get_ips(
@@ -322,7 +326,7 @@ class Container(object):
         # Install pip venv container packages
         if ini.has_section(self.Packages.VENV.value):
             cmd = [
-                'source', self.VENV_PATH + '/bin/activate',
+                'source', self.cont_venv_path + '/bin/activate',
                 '&&', 'pip', 'install']
             for pkg, ver in ini.items(self.Packages.VENV.value):
                 cmd.append('{}=={}'.format(pkg, ver))
@@ -339,22 +343,19 @@ class Container(object):
         # Copy config file to container
         self._copy_sftp(
             sftp,
-            os.path.join(GEN_PATH, self.CONFIG_FILE),
-            os.path.join(self.PROJECT_PATH, self.CONFIG_FILE))
+            os.path.join(self.depl_package_path, self.config_file),
+            os.path.join(self.cont_package_path, self.config_file))
 
         # Copy scripts/python directory to container
-        self._mkdir_sftp(sftp, os.path.join(
-            self.PROJECT_PATH, self.SCRIPTS_DIR))
-        self._mkdir_sftp(sftp, os.path.join(
-            self.PROJECT_PATH, self.PYTHON_SCRIPTS_DIR))
-        for dirpath, dirnames, filenames in os.walk(os.path.join(
-                GEN_PATH, self.PYTHON_SCRIPTS_DIR)):
+        self._mkdir_sftp(sftp, self.cont_scripts_path)
+        self._mkdir_sftp(sftp, self.cont_python_path)
+        for dirpath, dirnames, filenames in os.walk(self.depl_python_path):
             for dirname in dirnames:
                 self._mkdir_sftp(
                     sftp,
                     os.path.join(
-                        self.PROJECT_PATH,
-                        os.path.relpath(dirpath, GEN_PATH),
+                        self.cont_package_path,
+                        os.path.relpath(dirpath, self.depl_package_path),
                         dirname))
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
@@ -367,9 +368,12 @@ class Container(object):
                     sftp,
                     os.path.join(dirpath, filename),
                     os.path.join(
-                        self.PROJECT_PATH,
-                        os.path.relpath(dirpath, GEN_PATH),
+                        self.cont_package_path,
+                        os.path.relpath(dirpath, self.depl_package_path),
                         filename))
+
+        # Create file to indicate whether project is installed in a container
+        self._lxc_run_command(['touch', self.cont_id_file])
 
         # Close ssh session to container
         self._close_ssh(ssh)

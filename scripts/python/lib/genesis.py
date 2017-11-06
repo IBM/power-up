@@ -34,6 +34,13 @@ GEN_SCRIPTS_PYTHON_PATH = os.path.join(GEN_SCRIPTS_PATH, 'python', '')
 GEN_PLAY_PATH = os.path.join(GEN_PATH, 'playbooks', '')
 GEN_PASSIVE_PATH = os.path.join(GEN_PATH, 'passive', '')
 OPSYS = platform.dist()[0]
+CONTAINER_PACKAGE_PATH = '/opt/' + GENESIS_DIR
+CONTAINER_ID_FILE = 'container'
+VENV_DIR = 'gen-venv'
+SCRIPTS_DIR = 'scripts'
+PYTHON_DIR = 'python'
+CONFIG_FILE = 'config.yml'
+LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
 
 
 def load_localhost(filename):
@@ -59,6 +66,57 @@ def container_addr():
     if cont_address is None:
         return None
     return cont_address.group(2)
+
+
+def is_container():
+    return os.path.isfile(os.path.join(
+        CONTAINER_PACKAGE_PATH, CONTAINER_ID_FILE))
+
+
+def get_container_package_path():
+    return CONTAINER_PACKAGE_PATH
+
+
+def get_container_id_file():
+    return os.path.join(CONTAINER_PACKAGE_PATH, CONTAINER_ID_FILE)
+
+
+def get_container_venv_path():
+    return os.path.join(CONTAINER_PACKAGE_PATH, VENV_DIR)
+
+
+def get_container_scripts_path():
+    return os.path.join(CONTAINER_PACKAGE_PATH, SCRIPTS_DIR)
+
+
+def get_container_python_path():
+    return os.path.join(CONTAINER_PACKAGE_PATH, SCRIPTS_DIR, PYTHON_DIR)
+
+
+def get_package_path():
+    if is_container():
+        return get_container_package_path()
+    return GEN_PATH
+
+
+def get_scripts_path():
+    if is_container():
+        return get_container_scripts_path()
+    return os.path.join(GEN_PATH, SCRIPTS_DIR)
+
+
+def get_python_path():
+    if is_container():
+        return get_container_python_path()
+    return os.path.join(GEN_PATH, SCRIPTS_DIR, PYTHON_DIR)
+
+
+def get_lxc_conf_file_path():
+    return os.path.join(GEN_PATH, LXC_CONF_FILE_PATH)
+
+
+def get_config_file_name():
+    return CONFIG_FILE
 
 
 if os.path.isfile(GEN_PATH + "playbooks/host_vars/localhost"):
