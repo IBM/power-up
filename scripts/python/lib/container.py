@@ -260,6 +260,7 @@ class Container(object):
         # Create private ssh key
         with open(self.PRIVATE_SSH_KEY_FILE, 'w') as ssh_key:
             ssh_key.write(key.exportKey())
+        os.chmod(self.PRIVATE_SSH_KEY_FILE, 0o600)
         # Create public ssh key
         public_key = key.publickey().exportKey(format='OpenSSH')
         with open(self.PUBLIC_SSH_KEY_FILE, 'w') as ssh_key:
