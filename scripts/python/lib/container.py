@@ -42,6 +42,8 @@ class Container(object):
 
     class Packages(Enum):
         DISTRO = 'pkgs-distro'
+        DISTRO_AMD64 = 'pkgs-distro-amd64'
+        DISTRO_PPC64EL = 'pkgs-distro-ppc64el'
         PIP = 'pkgs-pip'
         VENV = 'pkgs-pip-venv'
 
@@ -295,6 +297,22 @@ class Container(object):
         if ini.has_section(self.Packages.DISTRO.value):
             cmd = ['apt-get', 'install', '-y']
             for pkg in ini.options(self.Packages.DISTRO.value):
+                cmd.append(pkg)
+            self._lxc_run_command(cmd)
+
+        # Install x86_64 arch specific packages
+        if (self.rootfs.arch == 'amd64' and
+                ini.has_section(self.Packages.DISTRO_AMD64.value)):
+            cmd = ['apt-get', 'install', '-y']
+            for pkg in ini.options(self.Packages.DISTRO_AMD64.value):
+                cmd.append(pkg)
+            self._lxc_run_command(cmd)
+
+        # Install ppc64el arch specific packages
+        if (self.rootfs.arch == 'ppc64el' and
+                ini.has_section(self.Packages.DISTRO_PPC64EL.value)):
+            cmd = ['apt-get', 'install', '-y']
+            for pkg in ini.options(self.Packages.DISTRO_PPC64EL.value):
                 cmd.append(pkg)
             self._lxc_run_command(cmd)
 

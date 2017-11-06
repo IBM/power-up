@@ -145,6 +145,17 @@ class Config(object):
         except AttributeError:
             raise Exception('Unable to read log level from config file')
 
+    def get_globals_env_variables(self):
+        """Get globals env_variables
+        Returns:
+            dict: env_variables
+        """
+
+        try:
+            return self.cfg.globals.env_variables
+        except AttributeError:
+            pass
+
     def get_loc_time_zone(self):
         """Get location time_zone
         Returns:
@@ -216,6 +227,17 @@ class Config(object):
 
         return self._get_members(
             self.cfg.location.racks, self.CfgKey.CELL, index)
+
+    def get_depl_gateway(self):
+        """Get deployer gateway setting
+        Returns:
+            bool: deployer gateway
+        """
+
+        try:
+            return self.cfg.deployer.gateway
+        except AttributeError:
+            pass
 
     def get_depl_netw_mgmt_cnt(self):
         """Get deployer networks mgmt count
@@ -443,7 +465,7 @@ class Config(object):
             index (int, optional): List index
 
         Returns:
-            str: Client type (ipmi or pxe)
+            str: Device name
         """
 
         return self._get_members(
