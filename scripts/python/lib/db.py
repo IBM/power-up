@@ -119,7 +119,7 @@ class Database(object):
         self.inv = inv
         self._dump_yaml_file(self.inv_file, inv)
 
-    def validate_config(self, config_file=None):
+    def validate_config(self, config_file):
         """Validate config"""
 
         if config_file is None:

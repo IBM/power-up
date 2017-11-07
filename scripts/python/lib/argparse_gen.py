@@ -30,6 +30,7 @@ VALIDATE_DESC = 'Validate deployment environment'
 DEPLOY_DESC = 'Deploy cluster'
 GITHUB = 'https://github.com/open-power-ref-design-toolkit/cluster-genesis'
 EPILOG = 'home page:\n  %s' % GITHUB
+ABSENT = '\u009fabsent\u009c'
 LOG_LEVEL_CHOICES = ['nolog', 'debug', 'info', 'warning', 'error', 'critical']
 LOG_LEVEL_FILE = ['info']
 LOG_LEVEL_PRINT = ['info']
@@ -58,7 +59,7 @@ def get_args():
         nargs=1,
         default=LOG_LEVEL_FILE,
         choices=LOG_LEVEL_CHOICES,
-        metavar='<Log level>',
+        metavar='<LOG LEVEL>',
         help='Add log to file\nChoices: {{{}}}\nDefault: {}'.format(
             ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_FILE[0]))
 
@@ -67,7 +68,7 @@ def get_args():
         nargs=1,
         default=LOG_LEVEL_PRINT,
         choices=LOG_LEVEL_CHOICES,
-        metavar='<Log level>',
+        metavar='<LOG LEVEL>',
         help='Add log to stdout/stderr\nChoices: {{{}}}\nDefault: {}'.format(
             ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_PRINT[0]))
 
@@ -143,8 +144,10 @@ def get_args():
 
     parser_validate.add_argument(
         '--config-file',
-        action='store_true',
-        help='Schema and logic validation')
+        nargs='?',
+        default=ABSENT,
+        metavar='CONFIG FILE',
+        help='Schema and logic config file validation')
 
     # 'deploy' subcommand arguments
     parser_deploy.set_defaults(
@@ -194,13 +197,19 @@ def _check_config(args, subparser):
 
 
 def _check_validate(args, subparser):
-    if not args.config_file:
+    if args.config_file == ABSENT:
         subparser.error('one of the arguments --config-file is required')
 
 
 def _check_deploy(args, subparser):
     if not args.all:
         subparser.error('one of the arguments -a/--all is required')
+
+
+def is_config_file_arg_present(arg):
+    if arg == ABSENT:
+        return False
+    return True
 
 
 def get_parsed_args():

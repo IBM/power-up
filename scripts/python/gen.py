@@ -118,10 +118,10 @@ class Gen(object):
             sys.exit(1)
         print('Success: Container was created')
 
-    def _config_file(self):
+    def _config_file(self, cfg_file):
         dbase = Database()
         try:
-            dbase.validate_config()
+            dbase.validate_config(cfg_file)
         except UserException as exc:
             print('Error:', exc.message, file=sys.stderr)
             sys.exit(1)
@@ -171,11 +171,8 @@ class Gen(object):
 
         if cmd == argparse_gen.Cmd.VALIDATE.value:
             self._check_non_root_user(cmd)
-            if self.args.config_file:
-                self._config_file()
-            else:
-                print('\n  Please specify an option for "gen {cmd}"\n'
-                      '  Try "gen {cmd} -h" for help'.format(cmd=cmd))
+            if argparse_gen.is_config_file_arg_present(self.args.config_file):
+                self._config_file(self.args.config_file)
 
 
 if __name__ == '__main__':
