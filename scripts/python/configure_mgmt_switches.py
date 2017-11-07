@@ -145,7 +145,10 @@ def configure_mgmt_switches():
             else:
                 vlan = cfg.get_sw_mgmt_links_vlan(index, target_i)
                 if vlan is None:
-                    vlan = vlan_mgmt[0]
+                    if not vlan_mgmt:
+                        vlan = 1
+                    else:
+                        vlan = vlan_mgmt[0]
                 try:
                     sw.set_switchport_native_vlan(vlan, port)
                 except SwitchException as exc:
