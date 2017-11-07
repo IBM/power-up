@@ -1020,6 +1020,27 @@ class Config(object):
         for member in self.get_sw_data_label():
             yield member
 
+    def get_sw_data_class(self, index=None):
+        """Get switches data class
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: Class member or list
+        """
+
+        return self._get_members(
+            self.cfg.switches.data, self.CfgKey.CLASS, index)
+
+    def yield_sw_data_class(self):
+        """Yield switches data class
+        Returns:
+            iter of str: Class
+        """
+
+        for member in self.get_sw_data_class():
+            yield member
+
     def get_sw_data_hostname(self, index=None):
         """Get switches data hostname
         Args:
@@ -1103,6 +1124,34 @@ class Config(object):
 
         for member in self.get_sw_data_ssh_key():
             yield member
+
+    def get_sw_data_interfaces_ip(self, switch_index, index=None):
+        """Get switches mgmt interfaces ipaddr
+        Args:
+            switch_index (int): Management switch index
+            index (int, optional): List index
+
+        Returns:
+            str or list of str: IP address member or list
+        """
+        return self._get_members(
+            self.cfg.switches.data[switch_index].interfaces,
+            self.CfgKey.IPADDR, index)
+
+    def yield_sw_data_interfaces_ip(self, switch_index):
+        """Yield switches mgmt interfaces ipaddr
+        Args:
+            switch_index (int): Management switch index
+
+        Returns:
+            iter of str: IP address
+        """
+
+        try:
+            for member in self.get_sw_data_interfaces_ip(switch_index):
+                yield member
+        except AttributeError:
+            return
 
     def get_ntmpl_cnt(self):
         """Get node_templates count

@@ -24,6 +24,7 @@ import sys
 import getpass
 
 import enable_deployer_networks
+import validate_cluster_hardware
 import configure_mgmt_switches
 import lxc_conf
 import lib.argparse_gen as argparse_gen
@@ -115,6 +116,11 @@ class Gen(object):
             sys.exit(1)
         print('Success: Config file validation passed')
 
+    def _cluster_hardware(self):
+        val = validate_cluster_hardware.ValidateClusterHardware(
+            Logger(Logger.LOG_NAME))
+        val.validate_cluster()
+
     def launch(self):
         """Launch actions"""
 
@@ -158,9 +164,12 @@ class Gen(object):
                 self._config_mgmt_switches()
 
         if cmd == argparse_gen.Cmd.VALIDATE.value:
-            self._check_non_root_user(cmd)
             if argparse_gen.is_arg_present(self.args.config_file):
+                self._check_non_root_user(cmd)
                 self._config_file()
+            elif self.args.cluster_hardware:
+                self._check_root_user(cmd)
+                self._cluster_hardware()
 
 
 if __name__ == '__main__':
