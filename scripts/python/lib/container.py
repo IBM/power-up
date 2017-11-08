@@ -53,6 +53,7 @@ class Container(object):
     RSA_BIT_LENGTH = 2048
     PRIVATE_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen')
     PUBLIC_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen.pub')
+    DEFAULT_CONTAINER_NAME = 'cluster-genesis'
 
     def __init__(self):
         self.log = logging.getLogger(Logger.LOG_NAME)
@@ -190,6 +191,11 @@ class Container(object):
             self.LXC_USERNET)
 
     def create(self, name):
+        if name is None:
+            for vlan in self.cfg.yield_depl_netw_client_vlan('pxe'):
+                break
+            name = '{}-pxe{}'.format(self.DEFAULT_CONTAINER_NAME, vlan)
+
         self.cont = lxc.Container(name)
         self.cont_name = name
 

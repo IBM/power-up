@@ -106,10 +106,10 @@ class Gen(object):
             sys.exit(1)
         print('Success: Container was created')
 
-    def _config_file(self, cfg_file):
+    def _config_file(self):
         dbase = Database()
         try:
-            dbase.validate_config(cfg_file)
+            dbase.validate_config(self.args.config_file)
         except UserException as exc:
             print('Error:', exc.message, file=sys.stderr)
             sys.exit(1)
@@ -152,15 +152,15 @@ class Gen(object):
                     'Error: Invalid subcommand in container', file=sys.stderr)
                 sys.exit(1)
             self._check_non_root_user(cmd)
-            if self.args.create_container:
+            if argparse_gen.is_arg_present(self.args.create_container):
                 self._create_container()
             if self.args.mgmt_switches:
                 self._config_mgmt_switches()
 
         if cmd == argparse_gen.Cmd.VALIDATE.value:
             self._check_non_root_user(cmd)
-            if argparse_gen.is_config_file_arg_present(self.args.config_file):
-                self._config_file(self.args.config_file)
+            if argparse_gen.is_arg_present(self.args.config_file):
+                self._config_file()
 
 
 if __name__ == '__main__':

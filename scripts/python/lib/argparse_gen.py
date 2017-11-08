@@ -59,8 +59,8 @@ def get_args():
         nargs=1,
         default=LOG_LEVEL_FILE,
         choices=LOG_LEVEL_CHOICES,
-        metavar='<LOG LEVEL>',
-        help='Add log to file\nChoices: {{{}}}\nDefault: {}'.format(
+        metavar='LOG-LEVEL',
+        help='Add log to file\nChoices: {}\nDefault: {}'.format(
             ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_FILE[0]))
 
     common_parser.add_argument(
@@ -68,8 +68,8 @@ def get_args():
         nargs=1,
         default=LOG_LEVEL_PRINT,
         choices=LOG_LEVEL_CHOICES,
-        metavar='<LOG LEVEL>',
-        help='Add log to stdout/stderr\nChoices: {{{}}}\nDefault: {}'.format(
+        metavar='LOG-LEVEL',
+        help='Add log to stdout/stderr\nChoices: {}\nDefault: {}'.format(
             ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_PRINT[0]))
 
     # Subparsers
@@ -129,14 +129,16 @@ def get_args():
         config=True)
 
     parser_config.add_argument(
-        '--create-container',
-        metavar='<Container name>',
-        help='Create deployer container')
-
-    parser_config.add_argument(
         '--mgmt-switches',
         action='store_true',
         help='Configure the cluster management switches')
+
+    parser_config.add_argument(
+        '--create-container',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Create deployer container')
 
     # 'validate' subcommand arguments
     parser_validate.set_defaults(
@@ -146,7 +148,7 @@ def get_args():
         '--config-file',
         nargs='?',
         default=ABSENT,
-        metavar='CONFIG FILE',
+        metavar='CONFIG-FILE',
         help='Schema and logic config file validation')
 
     parser_validate.add_argument(
@@ -196,18 +198,17 @@ def _check_setup(args, subparser):
 
 
 def _check_config(args, subparser):
-    if not args.create_container and not args.mgmt_switches:
-        subparser.error('one of the arguments --create-container'
-                        ' --mgmt_switches is required')
+    if not args.mgmt_switches and args.create_container == ABSENT:
+        subparser.error(
+            'one of the arguments --mgmt-switches --create-container is'
+            ' required')
 
 
 def _check_validate(args, subparser):
-    if args.cluster_hardware:
-        return
-
-    if args.config_file == ABSENT:
-        subparser.error('one of the arguments --config-file --cluster-hardware'
-                        ' is required')
+    if args.config_file == ABSENT and not args.cluster_hardware:
+        subparser.error(
+            'one of the arguments --config-file --cluster-hardware is'
+            ' required')
 
 
 def _check_deploy(args, subparser):
@@ -215,7 +216,7 @@ def _check_deploy(args, subparser):
         subparser.error('one of the arguments -a/--all is required')
 
 
-def is_config_file_arg_present(arg):
+def is_arg_present(arg):
     if arg == ABSENT:
         return False
     return True
