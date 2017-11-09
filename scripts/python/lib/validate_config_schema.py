@@ -37,6 +37,15 @@ def _string_int_field(**kwargs):
         **kwargs)
 
 
+def _string_int_array_field(**kwargs):
+    return jsl.fields.AnyOfField(
+        [
+            jsl.fields.StringField(),
+            jsl.fields.IntField(),
+            jsl.fields.ArrayField(_string_int_field())],
+        **kwargs)
+
+
 class Globals(jsl.Document):
     log_level = jsl.fields.StringField(required=True)
     introspection = jsl.fields.BooleanField()
@@ -85,6 +94,51 @@ class DeployerNetworks(jsl.Document):
 class Deployer(jsl.Document):
     gateway = jsl.fields.BooleanField()
     networks = jsl.DocumentField(DeployerNetworks)
+
+
+class SwitchesMgmtData(object):
+    interfaces = jsl.fields.DictField(
+        properties={
+            'type': jsl.fields.StringField(required=True),
+            'ipaddr': jsl.fields.IPv4Field(required=True),
+            'vlan': jsl.fields.IntField(),
+            'port': _string_int_field(),
+            'netmask': jsl.fields.IPv4Field(),
+            'prefix': jsl.fields.IntField()},
+        additional_properties=False,
+        required=True)
+
+    links = jsl.fields.DictField(
+        properties={
+            'target': jsl.fields.StringField(required=True),
+            'ports': _string_int_array_field(required=True),
+            'ipaddr': jsl.fields.IPv4Field(),
+            'vlan': jsl.fields.IntField(),
+            'vip': jsl.fields.IPv4Field(),
+            'netmask': jsl.fields.IPv4Field(),
+            'prefix': jsl.fields.IntField()},
+        additional_properties=False,
+        required=True)
+
+    mgmt_data = jsl.fields.DictField(
+        properties={
+            'label': jsl.fields.StringField(required=True),
+            'hostname': jsl.fields.StringField(),
+            'userid': jsl.fields.StringField(),
+            'password': jsl.fields.StringField(),
+            'ssh_key': jsl.fields.StringField(),
+            'class': jsl.fields.StringField(),
+            'rack_id': _string_int_field(),
+            'rack_eia': _string_int_field(),
+            'interfaces': jsl.fields.ArrayField(interfaces),
+            'links': jsl.fields.ArrayField(links)},
+        additional_properties=False,
+        required=True)
+
+
+class Switches(jsl.Document):
+    mgmt = jsl.fields.ArrayField(SwitchesMgmtData.mgmt_data)
+    data = jsl.fields.ArrayField(SwitchesMgmtData.mgmt_data)
 
 
 class Interfaces(jsl.Document):
@@ -152,7 +206,7 @@ class SchemaDefinition(jsl.Document):
 
     deployer = jsl.DocumentField(Deployer)
 
-    switches = jsl.fields.DictField(required=True)
+    switches = jsl.fields.DocumentField(Switches)
 
     interfaces = jsl.fields.ArrayField(
         jsl.fields.DocumentField(Interfaces),
@@ -191,13 +245,21 @@ class ValidateConfigSchema(object):
             validate(
                 self.config, schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as error:
-            if error.path:
-                err_loc = str(error.path[0])
+            if error.cause is None:
+                path = None
+                for index, element in enumerate(error.path):
+                    if isinstance(element, int):
+                        path += '[{}]'.format(element)
+                    else:
+                        if index == 0:
+                            path = '{}'.format(element)
+                        else:
+                            path += '.{}'.format(element)
+                exc = 'Schema validation failed - {} - {}'.format(
+                    path, error.message)
             else:
-                err_loc = 'missing section'
-            exc = 'Schema validation failed:' + '\n' + \
-                'Config file section: ' + err_loc + ':' + '\n' + \
-                str(error.message)
+                exc = 'Schema validation failed - {} - {}'.format(
+                    error.cause, error.message)
             self.log.error(exc)
             raise UserException(exc)
         self.log.info('Config schema validation completed successfully')

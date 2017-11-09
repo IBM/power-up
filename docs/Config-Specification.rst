@@ -238,7 +238,6 @@ switches:
         mgmt:
             - label:
               hostname:
-              class:
               userid:
               password:
               ssh_key:
@@ -260,7 +259,6 @@ switches:
         data:
             - label:
               hostname:
-              class:
               userid:
               password:
               ssh_key:
@@ -357,15 +355,15 @@ switches:
 |   switches:                     |   interfaces:                         | | Required keys:                                                                            |          |
 |       mgmt:                     |       - type: outband                 | |   *type*   - In-Band or Out-of-Band (inband/outband).                                     |          |
 |           - ...                 |         ipaddr: 192.168.1.20          | |   *ipaddr* - IP address.                                                                  |          |
-|             interfaces:         |         port: mgmt0                   | |   *vlan*   - VLAN.                                                                        |          |
-|                 - type:         |                                       | |   *port*   - Port.                                                                        |          |
-|                   ipaddr:       | example #2::                          |                                                                                             |          |
-|                   port:         |                                       | | Subnet mask may be defined with:                                                          |          |
-|       data:                     |   interfaces:                         | |   *netmask* - Management network bitmask.                                                 |          |
-|           - ...                 |       - type: inband                  | |   --- or ---                                                                              |          |
-|             interfaces:         |         ipaddr: 192.168.5.20          | |   *prefix*  - Management network bit-length.                                              |          |
-|                 - type:         |         netmask: 255.255.255.0        |                                                                                             |          |
-|                   ipaddr:       |         port: 15                      |                                                                                             |          |
+|             interfaces:         |         port: mgmt0                   |                                                                                             |          |
+|                 - type:         |                                       | | Optional keys:                                                                            |          |
+|                   ipaddr:       | example #2::                          | |   *vlan*   - VLAN.                                                                        |          |
+|                   port:         |                                       | |   *port*   - Port.                                                                        |          |
+|       data:                     |   interfaces:                         |                                                                                             |          |
+|           - ...                 |       - type: inband                  | | Subnet mask may be defined with:                                                          |          |
+|             interfaces:         |         ipaddr: 192.168.5.20          | |   *netmask* - Management network bitmask.                                                 |          |
+|                 - type:         |         netmask: 255.255.255.0        | |   --- or ---                                                                              |          |
+|                   ipaddr:       |         port: 15                      | |   *prefix*  - Management network bit-length.                                              |          |
 |                   port:         |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
