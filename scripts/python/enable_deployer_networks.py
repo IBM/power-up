@@ -21,7 +21,6 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import sys
 import os
 import re
-import pwd
 import subprocess
 import platform
 import time
@@ -324,7 +323,7 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
         f = open(GEN_PATH + 'lxc-usernet', 'r')
         data = f.read()
         f.close()
-        username = pwd.getpwuid(os.getuid())[0]
+        username = os.getlogin()
         perm = re.findall(username + r'\s+veth\s+' + bridge, data, re.MULTILINE)
         permlxcbr0 = re.findall(username + r'\s+veth\s+lxcbr0', data, re.MULTILINE)
         if not perm or not permlxcbr0:
