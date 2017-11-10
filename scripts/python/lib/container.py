@@ -66,8 +66,10 @@ class Container(object):
         self.cont_venv_path = gen.get_container_venv_path()
         self.cont_scripts_path = gen.get_container_scripts_path()
         self.cont_python_path = gen.get_container_python_path()
+        self.cont_os_images_path = gen.get_container_os_images_path()
         self.depl_package_path = gen.get_package_path()
         self.depl_python_path = gen.get_python_path()
+        self.depl_os_images_path = gen.get_os_images_path()
         self.config_file = gen.get_config_file_name()
 
         self.cont_ini = os.path.join(self.depl_package_path, 'container.ini')
@@ -374,7 +376,20 @@ class Container(object):
         # Copy scripts/python directory to container
         self._mkdir_sftp(sftp, self.cont_scripts_path)
         self._mkdir_sftp(sftp, self.cont_python_path)
-        for dirpath, dirnames, filenames in os.walk(self.depl_python_path):
+        self._copy_dir_to_container(sftp, self.depl_python_path)
+
+        # Copy os_images directory to container
+        self._mkdir_sftp(sftp, self.cont_os_images_path)
+        self._copy_dir_to_container(sftp, self.depl_os_images_path)
+
+        # Create file to indicate whether project is installed in a container
+        self._lxc_run_command(['touch', self.cont_id_file])
+
+        # Close ssh session to container
+        self._close_ssh(ssh)
+
+    def _copy_dir_to_container(self, sftp, dir_local_path):
+        for dirpath, dirnames, filenames in os.walk(dir_local_path):
             for dirname in dirnames:
                 self._mkdir_sftp(
                     sftp,
@@ -396,9 +411,3 @@ class Container(object):
                         self.cont_package_path,
                         os.path.relpath(dirpath, self.depl_package_path),
                         filename))
-
-        # Create file to indicate whether project is installed in a container
-        self._lxc_run_command(['touch', self.cont_id_file])
-
-        # Close ssh session to container
-        self._close_ssh(ssh)

@@ -39,6 +39,7 @@ CONTAINER_ID_FILE = 'container'
 VENV_DIR = 'gen-venv'
 SCRIPTS_DIR = 'scripts'
 PYTHON_DIR = 'python'
+OS_IMAGES_DIR = 'os-images'
 CONFIG_FILE = 'config.yml'
 LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
 
@@ -93,6 +94,10 @@ def get_container_python_path():
     return os.path.join(CONTAINER_PACKAGE_PATH, SCRIPTS_DIR, PYTHON_DIR)
 
 
+def get_container_os_images_path():
+    return os.path.join(CONTAINER_PACKAGE_PATH, OS_IMAGES_DIR)
+
+
 def get_package_path():
     if is_container():
         return get_container_package_path()
@@ -109,6 +114,12 @@ def get_python_path():
     if is_container():
         return get_container_python_path()
     return os.path.join(GEN_PATH, SCRIPTS_DIR, PYTHON_DIR)
+
+
+def get_os_images_path():
+    if is_container():
+        return get_container_os_images_path()
+    return os.path.join(GEN_PATH, OS_IMAGES_DIR)
 
 
 def get_lxc_conf_file_path():
