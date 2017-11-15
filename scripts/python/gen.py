@@ -119,7 +119,13 @@ class Gen(object):
     def _cluster_hardware(self):
         val = validate_cluster_hardware.ValidateClusterHardware(
             Logger(Logger.LOG_NAME))
-        val.validate_cluster()
+        rc1 = val.validate_mgmt_switches()
+        rc2 = val.validate_data_switches()
+        val.validate_ipmi()
+        val.validate_pxe()
+        if not rc1 and rc2:
+            self.log.critical('Failed switch validation')
+            sys.exit(1)
 
     def launch(self):
         """Launch actions"""
