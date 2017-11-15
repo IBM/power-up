@@ -722,6 +722,7 @@ node_templates:
                     password:
               groups:
                   - name:
+              kernel_options:
           physical_interfaces:
               ipmi:
                   - switch:
@@ -754,18 +755,19 @@ node_templates:
 |         interfaces:                |         hostname_prefix: ctrl                 | |   *ipmi*    - IPMI credentials. See `node_templates: ipmi                      |          |
 |         networks:                  |         profile: ubuntu-14.04-server-ppc64el  |                 <node_templates_ipmi_>`_.                                        |          |
 |         roles:                     |         install_device: /dev/sda              | |   *os*      - Operating system configuration. See `node_templates: os          |          |
-|                                    |     physical_interfaces:                      |                 <node_templates_os_>`_.                                          |          |
-|                                    |         ipmi:                                 | |   *physical_interfaces* - Physical network interface port mappings. See        |          |
-|                                    |             - switch: mgmt_switch_1           |                             `node_templates: physical_interfaces                 |          |
-|                                    |               ports:                          |                             <node_templates_physical_ints_>`_.                   |          |
-|                                    |                   - 1                         |                                                                                  |          |
-|                                    |                   - 3                         | | Optional keys:                                                                 |          |
-|                                    |                   - 5                         | |   *interfaces* - Post-deploy interface assignments. See `node_templates:       |          |
-|                                    |         pxe:                                  |                    interfaces <node_templates_interfaces_>`_.                    |          |
-|                                    |             - switch: mgmt_switch_1           | |   *networks*   - Post-deploy network (interface group) assignments. See        |          |
-|                                    |               ports:                          |                    `node_templates: networks <node_templates_networks_>`_.       |          |
-|                                    |                   - 2                         | |   *roles*      - Ansible group assignment. See `node_templates: roles          |          |
-|                                    |                   - 4                         |                    <node_templates_roles_>`_.                                    |          |
+|                                    |         kernel_options: quiet                 |                 <node_templates_os_>`_.                                          |          |
+|                                    |     physical_interfaces:                      | |   *physical_interfaces* - Physical network interface port mappings. See        |          |
+|                                    |         ipmi:                                 |                             `node_templates: physical_interfaces                 |          |
+|                                    |             - switch: mgmt_switch_1           |                             <node_templates_physical_ints_>`_.                   |          |
+|                                    |               ports:                          |                                                                                  |          |
+|                                    |                   - 1                         | | Optional keys:                                                                 |          |
+|                                    |                   - 3                         | |   *interfaces* - Post-deploy interface assignments. See `node_templates:       |          |
+|                                    |                   - 5                         |                    interfaces <node_templates_interfaces_>`_.                    |          |
+|                                    |         pxe:                                  | |   *networks*   - Post-deploy network (interface group) assignments. See        |          |
+|                                    |             - switch: mgmt_switch_1           |                    `node_templates: networks <node_templates_networks_>`_.       |          |
+|                                    |               ports:                          | |   *roles*      - Ansible group assignment. See `node_templates: roles          |          |
+|                                    |                   - 2                         |                    <node_templates_roles_>`_.                                    |          |
+|                                    |                   - 4                         |                                                                                  |          |
 |                                    |                   - 6                         |                                                                                  |          |
 |                                    |                                               |                                                                                  |          |
 +------------------------------------+-----------------------------------------------+----------------------------------------------------------------------------------+----------+
@@ -800,16 +802,17 @@ node_templates:
 |                   password:        |             - name: user1                     | |   *install_device*  - Path to installation disk device.                        |          |
 |             groups:                |               password: abc123                |                                                                                  |          |
 |                 - name:            |               groups: sudo,testgroup1         | | Optional keys:                                                                 |          |
-|                                    |         groups:                               | |   *hostname_prefix* - Prefix used to assign hostnames to client nodes          |          |
+|             kernel_options:        |         groups:                               | |   *hostname_prefix* - Prefix used to assign hostnames to client nodes          |          |
 |                                    |             - name: testgroup1                |                         belonging to this node template. A "-" and enumeration   |          |
 |                                    |             - name: testgroup2                |                         is added to the end of the prefix to make a unique       |          |
-|                                    |                                               |                         hostname for each client node (e.g. "controller-1" and   |          |
+|                                    |         kernel_options: quiet                 |                         hostname for each client node (e.g. "controller-1" and   |          |
 |                                    |                                               |                         "controoler-2").                                         |          |
 |                                    |                                               | |   *users*           - OS user accounts to create. All parameters in the        |          |
 |                                    |                                               |                         `Ansible user module <ansible_user_module_>`_ are        |          |
 |                                    |                                               |                         supported.                                               |          |
 |                                    |                                               | |   *groups*          - OS groups to create. All parameters in the `Ansible      |          |
 |                                    |                                               |                         group module <ansible_group_module_>`_ are supported.    |          |
+|                                    |                                               | |   *groups*          - Kernel options                                           |          |
 |                                    |                                               |                                                                                  |          |
 +------------------------------------+-----------------------------------------------+----------------------------------------------------------------------------------+----------+
 | .. _node_templates_physical_ints:  |                                               |                                                                                  |          |

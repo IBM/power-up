@@ -66,6 +66,8 @@ class InventoryNodes(object):
                 switch_index = cfg.get_sw_mgmt_index_by_label(switch_label)
                 self.inv.add_nodes_rack_id(cfg.get_sw_mgmt_rack_id(
                     switch_index))
+                # Copy OS settings dictionary
+                self.inv.add_nodes_os_dict(cfg.get_ntmpl_os_dict(index_ntmplt))
 
                 ports_ipmi = []
                 ports_pxe = []

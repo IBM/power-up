@@ -17,16 +17,15 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
-import sys
+
 import xmlrpclib
 
 from lib.inventory import Inventory
-from lib.logger import Logger
+import lib.logger as logger
 
 COBBLER_USER = 'cobbler'
 COBBLER_PASS = 'cobbler'
 
-INV_HOSTNAME = 'hostname'
 INV_IPV4_IPMI = 'ipv4-ipmi'
 INV_USERID_IPMI = 'userid-ipmi'
 INV_PASSWORD_IPMI = 'password-ipmi'
@@ -45,176 +44,120 @@ INV_COBBLER_PROFILE = 'cobbler-profile'
 INV_OS_DISK = 'os-disk'
 INV_ARCH = 'architecture'
 INV_KOPTS = 'kernel-options'
-COBBLER_PROFILE_X86_64 = 'ubuntu-14.04.4-server-amd64'
-COBBLER_PROFILE_PPC64 = 'ubuntu-14.04.4-server-ppc64el'
 
 
-class CobblerAddSystems(object):
-    def __init__(self, log, inv_file):
-        cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
-        token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
+def cobbler_add_systems():
+    LOG = logger.getlogger()
 
-        inv = Inventory(log, inv_file)
+    cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
+    token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 
-        for _, _, _, _, node in inv.yield_nodes():
-            hostname = node[INV_HOSTNAME]
-            ipv4_ipmi = node[INV_IPV4_IPMI]
-            userid_ipmi = node[INV_USERID_IPMI]
-            password_ipmi = node[INV_PASSWORD_IPMI]
-            ipv4_pxe = node[INV_IPV4_PXE]
-            mac_pxe = node[INV_MAC_PXE]
+    inv = Inventory()
 
-            if INV_COBBLER_PROFILE in node:
-                cobbler_profile = \
-                    node[INV_COBBLER_PROFILE]
-            elif (INV_COBBLER_PROFILE in
-                  inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]):
-                cobbler_profile = \
-                    (inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                     [INV_COBBLER_PROFILE])
-            elif (INV_ARCH in node and
-                  node[INV_ARCH] is not None):
-                if node[INV_ARCH].lower() == 'x86_64':
-                    cobbler_profile = COBBLER_PROFILE_X86_64
-                elif node[INV_ARCH].lower() == 'ppc64':
-                    cobbler_profile = COBBLER_PROFILE_PPC64
-                else:
-                    log.log_error(
-                        'Inventory: Invalid architecture set for %s' %
-                        hostname)
+    for index, hostname in enumerate(inv.yield_nodes_hostname()):
+        ipv4_ipmi = inv.get_nodes_ipmi_ipaddr(0, index)
+        userid_ipmi = inv.get_nodes_ipmi_userid(index)
+        password_ipmi = inv.get_nodes_ipmi_password(index)
+        ipv4_pxe = inv.get_nodes_pxe_ipaddr(0, index)
+        mac_pxe = inv.get_nodes_pxe_mac(0, index)
+        cobbler_profile = inv.get_nodes_os_profile(index)
+
+        new_system_create = cobbler_server.new_system(token)
+
+        cobbler_server.modify_system(
+            new_system_create,
+            "name",
+            hostname,
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            "hostname",
+            hostname,
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            "power_address",
+            ipv4_ipmi,
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            "power_user",
+            userid_ipmi,
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            "power_pass",
+            password_ipmi,
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            "power_type",
+            "ipmilan",
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            "profile",
+            cobbler_profile,
+            token)
+        cobbler_server.modify_system(
+            new_system_create,
+            'modify_interface',
+            {
+                "macaddress-eth0": mac_pxe,
+                "ipaddress-eth0": ipv4_pxe,
+                "dnsname-eth0": hostname},
+            token)
+        ks_meta = ""
+        disks = inv.get_nodes_os_install_device(index)
+        if disks is not None:
+            if isinstance(disks, basestring):
+                ks_meta += 'install_disk=%s ' % disks
+            elif isinstance(disks, list) and len(disks) == 2:
+                ks_meta += (
+                    'install_disk=%s install_disk_2=%s ' %
+                    (disks[0], disks[1]))
             else:
-                cobbler_profile = COBBLER_PROFILE_X86_64
+                LOG.error(
+                    'Invalid install_device value: %s'
+                    'Must be string or two item list.' %
+                    disks)
+        if INV_PASSWORD_DEFAULT in inv.inv:
+            passwd = inv.inv[INV_PASSWORD_DEFAULT]
+            ks_meta += 'passwd=%s passwdcrypted=false ' % passwd
+        if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv:
+            passwd = inv.inv[INV_PASSWORD_DEFAULT_CRYPTED]
+            ks_meta += 'passwd=%s passwdcrypted=true ' % passwd
+        if ks_meta != "":
+            cobbler_server.modify_system(
+                new_system_create,
+                "ks_meta",
+                ks_meta,
+                token)
+        kernel_options = inv.get_nodes_os_kernel_options(index)
+        if kernel_options is not None:
+            cobbler_server.modify_system(
+                new_system_create,
+                "kernel_options",
+                kernel_options,
+                token)
+        comment = ""
+        cobbler_server.modify_system(
+            new_system_create,
+            "comment",
+            comment,
+            token)
 
-            new_system_create = cobbler_server.new_system(token)
+        cobbler_server.save_system(new_system_create, token)
 
-            cobbler_server.modify_system(
-                new_system_create,
-                "name",
-                hostname,
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                "hostname",
-                hostname,
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                "power_address",
-                ipv4_ipmi,
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                "power_user",
-                userid_ipmi,
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                "power_pass",
-                password_ipmi,
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                "power_type",
-                "ipmilan",
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                "profile",
-                cobbler_profile,
-                token)
-            cobbler_server.modify_system(
-                new_system_create,
-                'modify_interface',
-                {
-                    "macaddress-eth0": mac_pxe,
-                    "ipaddress-eth0": ipv4_pxe,
-                    "dnsname-eth0": hostname},
-                token)
-            ks_meta = ""
-            if INV_OS_DISK in node:
-                disks = node[INV_OS_DISK]
-                if isinstance(disks, basestring):
-                    ks_meta += 'install_disk=%s ' % disks
-                elif isinstance(disks, list) and len(disks) == 2:
-                    ks_meta += (
-                        'install_disk=%s install_disk_2=%s ' %
-                        (disks[0], disks[1]))
-                else:
-                    log.error(
-                        'Invalid %s[%s][%s] value: '
-                        'Must be string or two item list.' %
-                        (INV_NODES_TEMPLATES, node[INV_TEMPLATE],
-                         INV_OS_DISK))
-            if INV_PASSWORD_DEFAULT in inv.inv:
-                passwd = inv.inv[INV_PASSWORD_DEFAULT]
-                ks_meta += 'passwd=%s passwdcrypted=false ' % passwd
-            if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv:
-                passwd = inv.inv[INV_PASSWORD_DEFAULT_CRYPTED]
-                ks_meta += 'passwd=%s passwdcrypted=true ' % passwd
-            if ks_meta != "":
-                cobbler_server.modify_system(
-                    new_system_create,
-                    "ks_meta",
-                    ks_meta,
-                    token)
-            if INV_KOPTS in inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]:
-                kopts = (
-                    inv.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
-                    [INV_KOPTS])
-                cobbler_server.modify_system(
-                    new_system_create,
-                    "kernel_options",
-                    kopts,
-                    token)
-            comment = ""
-            if INV_CHASSIS_PART_NUMBER in node:
-                comment += (
-                    '%s: %s\n' %
-                    (INV_CHASSIS_PART_NUMBER, node[INV_CHASSIS_PART_NUMBER]))
-            if INV_CHASSIS_SERIAL_NUMBER in node:
-                comment += (
-                    '%s: %s\n' %
-                    (INV_CHASSIS_SERIAL_NUMBER,
-                     node[INV_CHASSIS_SERIAL_NUMBER]))
-            if INV_MODEL in node:
-                comment += (
-                    '%s: %s\n' %
-                    (INV_MODEL, node[INV_MODEL]))
-            if INV_SERIAL_NUMBER in node:
-                comment += (
-                    '%s: %s\n' %
-                    (INV_SERIAL_NUMBER, node[INV_SERIAL_NUMBER]))
-            cobbler_server.modify_system(
-                new_system_create,
-                "comment",
-                comment,
-                token)
+        LOG.info(
+            "Cobbler Add System: name=%s, profile=%s" %
+            (hostname, cobbler_profile))
 
-            cobbler_server.save_system(new_system_create, token)
-
-            log.info(
-                "Cobbler Add System: name=%s, profile=%s" %
-                (hostname, cobbler_profile))
-
-        cobbler_server.sync(token)
-        log.info("Running Cobbler sync")
+    cobbler_server.sync(token)
+    LOG.info("Running Cobbler sync")
 
 
 if __name__ == '__main__':
-    """
-    Arg1: inventory file
-    Arg2: log level
-    """
-    LOG = Logger(__file__)
+    logger.create()
 
-    if len(sys.argv) != 3:
-        try:
-            raise Exception()
-        except:
-            LOG.error('Invalid argument count')
-            sys.exit(1)
-
-    INV_FILE = sys.argv[1]
-    LOG.set_level(sys.argv[2])
-
-    CobblerAddSystems(LOG, INV_FILE)
+    cobbler_add_systems()

@@ -1249,6 +1249,31 @@ class Config(object):
         for member in self.get_ntmpl_ipmi_password():
             yield member
 
+    def get_ntmpl_os_dict(self, index=None):
+        """Get node_templates os dictionary
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            AttrDict or list of AttrDict: Node template OS dictionary
+        """
+        if index is None:
+            list_ = []
+            for member in self.cfg.node_templates:
+                list_.append(member.os)
+            return list_
+        else:
+            return self.cfg.node_templates[index].os
+
+    def yield_ntmpl_os_dict(self):
+        """Yield node_templates os dictionary
+        Returns:
+            iter of AttrDict: Node template OS dictionary
+        """
+
+        for member in self.get_ntmpl_os_dict():
+            yield member
+
     def get_ntmpl_os_hostname_prefix(self, index=None):
         """Get node_templates os hostname_prefix
         Args:

@@ -60,14 +60,21 @@ nodes:
             ports:
             userid:
             password:
+            ipaddrs:
+            macs:
         pxe:
             switches:
             ports:
             devices:
+            ipaddrs:
+            macs:
         data:
             switches:
             ports:
             devices:
+            ipaddrs:
+            macs:
+        os:
 
 +----------------------+-------------------------------+----------------------------------------------------------------------------------------------------------------+----------+
 | Element              | Example(s)                    | Description                                                                                                    | Required |
@@ -110,11 +117,17 @@ nodes:
 |   nodes:             |   nodes:                      | | Required keys:                                                                                               |          |
 |       ipmi:          |       ipmi:                   | |   *switches*  - Management switches.                                                                         |          |
 |           switches:  |           switches:           | |   *ports*     - Management ports.                                                                            |          |
-|           ports:     |           - mgmt_1            | |   *userid*    - IPMI userid.                                                                                 |          |
-|           userid:    |           - mgmt_2            | |   *password*  - IPMI password.                                                                               |          |
-|           password:  |           ports:              |                                                                                                                |          |
-|       ...            |           - 1                 | List items are correlated by index.                                                                            |          |
-|                      |           - 11                |                                                                                                                |          |
+|           ports:     |           - mgmt_1            | |   *ipaddrs*   - IPMI interface ipaddrs.                                                                      |          |
+|           ipaddr:    |           - mgmt_2            | |   *macs*      - IPMI interface MAC addresses.                                                                |          |
+|           mac:       |           ports:              | |   *userid*    - IPMI userid.                                                                                 |          |
+|           userid:    |           - 1                 | |   *password*  - IPMI password.                                                                               |          |
+|           password:  |           - 11                |                                                                                                                |          |
+|       ...            |           ipaddrs:            | List items are correlated by index.                                                                            |          |
+|                      |           - 10.0.0.1          |                                                                                                                |          |
+|                      |           - 10.0.0.2          |                                                                                                                |          |
+|                      |           macs:               |                                                                                                                |          |
+|                      |           - 01:23:45:67:89:AB |                                                                                                                |          |
+|                      |           - 01:23:45:67:89:AC |                                                                                                                |          |
 |                      |           userid: user        |                                                                                                                |          |
 |                      |           password: passw0rd  |                                                                                                                |          |
 |                      |                               |                                                                                                                |          |
@@ -126,13 +139,19 @@ nodes:
 |       pxe:           |       pxe:                    | |   *switches*  - Management switches.                                                                         |          |
 |           switches:  |           switches:           | |   *ports*     - Management ports.                                                                            |          |
 |           ports:     |           - mgmt_1            | |   *devices*   - Network devices.                                                                             |          |
-|           devices:   |           - mgmt_2            |                                                                                                                |          |
-|       ...            |           ports:              | List items are correlated by index.                                                                            |          |
+|           devices:   |           - mgmt_2            | |   *ipaddrs*   - Interface ipaddrs.                                                                           |          |
+|       ...            |           ports:              | |   *macs*      - Interface MAC addresses.                                                                     |          |
 |                      |           - 2                 |                                                                                                                |          |
-|                      |           - 12                |                                                                                                                |          |
+|                      |           - 12                | List items are correlated by index.                                                                            |          |
 |                      |           devices:            |                                                                                                                |          |
 |                      |           - eth16             |                                                                                                                |          |
 |                      |           - eth17             |                                                                                                                |          |
+|                      |           ipaddrs:            |                                                                                                                |          |
+|                      |           - 10.0.1.1          |                                                                                                                |          |
+|                      |           - 10.0.1.2          |                                                                                                                |          |
+|                      |           macs:               |                                                                                                                |          |
+|                      |           - 01:23:45:67:89:AD |                                                                                                                |          |
+|                      |           - 01:23:45:67:89:AE |                                                                                                                |          |
 |                      |                               |                                                                                                                |          |
 +----------------------+-------------------------------+----------------------------------------------------------------------------------------------------------------+----------+
 |                      |                               |                                                                                                                |          |
@@ -142,12 +161,26 @@ nodes:
 |       data:          |       data:                   | |   *switches*  - Data switches.                                                                               |          |
 |           switches:  |           switches:           | |   *ports*     - Data ports.                                                                                  |          |
 |           ports:     |           - data_1            | |   *devices*   - Network devices.                                                                             |          |
-|           devices:   |           - data_2            |                                                                                                                |          |
-|       ...            |           ports:              | List items are correlated by index.                                                                            |          |
+|           devices:   |           - data_2            | |   *ipaddrs*   - Interface ipaddrs.                                                                           |          |
+|       ...            |           ports:              | |   *macs*      - Interface MAC addresses.                                                                     |          |
 |                      |           - 1                 |                                                                                                                |          |
-|                      |           - 2                 |                                                                                                                |          |
+|                      |           - 2                 | List items are correlated by index.                                                                            |          |
 |                      |           devices:            |                                                                                                                |          |
 |                      |           - eth26             |                                                                                                                |          |
 |                      |           - eth27             |                                                                                                                |          |
+|                      |           ipaddrs:            |                                                                                                                |          |
+|                      |           - 10.0.2.1          |                                                                                                                |          |
+|                      |           - 10.0.2.2          |                                                                                                                |          |
+|                      |           macs:               |                                                                                                                |          |
+|                      |           - 01:23:45:67:89:AF |                                                                                                                |          |
+|                      |           - 01:23:45:67:89:BA |                                                                                                                |          |
+|                      |                               |                                                                                                                |          |
++----------------------+-------------------------------+----------------------------------------------------------------------------------------------------------------+----------+
+|                      |                               |                                                                                                                |          |
+| ::                   |                               | Operating system configuration.                                                                                | **yes**  |
+|                      |                               |                                                                                                                |          |
+|   nodes:             |                               | See :ref:`Config Specification - Node Templates OS Section <Config-Specification:_node_templates_os:>`.        |          |
+|       os:            |                               |                                                                                                                |          |
+|       ...            |                               |                                                                                                                |          |
 |                      |                               |                                                                                                                |          |
 +----------------------+-------------------------------+----------------------------------------------------------------------------------------------------------------+----------+
