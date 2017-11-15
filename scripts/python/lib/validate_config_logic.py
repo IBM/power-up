@@ -20,9 +20,7 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
-
-from lib.logger import Logger
+import lib.logger as logger
 from lib.exception import UserException
 
 
@@ -36,7 +34,7 @@ class ValidateConfigLogic(object):
     CONFIG_VERSION = 'v2.0'
 
     def __init__(self, config):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.config = config
 
     def _validate_version(self):

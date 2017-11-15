@@ -20,7 +20,6 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
 import os.path
 import re
 import platform
@@ -30,7 +29,7 @@ from orderedattrdict import AttrDict
 from Crypto.PublicKey import RSA
 import lxc
 
-from lib.logger import Logger
+import lib.logger as logger
 from lib.config import Config
 from lib.exception import UserException
 from lib.ssh import SSH_CONNECTION, SSH_Exception
@@ -58,7 +57,7 @@ class Container(object):
     DEFAULT_CONTAINER_NAME = 'cluster-genesis'
 
     def __init__(self):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.cfg = Config()
 
         self.cont_package_path = gen.get_container_package_path()

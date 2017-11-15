@@ -23,7 +23,7 @@ import os.path
 import socket
 import paramiko
 
-from lib.logger import Logger
+import lib.logger as logger
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -43,7 +43,7 @@ class SSH(object):
                  ssh_log=None, look_for_keys=True, key_filename=None):
         if ssh_log is not None:
             self.SSH_LOG = ssh_log
-        if self.log.get_level() == Logger.DEBUG:
+        if logger.is_log_level_file_debug():
             paramiko.util.log_to_file(self.SSH_LOG)
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
@@ -98,7 +98,7 @@ class SSH_CONNECTION(paramiko.SSHClient):
         if ssh_log is not None:
             paramiko.util.log_to_file(ssh_log)
         elif log is not None:
-            if self.log.get_level() == Logger.DEBUG:
+            if logger.is_log_level_file_debug():
                 ssh_log = FILE_PATH[:FILE_PATH.rfind('/')]
                 ssh_log += '/ssh_paramiko.log'
                 paramiko.util.log_to_file(ssh_log)

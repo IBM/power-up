@@ -27,8 +27,8 @@ import time
 from netaddr import IPNetwork
 from pyroute2 import IPRoute
 
+import lib.logger as logger
 from lib.config import Config
-from lib.logger import Logger
 from lib.genesis import GEN_PATH
 
 IPR = IPRoute()
@@ -46,8 +46,7 @@ def enable_deployer_network():
     """
     global LOG
     cfg = Config()
-    LOG = Logger(Logger.LOG_NAME)
-    LOG.set_level(cfg.get_globals_log_level().upper())
+    LOG = logger.getlogger()
     LOG.debug('------------------- enable_deployer_networks ----------------------')
 
     # if inv.is_passive_mgmt_switches():
@@ -483,4 +482,5 @@ def _wait_for_ifc_up(ifname, timespan=10):
 
 
 if __name__ == '__main__':
+    logger.create()
     enable_deployer_network()

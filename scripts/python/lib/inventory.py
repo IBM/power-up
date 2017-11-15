@@ -19,12 +19,11 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
 from enum import Enum
 from orderedattrdict import AttrDict, DefaultAttrDict
 
+import lib.logger as logger
 from lib.db import Database
-from lib.logger import Logger
 
 
 class Singleton(type):
@@ -80,7 +79,7 @@ class Inventory(object):
         DEVICES_PXE = 'devices_pxe'
 
     def __init__(self):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.dbase = Database()
 
         self.inv = AttrDict()

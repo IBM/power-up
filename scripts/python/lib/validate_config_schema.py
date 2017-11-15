@@ -20,12 +20,11 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
 import jsonschema
 from jsonschema import validate
 import jsl
 
-from lib.logger import Logger
+import lib.logger as logger
 from lib.exception import UserException
 
 
@@ -47,7 +46,6 @@ def _string_int_array_field(**kwargs):
 
 
 class Globals(jsl.Document):
-    log_level = jsl.fields.StringField(required=True)
     introspection = jsl.fields.BooleanField()
     env_variables = jsl.fields.DictField()
 
@@ -230,7 +228,7 @@ class ValidateConfigSchema(object):
     """
 
     def __init__(self, config):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.config = config
 
     def validate_config_schema(self):

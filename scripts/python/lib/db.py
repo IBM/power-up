@@ -21,13 +21,12 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import os
-import logging
 import yaml
 from orderedattrdict.yamlutils import AttrDictYAMLLoader
 
+import lib.logger as logger
 from lib.validate_config_schema import ValidateConfigSchema
 from lib.validate_config_logic import ValidateConfigLogic
-from lib.logger import Logger
 from lib.genesis import GEN_PATH
 from lib.exception import UserException
 
@@ -45,7 +44,7 @@ class Database(object):
     FILE_MODE = 0o666
 
     def __init__(self):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.cfg_file = os.path.realpath(self.CFG_FILE)
         self.inv_file = os.path.realpath(self.INV_FILE)
         self.cfg = None
@@ -132,7 +131,6 @@ class Database(object):
         else:
             cfg_file = os.path.realpath(config_file)
         self.cfg = self._load_yaml_file(cfg_file)
-        self.log.setLevel(logging.INFO)
         schema = ValidateConfigSchema(self.cfg)
         schema.validate_config_schema()
         logic = ValidateConfigLogic(self.cfg)

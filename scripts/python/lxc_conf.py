@@ -29,7 +29,7 @@ import os.path
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, \
     TemplateSyntaxError, TemplateAssertionError
 
-from lib.logger import Logger
+import lib.logger as logger
 from lib.config import Config
 from lib.genesis import GEN_PLAY_PATH, HOME, OPSYS
 
@@ -37,11 +37,7 @@ USERNAME = pwd.getpwuid(os.getuid())[0]
 
 
 class LxcConf(object):
-    """Create lxc-conf.yml
-
-    Args:
-        log(object): log
-    """
+    """Create lxc-conf.yml"""
 
     TEMPLATE_DIR = GEN_PLAY_PATH + 'templates/localhost'
     TEMPLATE_FILE = 'lxc-conf.j2'
@@ -51,11 +47,9 @@ class LxcConf(object):
     IPADDR = 'ipaddr'
     PREFIX = 'prefix'
 
-    def __init__(self, log=None):
+    def __init__(self):
+        self.log = logger.getlogger()
         self.cfg = Config()
-        if log is not None:
-            log.set_level(self.cfg.get_globals_log_level())
-        self.log = log
         if OPSYS not in ('Ubuntu', 'redhat'):
             raise Exception('Unsupported Operating System')
 
@@ -155,5 +149,6 @@ class LxcConf(object):
 
 
 if __name__ == '__main__':
-    LXC_CONF = LxcConf(Logger(Logger.LOG_NAME))
+    logger.create()
+    LXC_CONF = LxcConf()
     LXC_CONF.create()

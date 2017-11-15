@@ -21,10 +21,9 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 from enum import Enum
-import logging
 import netaddr
 
-from lib.logger import Logger
+import lib.logger as logger
 from lib.db import Database
 
 
@@ -64,7 +63,7 @@ class Config(object):
         CLASS = 'class'
 
     def __init__(self):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         dbase = Database()
         self.cfg = dbase.load_config()
 
@@ -133,17 +132,6 @@ class Config(object):
         """
 
         return self.cfg.version
-
-    def get_globals_log_level(self):
-        """Get globals log_level
-        Returns:
-            str: Log level
-        """
-
-        try:
-            return self.cfg.globals.log_level
-        except AttributeError:
-            raise Exception('Unable to read log level from config file')
 
     def get_globals_env_variables(self):
         """Get globals env_variables

@@ -28,11 +28,10 @@ import validate_cluster_hardware
 import configure_mgmt_switches
 import lxc_conf
 import lib.argparse_gen as argparse_gen
-from lib.logger import Logger
-from lib.config import Config
+import lib.logger as logger
+import lib.genesis as gen
 from lib.db import Database
 from lib.exception import UserException
-import lib.genesis as gen
 
 
 class Gen(object):
@@ -44,23 +43,13 @@ class Gen(object):
 
     ROOTUSER = 'root'
 
-    def __init__(self, args, log=None):
-        if log is not None:
-            try:
-                cfg = Config()
-            except UserException as exc:
-                print(exc)
-                sys.exit(1)
-            try:
-                log.set_level(cfg.get_globals_log_level())
-            except:
-                print('Unable to read log level from config file')
+    def __init__(self, args):
         self.args = args
 
     def _check_root_user(self, cmd):
         if getpass.getuser() != self.ROOTUSER:
             print(
-                "Error: '%s %s ...' should be run as root" %
+                "Fail: '%s %s ...' should be run as root" %
                 (sys.argv[0], cmd),
                 file=sys.stderr)
             sys.exit(1)
@@ -68,7 +57,7 @@ class Gen(object):
     def _check_non_root_user(self, cmd):
         if getpass.getuser() == self.ROOTUSER:
             print(
-                "Error: '%s %s ...' should not be run as root" %
+                "Fail: '%s %s ...' should not be run as root" %
                 (sys.argv[0], cmd),
                 file=sys.stderr)
             sys.exit(1)
@@ -91,19 +80,19 @@ class Gen(object):
         try:
             cont.check_permissions(getpass.getuser())
         except UserException as exc:
-            print('Error:', exc, file=sys.stderr)
+            print('Fail:', exc, file=sys.stderr)
             sys.exit(1)
         try:
             print('Creating config file')
-            conf = lxc_conf.LxcConf(Logger(Logger.LOG_NAME))
+            conf = lxc_conf.LxcConf()
             conf.create()
         except Exception as exc:
-            print("Error:", exc, file=sys.stderr)
+            print("Fail:", exc, file=sys.stderr)
             sys.exit(1)
         try:
             cont.create(self.args.create_container)
         except UserException as exc:
-            print('Error:', exc, file=sys.stderr)
+            print('Fail:', exc, file=sys.stderr)
             sys.exit(1)
         print('Success: Container was created')
 
@@ -112,13 +101,12 @@ class Gen(object):
         try:
             dbase.validate_config(self.args.config_file)
         except UserException as exc:
-            print('Error:', exc.message, file=sys.stderr)
+            print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
         print('Success: Config file validation passed')
 
     def _cluster_hardware(self):
-        val = validate_cluster_hardware.ValidateClusterHardware(
-            Logger(Logger.LOG_NAME))
+        val = validate_cluster_hardware.ValidateClusterHardware()
         rc1 = val.validate_mgmt_switches()
         rc2 = val.validate_data_switches()
         val.validate_ipmi()
@@ -152,7 +140,7 @@ class Gen(object):
         if cmd == argparse_gen.Cmd.SETUP.value:
             if gen.is_container():
                 print(
-                    'Error: Invalid subcommand in container', file=sys.stderr)
+                    'Fail: Invalid subcommand in container', file=sys.stderr)
                 sys.exit(1)
             self._check_root_user(cmd)
             if self.args.bridges:
@@ -161,7 +149,7 @@ class Gen(object):
         if cmd == argparse_gen.Cmd.CONFIG.value:
             if gen.is_container():
                 print(
-                    'Error: Invalid subcommand in container', file=sys.stderr)
+                    'Fail: Invalid subcommand in container', file=sys.stderr)
                 sys.exit(1)
             self._check_non_root_user(cmd)
             if argparse_gen.is_arg_present(self.args.create_container):
@@ -180,8 +168,8 @@ class Gen(object):
 
 if __name__ == '__main__':
     args = argparse_gen.get_parsed_args()
-    GEN = Gen(args, Logger(
-        Logger.LOG_NAME,
+    logger.create(
         args.log_level_file[0],
-        args.log_level_print[0]))
+        args.log_level_print[0])
+    GEN = Gen(args)
     GEN.launch()

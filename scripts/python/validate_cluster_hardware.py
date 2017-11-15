@@ -20,15 +20,13 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import time
 import sys
-# import logging
 from subprocess import Popen, PIPE
 from pyroute2 import IPRoute, NetlinkError
 from netaddr import IPNetwork
 from pyghmi.ipmi import command
 from pyghmi.exceptions import IpmiException
 
-from lib.logger import Logger
-from lib.exception import UserException
+import lib.logger as logger
 from lib.config import Config
 from lib.ssh import SSH_Exception
 from lib.switch_exception import SwitchException
@@ -39,23 +37,9 @@ NAME_SPACE_OFFSET_ADDR = 1
 
 
 def main():
-    log = Logger(Logger.LOG_NAME)
-#    log = logging.getLogger()
-    try:
-        cfg = Config()
-    except UserException as exc:
-        log.error('Error - {}'.format(exc))
-        sys.exit(1)
-    try:
-        log.set_level(cfg.get_globals_log_level())
-    except:
-        print('Unable to read log level from config file')
-    try:
-        log.set_display_level('info')
-    except:
-        print('Unable to set logging print level')
+    log = logger.getlogger()
 
-    val = ValidateClusterHardware(Logger(Logger.LOG_NAME))
+    val = ValidateClusterHardware()
     """Validate config"""
     if not val.validate_mgmt_switches():
         log.error('Failed validating cluster management switches')
@@ -89,8 +73,7 @@ class NetNameSpace(object):
             bridge (str): name of bridge to attach to
             addr (str): cidr of namespace address
         """
-#        self.log = logging.getLogger()
-        self.log = Logger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.log.set_level(Config().get_globals_log_level())
         self.addr = addr
         self.bridge = bridge
@@ -184,23 +167,8 @@ class ValidateClusterHardware(object):
         log (object): Log
     """
 
-    def __init__(self, log):
-        # self.log = logging.getLogger()
-        if log is not None:
-            try:
-                self.cfg = Config()
-            except UserException as exc:
-                print(exc)
-                sys.exit(1)
-            try:
-                log.set_level(self.cfg.get_globals_log_level())
-            except:
-                print('Unable to read log level from config file')
-            try:
-                log.set_display_level('info')
-            except:
-                print('Unable to set logging print level')
-            self.log = log
+    def __init__(self):
+        self.log = logger.getlogger()
 
     def _add_offset_to_address(self, addr, offset):
         """calculates an address with an offset added.
@@ -621,4 +589,5 @@ class ValidateClusterHardware(object):
 
 
 if __name__ == '__main__':
+    logger.create()
     main()

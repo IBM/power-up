@@ -20,8 +20,8 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import sys
 
+import lib.logger as logger
 from lib.config import Config
-from lib.logger import Logger
 from lib.switch import SwitchFactory
 from lib.switch_exception import SwitchException
 # from write_switch_memory import WriteSwitchMemory
@@ -32,9 +32,8 @@ PASSIVE = 'passive'
 
 def configure_mgmt_switches():
 
-    LOG = Logger(Logger.LOG_NAME)
+    LOG = logger.getlogger()
     cfg = Config()
-    LOG.set_level(cfg.get_globals_log_level())
     LOG.debug('------------------- configure_mgmt_switches -------------------')
 
     for index, switch_label in enumerate(cfg.yield_sw_mgmt_label()):
@@ -178,6 +177,5 @@ def configure_mgmt_switches():
 
 
 if __name__ == '__main__':
-    # LOG = Logger(Logger.LOG_NAME)
-    # LOG.set_display_level('debug')
+    logger.create()
     configure_mgmt_switches()
