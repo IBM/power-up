@@ -68,11 +68,15 @@ class Database(object):
             If load from file fails
         """
 
+        msg = "Failed to load '{}'".format(yaml_file)
         try:
             return yaml.load(open(yaml_file), Loader=AttrDictYAMLLoader)
-        except:
-            msg = 'Could not load file: ' + yaml_file
-            self.log.error(msg)
+        except yaml.parser.ParserError as exc:
+            self.log.error("Failed to parse JSON '{}' - {}".format(
+                yaml_file, exc))
+            raise UserException(msg)
+        except Exception as exc:
+            self.log.error("Failed to load '{}' - {}".format(yaml_file, exc))
             raise UserException(msg)
 
     def _dump_yaml_file(self, yaml_file, content):
@@ -88,10 +92,11 @@ class Database(object):
                 open(yaml_file, 'w'),
                 indent=4,
                 default_flow_style=False)
-        except:
-            msg = 'Could not dump inventory to file: ' + yaml_file
-            self.log.error(msg)
-            raise UserException
+        except Exception as exc:
+            self.log.error("Failed to dump inventory to '{}' - {}".format(
+                yaml_file, exc))
+            raise UserException("Failed to dump inventory to '{}'".format(
+                yaml_file))
 
     def load_config(self):
         """Load config from database
