@@ -37,9 +37,10 @@ def teardown_deployer_network():
     This function is idempotent.
     """
     cfg = Config()
-    LOG.setLevel(cfg.get_globals_log_level())
+    global LOG
+    LOG = logging.getLogger(Logger.LOG_NAME)
+    LOG.setLevel(cfg.get_globals_log_level().upper())
     LOG.debug('----------------------------------------')
-#    sys.exit('outa here')
 
     # if inv.is_passive_mgmt_switches():
     #     self.LOG.info('Passive Management Switch(es) specified')
@@ -264,9 +265,4 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
 
 
 if __name__ == '__main__':
-    LOG = Logger(Logger.LOG_NAME)
-    LOG = logging.getLogger(Logger.LOG_NAME)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    LOG.addHandler(ch)
     teardown_deployer_network()

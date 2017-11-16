@@ -18,8 +18,10 @@
 . scripts/gen-ac
 sudo cp scripts/gen-ac /etc/bash_completion.d
 
+. scripts/teardown-ac
+sudo cp scripts/teardown-ac /etc/bash_completion.d
+
 P=`pwd`
-P0="$P"
 P=${P#*"cluster-genesis"}
 if [ -z $P ]; then
     if [[ ! $PATH == *"cluster-genesis/scripts:"* ]]; then
@@ -62,18 +64,7 @@ if [ -z $P ]; then
     sudo cp scripts/gen-ac /etc/bash_completion.d
 
     cp scripts/cleanpath ~/bin
-    cp scripts/python/teardown.py ~/bin
 
-    cd scripts
-    if [ ! -f gen ]; then
-        ln -s gen.sh gen
-    fi
-
-    cd python
-    if [ ! -f teardown ]; then
-        ln -s teardown.py teardown
-    fi
-    cd "$P0"
 else
     echo "Please source setup-env from within the cluster-genesis directory"
     echo "ie:"

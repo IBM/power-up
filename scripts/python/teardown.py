@@ -21,14 +21,11 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
-import subprocess
-import os
 
+import teardown_deployer_networks
 import lib.argparse_teardown as argparse_teardown
 from lib.logger import Logger
 from lib.config import Config
-# from lib.container import Container
-from lib.genesis import GEN_SCRIPTS_PATH
 
 
 class Teardown(object):
@@ -43,24 +40,14 @@ class Teardown(object):
             cfg = Config()
             log.set_level(cfg.get_globals_log_level())
         self.args = args
-        self.log = log
 
     def _destroy_deployer_container(self):
         print('teardown.py - destroy deployer container')
         sys.exit('Teardown container not implemented')
 
     def _teardown_deployer_networks(self):
-        self.log.info('Teardown deployer networks')
-        os.chdir(GEN_SCRIPTS_PATH + '/python')
-        subprocess.check_output(['bash', '-c',
-                                 "sudo setcap 'cap_net_raw,cap_net_admin+eip'"
-                                 " $(readlink -f $(which python))"])
-        p = subprocess.Popen(GEN_SCRIPTS_PATH +
-                             "/python/teardown_deployer_networks.py")
-        out, err = p.communicate()
-        subprocess.check_output(['bash', '-c',
-                                 "sudo setcap 'cap_net_raw,cap_net_admin-eip'"
-                                 " $(readlink -f $(which python))"])
+        print('Teardown deployer networks')
+        teardown_deployer_networks.teardown_deployer_network()
 
     def _teardown_deployer_gateway(self):
         print('teardown.py - teardown deployer gateway')
@@ -80,10 +67,9 @@ class Teardown(object):
 
 
 if __name__ == '__main__':
-    try:
-        a = argparse_teardown.get_parsed_args()
-    except SystemExit:
-        sys.exit('Invalid teardown option')
-    TEARDOWN = Teardown(argparse_teardown.get_parsed_args(),
-                        Logger(Logger.LOG_NAME))
+    args = argparse_teardown.get_parsed_args()
+    TEARDOWN = Teardown(args, Logger(
+        Logger.LOG_NAME,
+        args.log_level_file[0],
+        args.log_level_print[0]))
     TEARDOWN.launch()

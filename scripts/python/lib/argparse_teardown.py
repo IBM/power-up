@@ -26,6 +26,9 @@ DEPLOYER_NETWORKS_HELP = ('Deletes {} created interfaces and bridges. \nRemoves 
                           'added addresses from external interfaces.'.format(PROJECT, PROJECT))
 GITHUB = 'https://github.com/open-power-ref-design-toolkit/cluster-genesis'
 EPILOG = 'home page:\n  %s' % GITHUB
+LOG_LEVEL_CHOICES = ['nolog', 'debug', 'info', 'warning', 'error', 'critical']
+LOG_LEVEL_FILE = ['info']
+LOG_LEVEL_PRINT = ['info']
 
 
 def get_args():
@@ -36,6 +39,26 @@ def get_args():
         epilog=EPILOG,
         formatter_class=RawTextHelpFormatter)
     subparsers = parser.add_subparsers()
+    common_parser = ArgumentParser(add_help=False)
+
+    # Common arguments
+    common_parser.add_argument(
+        '-f', '--log-level-file',
+        nargs=1,
+        default=LOG_LEVEL_FILE,
+        choices=LOG_LEVEL_CHOICES,
+        metavar='LOG-LEVEL',
+        help='Add log to file\nChoices: {}\nDefault: {}'.format(
+            ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_FILE[0]))
+
+    common_parser.add_argument(
+        '-p', '--log-level-print',
+        nargs=1,
+        default=LOG_LEVEL_PRINT,
+        choices=LOG_LEVEL_CHOICES,
+        metavar='LOG-LEVEL',
+        help='Add log to stdout/stderr\nChoices: {}\nDefault: {}'.format(
+            ','.join(LOG_LEVEL_CHOICES), LOG_LEVEL_PRINT[0]))
 
     # Subparsers
     parser_deployer = subparsers.add_parser(
@@ -43,6 +66,7 @@ def get_args():
         description='%s - %s' % (PROJECT, DEPLOYER_DESC),
         help=DEPLOYER_DESC,
         epilog=EPILOG,
+        parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
 
     # 'deployer' subcommand arguments
@@ -75,7 +99,7 @@ def get_args():
         if args.deployer:
             _check_deployer(args, parser_deployer)
     except AttributeError:
-        raise
+        pass
 
     return parser
 
