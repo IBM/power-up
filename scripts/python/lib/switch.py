@@ -19,23 +19,24 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
-
 from lib import lenovo
 from lib import mellanox
+from lib.exception import UserException
+import lib.logger as logger
+
+LOG = logger.getlogger()
 
 
 class SwitchFactory(object):
     """Common switch configuration."""
-    def __init__(self, log, switch_type, host=None, userid=None, password=None, mode=None, outfile=None):
+    def __init__(self, switch_type, host=None, userid=None, password=None, mode=None, outfile=None):
         pass
 
     @staticmethod
-    def factory(log, switch_type, host=None, userid=None, password=None, mode='passive', outfile='switch_cmds.txt'):
+    def factory(switch_type, host=None, userid=None, password=None, mode='passive', outfile='switch_cmds.txt'):
         """Return management switch model object.
 
         Args:
-            log (:obj:`Logger`): Log object.
             inv (:obj:`Inventory`): Inventory object.
             switch_type (enum): Switch type.
 
@@ -43,12 +44,10 @@ class SwitchFactory(object):
             Exception: If management switch class is invalid.
         """
         if switch_type in 'lenovo Lenovo LENOVO':
-            return lenovo.switch.factory(log, host, userid, password, mode, outfile)
+            return lenovo.switch.factory(host, userid, password, mode, outfile)
         if switch_type in 'mellanox Mellanox MELLANOX':
-            return mellanox.switch.factory(log, host, userid, password, mode, outfile)
-        try:
-            raise Exception()
-        except:
-            print('Invalid switch class')
-            log.error('Invalid switch class')
-            sys.exit(1)
+            return mellanox.switch.factory(host, userid, password, mode, outfile)
+
+        msg = 'Invalid switch class'
+        LOG.error(msg)
+        raise UserException(msg)

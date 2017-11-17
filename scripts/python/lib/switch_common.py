@@ -63,7 +63,7 @@ class SwitchCommon(object):
         ';exit'
         ';prompting')
 
-    def __init__(self, log, host=None, userid=None,
+    def __init__(self, host=None, userid=None,
                  password=None, mode=None, outfile=None):
         pass
 
@@ -270,13 +270,13 @@ class SwitchCommon(object):
 
         if self.ENABLE_REMOTE_CONFIG:
             cmd = self.ENABLE_REMOTE_CONFIG % (cmd)
-        ssh = SSH(self.log)
+        ssh = SSH()
         __, data, _ = ssh.exec_cmd(
             self.host,
             self.userid,
             self.password,
             cmd,
-            ssh_log=FILE_PATH + '/switch_ssh.log',
+            ssh_log=True,
             look_for_keys=False)
         return data
 

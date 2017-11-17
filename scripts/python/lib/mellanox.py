@@ -22,6 +22,7 @@ import os.path
 import netaddr
 import datetime
 
+import lib.logger as logger
 from lib.switch_common import SwitchCommon
 from lib.genesis import GEN_PASSIVE_PATH, GEN_PATH
 from lib.switch_exception import SwitchException
@@ -103,14 +104,13 @@ class Mellanox(SwitchCommon):
 
     def __init__(
             self,
-            log,
             host=None,
             userid=None,
             password=None,
             mode=None,
             outfile=None):
         self.mode = mode
-        self.log = log
+        self.log = logger.getlogger()
         self.host = host
         if self.mode == 'active':
             self.userid = userid
@@ -124,7 +124,7 @@ class Mellanox(SwitchCommon):
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
         super(Mellanox, self).__init__(
-            log, host, userid, password, mode, outfile)
+            host, userid, password, mode, outfile)
 
     def set_switchport_mode(self, mode, port, nvlan=None):
         """Sets the switchport mode.  Note that Mellanox's 'hybrid'
@@ -587,5 +587,5 @@ class Mellanox(SwitchCommon):
 
 class switch(object):
     @staticmethod
-    def factory(log, host=None, userid=None, password=None, mode=None, outfile=None):
-        return Mellanox(log, host, userid, password, mode, outfile)
+    def factory(host=None, userid=None, password=None, mode=None, outfile=None):
+        return Mellanox(host, userid, password, mode, outfile)

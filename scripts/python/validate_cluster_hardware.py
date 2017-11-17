@@ -31,16 +31,17 @@ from lib.config import Config
 from lib.ssh import SSH_Exception
 from lib.switch_exception import SwitchException
 from lib.switch import SwitchFactory
+from lib.exception import UserException
 
 # offset relative to bridge address
 NAME_SPACE_OFFSET_ADDR = 1
 
 
 def main():
+    """Validate config"""
     log = logger.getlogger()
 
     val = ValidateClusterHardware()
-    """Validate config"""
     if not val.validate_mgmt_switches():
         log.error('Failed validating cluster management switches')
 
@@ -74,7 +75,6 @@ class NetNameSpace(object):
             addr (str): cidr of namespace address
         """
         self.log = logger.getlogger()
-        self.log.set_level(Config().get_globals_log_level())
         self.addr = addr
         self.bridge = bridge
         self.vlan = bridge.split('-')[-1]
@@ -169,6 +169,11 @@ class ValidateClusterHardware(object):
 
     def __init__(self):
         self.log = logger.getlogger()
+        try:
+            self.cfg = Config()
+        except UserException as exc:
+            self.log.critical(exc)
+            raise UserException(exc)
 
     def _add_offset_to_address(self, addr, offset):
         """calculates an address with an offset added.
@@ -267,7 +272,7 @@ class ValidateClusterHardware(object):
         addr_st = self._add_offset_to_address(ipmi_network, 30)
         addr_end = self._add_offset_to_address(ipmi_network, 30 + ipmi_cnt + 2)
 
-        cmd = 'dnsmasq --interface={} --dhcp-range={},{},{},3600' \
+        cmd = 'dnsmasq --interface={} --dhcp-range={},{},{},300' \
             .format(ipmi_ns._get_name_sp_ifc_name(),
                     addr_st, addr_end, netmask)
 
@@ -357,7 +362,7 @@ class ValidateClusterHardware(object):
         addr_st = self._add_offset_to_address(pxe_network, 30)
         addr_end = self._add_offset_to_address(pxe_network, 30 + pxe_cnt + 2)
 
-        cmd = 'dnsmasq --interface={} --dhcp-range={},{},{},3600' \
+        cmd = 'dnsmasq --interface={} --dhcp-range={},{},{},300' \
             .format(pxe_ns._get_name_sp_ifc_name(),
                     addr_st, addr_end, netmask)
 
@@ -476,7 +481,6 @@ class ValidateClusterHardware(object):
                 self.log.info('Verifying switch communication on ip'
                               ' address: {}'.format(ip))
                 sw = SwitchFactory.factory(
-                    self.log,
                     switch_class,
                     ip,
                     userid,
@@ -552,7 +556,6 @@ class ValidateClusterHardware(object):
                 self.log.info('Verifying switch communication on ip address:'
                               ' {}'.format(ip))
                 sw = SwitchFactory.factory(
-                    self.log,
                     switch_class,
                     ip,
                     userid,

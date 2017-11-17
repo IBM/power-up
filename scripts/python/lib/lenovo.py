@@ -21,6 +21,7 @@ import re
 import os.path
 import datetime
 
+import lib.logger as logger
 from lib.switch_exception import SwitchException
 from lib.switch_common import SwitchCommon
 from lib.genesis import GEN_PASSIVE_PATH, GEN_PATH
@@ -89,10 +90,10 @@ class Lenovo(SwitchCommon):
     UP_STATE_IFC = 'up'
     MAX_INTF = 128
 
-    def __init__(self, log, host=None, userid=None,
+    def __init__(self, host=None, userid=None,
                  password=None, mode=None, outfile=None):
         self.mode = mode
-        self.log = log
+        self.log = logger.getlogger()
         self.host = host
         if self.mode == 'active':
             self.userid = userid
@@ -105,7 +106,7 @@ class Lenovo(SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-        super(Lenovo, self).__init__(log, host, userid, password, mode, outfile)
+        super(Lenovo, self).__init__(host, userid, password, mode, outfile)
 
     def _get_port_detail(self, match):
         avlans = ''
@@ -266,5 +267,5 @@ class Lenovo(SwitchCommon):
 
 class switch(object):
     @staticmethod
-    def factory(log, host=None, userid=None, password=None, mode=None, outfile=None):
-        return Lenovo(log, host, userid, password, mode, outfile)
+    def factory(host=None, userid=None, password=None, mode=None, outfile=None):
+        return Lenovo(host, userid, password, mode, outfile)

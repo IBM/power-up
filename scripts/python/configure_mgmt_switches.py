@@ -77,7 +77,6 @@ def configure_mgmt_switches():
             # Try all ipaddrs in switches.interfaces
             for ip in cfg.yield_sw_mgmt_interfaces_ip(index):
                 sw = SwitchFactory.factory(
-                    LOG,
                     switch_class,
                     ip,
                     userid,

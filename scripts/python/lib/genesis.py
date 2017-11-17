@@ -33,6 +33,7 @@ GEN_SCRIPTS_PATH = os.path.join(GEN_PATH, 'scripts', '')
 GEN_SCRIPTS_PYTHON_PATH = os.path.join(GEN_SCRIPTS_PATH, 'python', '')
 GEN_PLAY_PATH = os.path.join(GEN_PATH, 'playbooks', '')
 GEN_PASSIVE_PATH = os.path.join(GEN_PATH, 'passive', '')
+GEN_LOGS_PATH = os.path.join(GEN_PATH, 'logs', '')
 OPSYS = platform.dist()[0]
 CONTAINER_PACKAGE_PATH = '/opt/' + GENESIS_DIR
 CONTAINER_ID_FILE = 'container'

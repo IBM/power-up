@@ -24,8 +24,9 @@ import socket
 import paramiko
 
 import lib.logger as logger
+from lib.genesis import GEN_LOGS_PATH
 
-FILE_PATH = os.path.dirname(os.path.abspath(__file__))
+SSH_LOG = os.path.join(GEN_LOGS_PATH, 'ssh_paramiko')
 
 
 class SSH_Exception(Exception):
@@ -34,17 +35,16 @@ class SSH_Exception(Exception):
 
 class SSH(object):
     SWITCH_PORT = 22
-    SSH_LOG = FILE_PATH + '_ssh.log'
 
-    def __init__(self, log):
-        self.log = log
+    def __init__(self):
+        self.log = logger.getlogger()
 
     def exec_cmd(self, ip_addr, username, password, cmd,
-                 ssh_log=None, look_for_keys=True, key_filename=None):
-        if ssh_log is not None:
-            self.SSH_LOG = ssh_log
-        if logger.is_log_level_file_debug():
-            paramiko.util.log_to_file(self.SSH_LOG)
+                 ssh_log=False, look_for_keys=True, key_filename=None):
+        self.ssh_log = SSH_LOG
+        if ssh_log and logger.is_log_level_file_debug():
+            paramiko.util.log_to_file(self.ssh_log)
+
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -89,19 +89,15 @@ class SSH_CONNECTION(paramiko.SSHClient):
         see paramiko documentation for other args
     """
 
-    def __init__(self, host, log=None, ssh_log=None, username=None,
+    def __init__(self, host, ssh_log=False, username=None,
                  password=None, look_for_keys=True, key_filename=None):
         paramiko.SSHClient.__init__(self)
         self.host = host
-        self.log = log
-        self.ssh_log = ssh_log
-        if ssh_log is not None:
-            paramiko.util.log_to_file(ssh_log)
-        elif log is not None:
-            if logger.is_log_level_file_debug():
-                ssh_log = FILE_PATH[:FILE_PATH.rfind('/')]
-                ssh_log += '/ssh_paramiko.log'
-                paramiko.util.log_to_file(ssh_log)
+        self.log = logger.getlogger()
+        self.ssh_log = SSH_LOG
+        if ssh_log and logger.is_log_level_file_debug():
+            paramiko.util.log_to_file(self.ssh_log)
+
         if key_filename is None:
             self.load_system_host_keys()
         self.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -119,10 +115,7 @@ class SSH_CONNECTION(paramiko.SSHClient):
                 paramiko.SSHException,
                 socket.error,
                 BaseException) as exc:
-            if log is not None:
-                self.log.error('%s: %s' % (host, str(exc)))
-            else:
-                print('%s: %s' % (host, str(exc)))
+            self.log.error('%s: %s' % (host, str(exc)))
             raise SSH_Exception('Connection Failure - {}'.format(exc))
 
     def close_ssh(self):
