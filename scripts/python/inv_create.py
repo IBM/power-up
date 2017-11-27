@@ -20,22 +20,15 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-from lib.logger import Logger
-from lib.config import Config
+import lib.logger as logger
 from lib.inv_nodes import InventoryNodes
 
 
 class InventoryCreate(object):
-    """Create inventory
+    """Create inventory"""
 
-    Args:
-        log(object): log
-    """
-
-    def __init__(self, log=None):
-        if log is not None:
-            cfg = Config()
-            log.set_level(cfg.get_globals_log_level())
+    def __init__(self):
+        pass
 
     def create(self):
         """Create inventory"""
@@ -45,5 +38,6 @@ class InventoryCreate(object):
 
 
 if __name__ == '__main__':
-    INV = InventoryCreate(Logger(Logger.LOG_NAME))
+    logger.create()
+    INV = InventoryCreate()
     INV.create()

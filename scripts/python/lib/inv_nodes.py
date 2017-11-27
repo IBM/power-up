@@ -18,11 +18,9 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
-
+import lib.logger as logger
 from lib.config import Config
 from lib.inventory import Inventory
-from lib.logger import Logger
 
 
 class InventoryNodes(object):
@@ -30,7 +28,7 @@ class InventoryNodes(object):
         "Node template '%s' did not have corresponding management switch '%s'"
 
     def __init__(self):
-        self.log = logging.getLogger(Logger.LOG_NAME)
+        self.log = logger.getlogger()
         self.inv = Inventory()
 
     def __del__(self):
