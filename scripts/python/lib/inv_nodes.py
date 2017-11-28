@@ -108,3 +108,4 @@ class InventoryNodes(object):
                 self.inv.add_nodes_devices_pxe(cfg.get_ntmpl_phyintf_pxe_dev(
                     index_ntmplt))
                 index_host += 1
+        self.log.info('Successfully created inventory file')

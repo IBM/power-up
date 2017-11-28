@@ -38,6 +38,7 @@ OPSYS = platform.dist()[0]
 CONTAINER_PACKAGE_PATH = '/opt/' + GENESIS_DIR
 CONTAINER_ID_FILE = 'container'
 VENV_DIR = 'gen-venv'
+PYTHON_EXE = 'bin/python'
 SCRIPTS_DIR = 'scripts'
 PYTHON_DIR = 'python'
 OS_IMAGES_DIR = 'os-images'
@@ -85,6 +86,10 @@ def get_container_id_file():
 
 def get_container_venv_path():
     return os.path.join(CONTAINER_PACKAGE_PATH, VENV_DIR)
+
+
+def get_container_venv_python_exe():
+    return os.path.join(CONTAINER_PACKAGE_PATH, VENV_DIR, PYTHON_EXE)
 
 
 def get_container_scripts_path():

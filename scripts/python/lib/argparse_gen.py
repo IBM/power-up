@@ -161,6 +161,13 @@ def get_args():
         deploy=True)
 
     parser_deploy.add_argument(
+        '--create-inventory',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Create inventory')
+
+    parser_deploy.add_argument(
         '-a', '--all',
         action='store_true',
         help='TBD')
@@ -212,8 +219,10 @@ def _check_validate(args, subparser):
 
 
 def _check_deploy(args, subparser):
-    if not args.all:
-        subparser.error('one of the arguments -a/--all is required')
+    if args.create_inventory == ABSENT and not args.all:
+        subparser.error(
+            'one of the arguments --create-inventory -a/--all is'
+            ' required')
 
 
 def is_arg_present(arg):

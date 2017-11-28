@@ -56,7 +56,7 @@ class Container(object):
     PUBLIC_SSH_KEY_FILE = os.path.expanduser('~/.ssh/gen.pub')
     DEFAULT_CONTAINER_NAME = 'cluster-genesis'
 
-    def __init__(self):
+    def __init__(self, name):
         self.log = logger.getlogger()
         self.cfg = Config()
 
@@ -72,7 +72,6 @@ class Container(object):
         self.config_file = gen.get_config_file_name()
 
         self.cont_ini = os.path.join(self.depl_package_path, 'container.ini')
-
         self.rootfs = self.ROOTFS
 
         # Check if architecture is supported
@@ -83,40 +82,35 @@ class Container(object):
             raise UserException(msg)
         self.rootfs.arch = self.ARCHITECTURE[arch]
 
-        self.cont = None
-        self.cont_name = None
-
-    def _lxc_run_command(self, cmd):
-        if self.cont.attach_wait(lxc.attach_run_command, cmd):
-            error = "Failed running '{}' in the container '{}'".format(
-                ' '.join(cmd), self.cont_name)
-            self.log.error(error)
-            raise UserException(error)
-        self.log.info(
-            "Successfully ran '{}' in the container '{}'".format(
-                ' '.join(cmd), self.cont_name))
+        if name is None:
+            for vlan in self.cfg.yield_depl_netw_client_vlan('pxe'):
+                break
+            self.name = '{}-pxe{}'.format(self.DEFAULT_CONTAINER_NAME, vlan)
+        else:
+            self.name = name
+        self.cont = lxc.Container(self.name)
 
     def _open_sftp(self, ssh):
         try:
             return ssh.open_sftp_session()
         except Exception as exc:
             error = "Failed to open sftp session to the '{}' container - {}"
-            error = error.format(self.cont_name, exc)
+            error = error.format(self.name, exc)
             self.log.error(error)
             raise UserException(error)
         self.log.debug("Opened sftp session to the '{}' container".format(
-            self.cont_name))
+            self.name))
 
     def _close_ssh(self, ssh):
         try:
             ssh.close()
         except Exception as exc:
             error = "Failed to close sftp session to the '{}' container - {}"
-            error = error.format(self.cont_name, exc)
+            error = error.format(self.name, exc)
             self.log.error(error)
             raise UserException(error)
         self.log.debug("Closed sftp session to the '{}' container".format(
-            self.cont_name))
+            self.name))
 
     def _mkdir_sftp(self, sftp, dir_):
         try:
@@ -125,11 +119,11 @@ class Container(object):
             error = (
                 "Failed via sftp to create the '{}' directory in the '{}'"
                 " container - {}")
-            error = error.format(dir_, self.cont_name, exc)
+            error = error.format(dir_, self.name, exc)
             self.log.error(error)
             raise UserException(error)
         msg = "Created via sftp the '{}' directory in the '{}' container"
-        self.log.debug(msg.format(dir_, self.cont_name))
+        self.log.debug(msg.format(dir_, self.name))
 
     def _copy_sftp(self, sftp, src, dst):
         try:
@@ -138,12 +132,12 @@ class Container(object):
             error = (
                 "Failed via sftp to copy '{}' to '{}' in the '{}' container"
                 " - {}")
-            error = error.format(src, dst, self.cont_name, exc)
+            error = error.format(src, dst, self.name, exc)
             self.log.error(error)
             raise UserException(error)
         self.log.debug(
             "Copied via sftp '{}' to '{}' in the '{}' container".format(
-                src, dst, self.cont_name))
+                src, dst, self.name))
 
     def check_permissions(self, user):
         # Enumerate LXC bridge
@@ -193,34 +187,41 @@ class Container(object):
             "Unprivileged/non-root container bridge support found in '%s'" %
             self.LXC_USERNET)
 
-    def create(self, name):
-        if name is None:
-            for vlan in self.cfg.yield_depl_netw_client_vlan('pxe'):
-                break
-            name = '{}-pxe{}'.format(self.DEFAULT_CONTAINER_NAME, vlan)
+    def run_command(self, cmd):
+        if self.cont.attach_wait(
+                lxc.attach_run_command,
+                cmd,
+                extra_env_vars=[
+                    logger.get_log_level_env_var_file(),
+                    logger.get_log_level_env_var_print()]):
+            error = "Failed running '{}' in the container '{}'".format(
+                ' '.join(cmd), self.name)
+            self.log.error(error)
+            raise UserException(error)
+        self.log.info(
+            "Successfully ran '{}' in the container '{}'".format(
+                ' '.join(cmd), self.name))
 
-        self.cont = lxc.Container(name)
-        self.cont_name = name
-
+    def create(self):
         # Check if container already exists
         if self.cont.defined:
-            msg = "Container '%s' already exists" % name
+            msg = "Container '%s' already exists" % self.name
             self.log.error(msg)
             raise UserException(msg)
 
         # Create container
         if not self.cont.create('download', lxc.LXC_CREATE_QUIET, self.rootfs):
-            msg = "Failed to create container '%s'" % name
+            msg = "Failed to create container '%s'" % self.name
             self.log.error(msg)
             raise UserException(msg)
-        self.log.info("Created container '%s'" % name)
+        self.log.info("Created container '%s'" % self.name)
 
         # Start container
         if not self.cont.start():
-            msg = "Failed to start container '%s'" % name
+            msg = "Failed to start container '%s'" % self.name
             self.log.error(msg)
             raise UserException(msg)
-        self.log.info("Started container '%s'" % name)
+        self.log.info("Started container '%s'" % self.name)
 
         # Get nameservers from /etc/resolv.conf outside container
         nameservers = []
@@ -238,32 +239,28 @@ class Container(object):
         # '/etc/resolvconf/resolv.conf.d/base'
         for line in nameservers:
             entry = 'a|%s' % line
-            self._lxc_run_command(
+            self.run_command(
                 ['ex', '-sc', entry, '-cx', self.RESOLV_CONF_BASE])
 
         # Sleep to allow /etc/resolv.conf to update
         # Future enhancement is to poll for change
-        self._lxc_run_command(["sleep", "5"])
+        self.run_command(["sleep", "5"])
 
         # Create user
-        self._lxc_run_command(
+        self.run_command(
             ['adduser', '--disabled-password', '--gecos', 'GECOS', 'deployer'])
 
         # Create '/root/.ssh' directory
-        self._lxc_run_command(
-            ['mkdir', '/root/.ssh'])
+        self.run_command(['mkdir', '/root/.ssh'])
 
         # Create '/root/.ssh/authorized_keys' file
-        self._lxc_run_command(
-            ['touch', '/root/.ssh/authorized_keys'])
+        self.run_command(['touch', '/root/.ssh/authorized_keys'])
 
         # Change '/root/.ssh' permissions to 0700
-        self._lxc_run_command(
-            ['chmod', '700', '/root/.ssh'])
+        self.run_command(['chmod', '700', '/root/.ssh'])
 
         # Change '/root/.ssh/authorized_keys' permissions to 0600
-        self._lxc_run_command(
-            ['chmod', '600', '/root/.ssh/authorized_keys'])
+        self.run_command(['chmod', '600', '/root/.ssh/authorized_keys'])
 
         key = RSA.generate(self.RSA_BIT_LENGTH)
         # Create private ssh key
@@ -276,14 +273,14 @@ class Container(object):
             ssh_key.write(public_key)
 
         # Add public ssh key to container
-        self._lxc_run_command([
+        self.run_command([
             'ex',
             '-sc', 'a|%s' % public_key,
             '-cx', '/root/.ssh/authorized_keys'])
 
         # Update/Upgrade container distro packages
-        self._lxc_run_command(["apt-get", "update"])
-        self._lxc_run_command(["apt-get", "dist-upgrade", "-y"])
+        self.run_command(["apt-get", "update"])
+        self.run_command(["apt-get", "dist-upgrade", "-y"])
 
         # Read INI file
         ini = ConfigParser.SafeConfigParser(allow_no_value=True)
@@ -299,7 +296,7 @@ class Container(object):
             cmd = ['apt-get', 'install', '-y']
             for pkg in ini.options(self.Packages.DISTRO.value):
                 cmd.append(pkg)
-            self._lxc_run_command(cmd)
+            self.run_command(cmd)
 
         # Install x86_64 arch specific packages
         if (self.rootfs.arch == 'amd64' and
@@ -307,7 +304,7 @@ class Container(object):
             cmd = ['apt-get', 'install', '-y']
             for pkg in ini.options(self.Packages.DISTRO_AMD64.value):
                 cmd.append(pkg)
-            self._lxc_run_command(cmd)
+            self.run_command(cmd)
 
         # Install ppc64el arch specific packages
         if (self.rootfs.arch == 'ppc64el' and
@@ -315,21 +312,20 @@ class Container(object):
             cmd = ['apt-get', 'install', '-y']
             for pkg in ini.options(self.Packages.DISTRO_PPC64EL.value):
                 cmd.append(pkg)
-            self._lxc_run_command(cmd)
+            self.run_command(cmd)
 
         # Install pip container packages
         if ini.has_section(self.Packages.PIP.value):
             cmd = ['pip', 'install']
             for pkg in ini.options(self.Packages.PIP.value):
                 cmd.append(pkg)
-            self._lxc_run_command(cmd)
+            self.run_command(cmd)
 
         # Create project
-        self._lxc_run_command(
-            ['mkdir', self.cont_package_path])
+        self.run_command(['mkdir', self.cont_package_path])
 
         # Create virtual environment
-        self._lxc_run_command([
+        self.run_command([
             'virtualenv',
             '--no-wheel',
             '--system-site-packages',
@@ -345,7 +341,7 @@ class Container(object):
                 key_filename=self.PRIVATE_SSH_KEY_FILE)
         except SSH_Exception as exc:
             error = "SSH to container '{}' at '{}' failed".format(
-                self.cont_name, cont_ipaddr)
+                self.name, cont_ipaddr)
             self.log.error(error)
             raise UserException(error)
 
@@ -382,7 +378,7 @@ class Container(object):
         self._copy_dir_to_container(sftp, self.depl_os_images_path)
 
         # Create file to indicate whether project is installed in a container
-        self._lxc_run_command(['touch', self.cont_id_file])
+        self.run_command(['touch', self.cont_id_file])
 
         # Close ssh session to container
         self._close_ssh(ssh)

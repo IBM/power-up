@@ -133,6 +133,31 @@ def getlogger():
     return logging.getLogger(LOG_NAME)
 
 
+def _get_log_level(handler_type):
+    for handler in logging.getLogger(LOG_NAME).handlers:
+        if handler_type == handler.__class__:
+            return logging.getLevelName(handler.level).lower()
+    return None
+
+
+def get_log_level_file():
+    return _get_log_level(logging.FileHandler)
+
+
+def get_log_level_print():
+    return _get_log_level(logging.StreamHandler)
+
+
+def get_log_level_env_var_file():
+    return '{}={}'.format(
+        GEN_LOG_LEVEL_FILE, _get_log_level(logging.FileHandler))
+
+
+def get_log_level_env_var_print():
+    return '{}={}'.format(
+        GEN_LOG_LEVEL_PRINT, _get_log_level(logging.StreamHandler))
+
+
 def _is_log_level_debug(handler_type):
     for handler in logging.getLogger(LOG_NAME).handlers:
         if handler_type == handler.__class__:

@@ -20,6 +20,7 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import os
 import sys
 import getpass
 
@@ -76,25 +77,24 @@ class Gen(object):
     def _create_container(self):
         from lib.container import Container
 
-        cont = Container()
+        cont = Container(self.args.create_container)
         try:
             cont.check_permissions(getpass.getuser())
         except UserException as exc:
             print('Fail:', exc, file=sys.stderr)
             sys.exit(1)
         try:
-            print('Creating config file')
             conf = lxc_conf.LxcConf()
             conf.create()
         except Exception as exc:
             print("Fail:", exc, file=sys.stderr)
             sys.exit(1)
         try:
-            cont.create(self.args.create_container)
+            cont.create()
         except UserException as exc:
             print('Fail:', exc, file=sys.stderr)
             sys.exit(1)
-        print('Success: Container was created')
+        print('Success: Created container')
 
     def _config_file(self):
         dbase = Database()
@@ -115,6 +115,21 @@ class Gen(object):
             self.log.critical('Failed switch validation')
             sys.exit(1)
 
+    def _create_inventory(self):
+        from lib.container import Container
+
+        cont = Container(self.args.create_inventory)
+        cmd = []
+        cmd.append(gen.get_container_venv_python_exe())
+        cmd.append(os.path.join(
+            gen.get_container_python_path(), 'inv_create.py'))
+        try:
+            cont.run_command(cmd)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('Success: Created inventory file')
+
     def launch(self):
         """Launch actions"""
 
@@ -133,6 +148,11 @@ class Gen(object):
         try:
             if self.args.validate:
                 cmd = argparse_gen.Cmd.VALIDATE.value
+        except AttributeError:
+            pass
+        try:
+            if self.args.deploy:
+                cmd = argparse_gen.Cmd.DEPLOY.value
         except AttributeError:
             pass
 
@@ -164,6 +184,14 @@ class Gen(object):
             elif self.args.cluster_hardware:
                 self._check_root_user(cmd)
                 self._cluster_hardware()
+
+        if cmd == argparse_gen.Cmd.DEPLOY.value:
+            if gen.is_container():
+                print(
+                    'Fail: Invalid subcommand in container', file=sys.stderr)
+                sys.exit(1)
+            if argparse_gen.is_arg_present(self.args.create_inventory):
+                self._create_inventory()
 
 
 if __name__ == '__main__':
