@@ -18,13 +18,12 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
 import subprocess
 import os
 from shutil import copy2
 import xmlrpclib
 
-from lib.logger import Logger
+import lib.logger as logger
 from lib.genesis import get_container_os_images_path
 
 OS_IMAGES_DIR = get_container_os_images_path() + '/'
@@ -38,14 +37,16 @@ COBBLER_PASS = 'cobbler'
 
 
 def _bash_cmd(cmd):
+    log = logger.getlogger()
     command = ['bash', '-c', cmd]
-    LOG.debug('Run subprocess: %s' % ' '.join(command))
+    log.debug('Run subprocess: %s' % ' '.join(command))
     output = subprocess.check_output(command, universal_newlines=True)
-    LOG.debug(output)
+    log.debug(output)
 
 
 def _copy_file(source, dest):
-    LOG.debug('Copy file, source:%s dest:%s' % (source, dest))
+    log = logger.getlogger()
+    log.debug('Copy file, source:%s dest:%s' % (source, dest))
     copy2(source, dest)
 
 
@@ -128,6 +129,7 @@ def cobbler_add_distro(path, name):
         name (str): Name of distro/profile
     """
 
+    log = logger.getlogger()
     name_list = [item.lower() for item in name.split('-')]
 
     if 'ubuntu' in name_list:
@@ -225,7 +227,7 @@ def cobbler_add_distro(path, name):
         token)
     cobbler_server.save_distro(new_distro_create, token)
 
-    LOG.info(
+    log.info(
         "Cobbler Add Distro: name=%s, path=%s" %
         (name, path))
 
@@ -252,64 +254,64 @@ def cobbler_add_distro(path, name):
         token)
     cobbler_server.save_profile(new_profile_create, token)
 
-    LOG.info(
+    log.info(
         "Cobbler Add Profile: name=%s, distro=%s" %
         (name, name))
 
     cobbler_server.sync(token)
-    LOG.info("Running Cobbler sync")
+    log.info("Running Cobbler sync")
 
 
 def cobbler_add_profile(distro, name):
-        cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
-        token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
+    log = logger.getlogger()
+    cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
+    token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
 
-        distro_list = cobbler_server.get_distros()
-        existing_distro_list = []
-        for existing_distro in distro_list:
-            existing_distro_list.append(existing_distro['name'])
+    distro_list = cobbler_server.get_distros()
+    existing_distro_list = []
+    for existing_distro in distro_list:
+        existing_distro_list.append(existing_distro['name'])
 
-        if distro not in existing_distro_list:
-            LOG.warning(
-                "Cobbler Skipping Profile - Distro Unavailable: "
-                "name=%s, distro=%s" %
-                (name, distro))
-            return
-
-        new_profile_create = cobbler_server.new_profile(token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "name",
-            name,
-            token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "distro",
-            distro,
-            token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "enable_menu",
-            "True",
-            token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "kickstart",
-            "/var/lib/cobbler/kickstarts/%s.seed" % name,
-            token)
-        cobbler_server.save_profile(new_profile_create, token)
-
-        LOG.info(
-            "Cobbler Add Profile: name=%s, distro=%s" %
+    if distro not in existing_distro_list:
+        log.warning(
+            "Cobbler Skipping Profile - Distro Unavailable: "
+            "name=%s, distro=%s" %
             (name, distro))
+        return
 
-        cobbler_server.sync(token)
-        LOG.info("Running Cobbler sync")
+    new_profile_create = cobbler_server.new_profile(token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "name",
+        name,
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "distro",
+        distro,
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "enable_menu",
+        "True",
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "kickstart",
+        "/var/lib/cobbler/kickstarts/%s.seed" % name,
+        token)
+    cobbler_server.save_profile(new_profile_create, token)
+
+    log.info(
+        "Cobbler Add Profile: name=%s, distro=%s" %
+        (name, distro))
+
+    cobbler_server.sync(token)
+    log.info("Running Cobbler sync")
 
 
 if __name__ == '__main__':
-    LOG = Logger(Logger.LOG_NAME)
-    LOG = logging.getLogger(Logger.LOG_NAME)
+    logger.create()
 
     distros = extract_iso_images(OS_IMAGES_DIR)
 

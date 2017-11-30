@@ -18,7 +18,6 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import logging
 import subprocess
 import os
 import pwd
@@ -30,7 +29,7 @@ from netaddr import IPNetwork
 from git import Repo
 
 from lib.config import Config
-from lib.logger import Logger
+import lib.logger as logger
 
 
 INSTALL_DIR = '/opt/cobbler'
@@ -73,17 +72,17 @@ def cobbler_install():
     """
 
     cfg = Config()
-    LOG.setLevel(cfg.get_globals_log_level().upper())
+    log = logger.getlogger()
 
     # Clone cobbler github repo
     cobbler_url = URL
     cobbler_branch = BRANCH
-    LOG.info(
+    log.info(
         "Cloning Cobbler branch \'%s\' from \'%s\'" %
         (cobbler_branch, cobbler_url))
     repo = Repo.clone_from(
         cobbler_url, INSTALL_DIR, branch=cobbler_branch, single_branch=True)
-    LOG.info(
+    log.info(
         "Cobbler branch \'%s\' cloned into \'%s\'" %
         (repo.active_branch, repo.working_dir))
 
@@ -236,10 +235,11 @@ def cobbler_install():
 
 
 def _bash_cmd(cmd):
+    log = logger.getlogger()
     command = ['bash', '-c', cmd]
-    LOG.debug('Run subprocess: %s' % ' '.join(command))
+    log.debug('Run subprocess: %s' % ' '.join(command))
     output = subprocess.check_output(command, universal_newlines=True)
-    LOG.debug(output)
+    log.debug(output)
 
 
 def _restart_service(service):
@@ -251,14 +251,16 @@ def _service_start_on_boot(service):
 
 
 def _backup_file(path):
+    log = logger.getlogger()
     backup_path = path + '.orig'
-    LOG.debug('Make backup copy of orignal file: \'%s\'' % backup_path)
+    log.debug('Make backup copy of orignal file: \'%s\'' % backup_path)
     copy2(path, backup_path)
     os.chmod(backup_path, 0o444)
 
 
 def _append_line(path, line):
-    LOG.debug('Add line \'%s\' to file \'%s\'' % (line, path))
+    log = logger.getlogger()
+    log.debug('Add line \'%s\' to file \'%s\'' % (line, path))
     if not line.endswith('\n'):
         line += '\n'
     with open(path, 'a') as file_out:
@@ -266,7 +268,8 @@ def _append_line(path, line):
 
 
 def _remove_line(path, regex):
-    LOG.debug('Remove lines containing regex \'%s\' from file \'%s\'' %
+    log = logger.getlogger()
+    log.debug('Remove lines containing regex \'%s\' from file \'%s\'' %
               (regex, path))
     for line in fileinput.input(path, inplace=1):
         if not re.match(regex, line):
@@ -274,7 +277,8 @@ def _remove_line(path, regex):
 
 
 def _replace_regex(path, regex, replace):
-    LOG.debug('Replace regex \'%s\' with \'%s\' in file \'%s\'' %
+    log = logger.getlogger()
+    log.debug('Replace regex \'%s\' with \'%s\' in file \'%s\'' %
               (regex, replace, path))
     for line in fileinput.input(path, inplace=1):
         print(re.sub(regex, replace, line), end='')
@@ -286,6 +290,5 @@ def _generate_random_characters(length=100):
 
 
 if __name__ == '__main__':
-    LOG = Logger(Logger.LOG_NAME)
-    LOG = logging.getLogger(Logger.LOG_NAME)
+    logger.create()
     cobbler_install()
