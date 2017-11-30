@@ -168,6 +168,13 @@ def get_args():
         help='Create inventory')
 
     parser_deploy.add_argument(
+        '--install-cobbler',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Install Cobbler')
+
+    parser_deploy.add_argument(
         '-a', '--all',
         action='store_true',
         help='TBD')
@@ -219,10 +226,11 @@ def _check_validate(args, subparser):
 
 
 def _check_deploy(args, subparser):
-    if args.create_inventory == ABSENT and not args.all:
+    if (args.create_inventory == ABSENT and
+            args.install_cobbler == ABSENT and not args.all):
         subparser.error(
-            'one of the arguments --create-inventory -a/--all is'
-            ' required')
+            'one of the arguments --create-inventory --install-cobbler'
+            '-a/--all is required')
 
 
 def is_arg_present(arg):

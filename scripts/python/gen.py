@@ -130,6 +130,21 @@ class Gen(object):
             sys.exit(1)
         print('Success: Created inventory file')
 
+    def _install_cobbler(self):
+        from lib.container import Container
+
+        cont = Container(self.args.install_cobbler)
+        cmd = []
+        cmd.append(gen.get_container_venv_python_exe())
+        cmd.append(os.path.join(
+            gen.get_container_python_path(), 'cobbler_install.py'))
+        try:
+            cont.run_command(cmd)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('Success: Cobbler installed')
+
     def launch(self):
         """Launch actions"""
 
@@ -192,6 +207,8 @@ class Gen(object):
                 sys.exit(1)
             if argparse_gen.is_arg_present(self.args.create_inventory):
                 self._create_inventory()
+            elif argparse_gen.is_arg_present(self.args.install_cobbler):
+                self._install_cobbler()
 
 
 if __name__ == '__main__':
