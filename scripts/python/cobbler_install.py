@@ -49,7 +49,7 @@ COBBLER_CONF_ORIG = '/etc/cobbler/cobbler.conf'
 COBBLER_CONF = '/etc/apache2/conf-available/cobbler.conf'
 COBBLER_WEB_CONF_ORIG = '/etc/cobbler/cobbler_web.conf'
 COBBLER_WEB_CONF = '/etc/apache2/conf-available/cobbler_web.conf'
-COBBLER_WEB_SETTINGS = GEN_VENV + 'share/cobbler/web/settings.py'
+COBBLER_WEB_SETTINGS = '/usr/local/share/cobbler/web/settings.py'
 WEBUI_SESSIONS = '/var/lib/cobbler/webui_sessions'
 COBBLER_SETTINGS = '/etc/cobbler/settings'
 PXEDEFAULT_TEMPLATE = '/etc/cobbler/pxe/pxedefault.template'
@@ -57,7 +57,9 @@ KICKSTART_DONE = '/var/lib/cobbler/snippets/kickstart_done'
 ROOT_AUTH_KEYS = '/root/.ssh/authorized_keys'
 WWW_AUTH_KEYS = '/var/www/html/authorized_keys'
 NTP_CONF = '/etc/ntp.conf'
-COBBLER = GEN_VENV + 'bin/cobbler'
+COBBLER = '/usr/local/bin/cobbler'
+LOCAL_PY_DIST_PKGS = '/usr/local/lib/python2.7/dist-packages'
+PY_DIST_PKGS = '/usr/lib/python2.7/dist-packages'
 
 A2ENCONF = '/usr/sbin/a2enconf'
 A2ENMOD = '/usr/sbin/a2enmod'
@@ -155,10 +157,10 @@ def cobbler_install():
     # Set secret key in web settings
     secret_key = _generate_random_characters()
     _replace_regex(COBBLER_WEB_SETTINGS, '^SECRET_KEY = .*',
-                   'SECRET_KEY = %s' % secret_key)
+                   'SECRET_KEY = "%s"' % secret_key)
 
     # Remove "Order allow,deny" lines from cobbler configuration
-    regex = 'Order allow,deny'
+    regex = '.*Order allow,deny'
     _remove_line(COBBLER_CONF, regex)
     _remove_line(COBBLER_WEB_CONF, regex)
 
@@ -185,6 +187,9 @@ def cobbler_install():
                        'proxy_url_ext: %s' %
                        globals_env_variables['http_proxy'])
 
+    # Create link to
+    _bash_cmd('ln -s %s/cobbler %s' % (LOCAL_PY_DIST_PKGS, PY_DIST_PKGS))
+
     # Set PXE timeout to maximum
     _replace_regex(PXEDEFAULT_TEMPLATE, r'TIMEOUT \d+',
                    'TIMEOUT 35996')
@@ -192,18 +197,13 @@ def cobbler_install():
                    'TOTALTIMEOUT 35996')
 
     # Fix line break escape in kickstart_done snippet
-    _replace_regex(KICKSTART_DONE, 'set nopxe = \"\\nwget',
-                   'set nopxe = "\\\\\\nwget')
-    _replace_regex(KICKSTART_DONE, 'set saveks = \"\\nwget',
-                   'set saveks = "\\\\\\nwget')
-    _replace_regex(KICKSTART_DONE, 'set runpost = \"\\nwget',
-                   'set runpost = "\\\\\\nwget')
-    _replace_regex(KICKSTART_DONE, 'null', 'null;')
-    _replace_regex(KICKSTART_DONE, 'cobbler.ks', 'cobbler.ks;')
-    _replace_regex(KICKSTART_DONE, 'cobbler.seed', 'cobbler.seed;')
+    _replace_regex(KICKSTART_DONE, "\\\\nwget", "wget")
+    _replace_regex(KICKSTART_DONE, "\$saveks", "$saveks + \"; \\\\\\\"\n")
+    _replace_regex(KICKSTART_DONE, "\$runpost", "$runpost + \"; \\\\\\\"\n")
 
     # Copy authorized_keys ssh key file to web repo directory
     copy2(ROOT_AUTH_KEYS, WWW_AUTH_KEYS)
+    os.chmod(WWW_AUTH_KEYS, 0o444)
 
     # Add mgmt subnet to NTP service configuration
     cont_pxe_broadcast = str(
