@@ -23,9 +23,9 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import sys
 
 import teardown_deployer_networks
+import teardown_deployer_container
 import lib.argparse_teardown as argparse_teardown
-from lib.logger import Logger
-from lib.config import Config
+import lib.logger as logger
 
 
 class Teardown(object):
@@ -35,22 +35,16 @@ class Teardown(object):
         log(object): log
     """
 
-    def __init__(self, args, log=None):
-        if log is not None:
-            cfg = Config()
-            log.set_level(cfg.get_globals_log_level())
+    def __init__(self, args):
         self.args = args
 
     def _destroy_deployer_container(self):
-        print('teardown.py - destroy deployer container')
-        sys.exit('Teardown container not implemented')
+        teardown_deployer_container.teardown_deployer_container()
 
     def _teardown_deployer_networks(self):
-        print('Teardown deployer networks')
         teardown_deployer_networks.teardown_deployer_network()
 
     def _teardown_deployer_gateway(self):
-        print('teardown.py - teardown deployer gateway')
         sys.exit('Teardown deployer gateway not implemented')
 
     def launch(self):
@@ -68,8 +62,8 @@ class Teardown(object):
 
 if __name__ == '__main__':
     args = argparse_teardown.get_parsed_args()
-    TEARDOWN = Teardown(args, Logger(
-        Logger.LOG_NAME,
+    logger.create(
         args.log_level_file[0],
-        args.log_level_print[0]))
+        args.log_level_print[0])
+    TEARDOWN = Teardown(args)
     TEARDOWN.launch()

@@ -23,11 +23,10 @@ import os
 import re
 import subprocess
 import platform
-import logging
 from pyroute2 import IPRoute
 
 from lib.config import Config
-from lib.logger import Logger
+import lib.logger as logger
 
 IPR = IPRoute()
 
@@ -38,8 +37,7 @@ def teardown_deployer_network():
     """
     cfg = Config()
     global LOG
-    LOG = logging.getLogger(Logger.LOG_NAME)
-    LOG.setLevel(cfg.get_globals_log_level().upper())
+    LOG = logger.getlogger()
     LOG.debug('----------------------------------------')
 
     # if inv.is_passive_mgmt_switches():
@@ -265,4 +263,5 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
 
 
 if __name__ == '__main__':
+    logger.create('nolog', 'info')
     teardown_deployer_network()

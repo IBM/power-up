@@ -21,7 +21,7 @@ _teardown()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     prevprev="${COMP_WORDS[COMP_CWORD-2]}"
-    opts="-h --help --networks -a --all -f -p"
+    opts="-h --help --networks --container -a --all -f -p"
 
     if [[ ${cur} == -* ]] && [[ ${prev} == deployer ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )

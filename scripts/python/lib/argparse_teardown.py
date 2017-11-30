@@ -105,9 +105,11 @@ def get_args():
 
 
 def _check_deployer(args, subparser):
-    if not args.networks and not args.gateway and not args.all:
+    if not args.networks and not args.gateway and \
+            not args.all and not args.container:
         subparser.error(
-            'one of the arguments --networks --gateway -a/--all is required')
+            'one of the arguments --networks --container'
+            ' --gateway -a/--all is required')
 
 
 def get_parsed_args():
