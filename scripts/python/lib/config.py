@@ -25,6 +25,7 @@ import netaddr
 
 import lib.logger as logger
 from lib.db import Database
+from lib.exception import UserException
 
 
 class Config(object):
@@ -143,6 +144,32 @@ class Config(object):
             return self.cfg.globals.env_variables
         except AttributeError:
             pass
+
+    def is_passive_mgmt_switches(self):
+        """Get management switch mode
+        Returns:
+            bool:
+        """
+        try:
+            mode = self.cfg.globals.switch_mode_mgmt
+        except AttributeError:
+            return False
+        if mode == 'passive':
+            return True
+        return False
+
+    def is_passive_data_switches(self):
+        """Get data switch mode
+        Returns:
+            bool:
+        """
+        try:
+            mode = self.cfg.globals.switch_mode_data
+        except AttributeError:
+            return False
+        if mode == 'passive':
+            return True
+        return False
 
     def get_loc_time_zone(self):
         """Get location time_zone
@@ -787,6 +814,58 @@ class Config(object):
 
         for member in self.get_sw_mgmt_ssh_key():
             yield member
+
+    def get_sw_mgmt_access_info(self, index=None, type_ifc='inband'):
+        """Get Mgmt switches class, user_id, password and an ip address. An
+        attempt is made to get the specified 'type' of address, but if that is
+        not available, the other type will be returned.
+        Args:
+            index (int, optional): Switch index
+            type_ifc (str, opt): 'inband' or 'outband'
+
+        Returns:
+            tuple or list of tuples of access info : label (str), class (str),
+            userid (str), password (str), ip address.
+        """
+        if index > self.get_sw_mgmt_cnt() - 1:
+            raise UserException('switch index out of range')
+        if index is not None:
+            switch_indeces = [index]
+        else:
+            switch_indeces = range(self.get_sw_mgmt_cnt())
+        ai_list = []
+        for sw_idx in switch_indeces:
+            ai_tuple = ()
+            ai_tuple += (self.get_sw_mgmt_label(index=sw_idx),)
+            ai_tuple += (self.get_sw_mgmt_class(index=sw_idx),)
+            ipaddr = None
+            for ifc in self.cfg.switches.mgmt[sw_idx].interfaces:
+                if ifc.type == type_ifc:
+                    ipaddr = ifc.ipaddr
+                    break
+                else:
+                    if not ipaddr:
+                        ipaddr = ifc.ipaddr
+            ai_tuple += (ipaddr,)
+
+            ai_tuple += (self.get_sw_mgmt_userid(index=sw_idx),)
+            ai_tuple += (self.get_sw_mgmt_password(index=sw_idx),)
+
+            ai_list.append(ai_tuple)
+        # if index specified, make it a tuple
+        if index:
+            ai_list = ai_list[0]
+        return ai_list
+
+    def yield_sw_mgmt_access_info(self):
+        """Yield dictionary of Mgmt switches class, user_id, password, and
+        inband and outband ip address list(s).
+
+        Returns:
+            iter of list get_sw_mgmt_access_info()
+        """
+        for switch_ai in self.get_sw_mgmt_access_info():
+            yield switch_ai
 
     def get_sw_mgmt_rack_id(self, index=None):
         """Get switches mgmt rack_id
@@ -1556,6 +1635,19 @@ class Config(object):
 
         node_template = self.cfg.node_templates[node_template_index]
         return len(node_template.physical_interfaces.pxe)
+
+    def yield_ntmpl_phyintf_pxe_ind(self, node_template_index):
+        """Yield node_templates physical_interfaces ipmi index
+        Args:
+            node_template_index (int): Node template index
+
+        Returns:
+            int: IPMI index
+        """
+
+        for index in range(0, self.get_ntmpl_phyintf_pxe_cnt(
+                node_template_index)):
+            yield index
 
     def get_ntmpl_phyintf_pxe_switch(
             self, node_template_index, index=None):

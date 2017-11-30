@@ -50,10 +50,13 @@ def configure_mgmt_switches():
         password = None
         switch_ip = None
 
+        if cfg.is_passive_mgmt_switches():
+            mode = PASSIVE
+
         try:
             userid = cfg.get_sw_mgmt_userid(index)
         except AttributeError:
-            mode = PASSIVE
+            pass
 
         try:
             password = cfg.get_sw_mgmt_password(index)
@@ -61,7 +64,7 @@ def configure_mgmt_switches():
             try:
                 cfg.get_sw_mgmt_ssh_key(index)
             except AttributeError:
-                mode = PASSIVE
+                pass
             else:
                 LOG.error(
                     'Switch authentication via ssh keys not yet supported')
@@ -69,7 +72,6 @@ def configure_mgmt_switches():
 
         if mode == PASSIVE:
                 sw = SwitchFactory.factory(
-                    LOG,
                     switch_class,
                     mode)
 
@@ -80,8 +82,7 @@ def configure_mgmt_switches():
                     switch_class,
                     ip,
                     userid,
-                    password,
-                    mode)
+                    password)
 
                 if sw.is_pingable():
                     LOG.info(

@@ -165,6 +165,42 @@ class Gen(object):
             sys.exit(1)
         print('Success: OS images downloaded and copied into container')
 
+    def _inv_add_ports_ipmi(self):
+        dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
+        from lib.container import Container
+
+        cont = Container(self.args.inv_add_ports_ipmi)
+        cmd = []
+        cmd.append(gen.get_container_venv_python_exe())
+        cmd.append(os.path.join(
+            gen.get_container_python_path(), 'inv_add_ports.py'))
+        cmd.append(dhcp_lease_file)
+        cmd.append('ipmi')
+        try:
+            cont.run_command(cmd)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('IPMI ports added to inventory')
+
+    def _inv_add_ports_pxe(self):
+        dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
+        from lib.container import Container
+
+        cont = Container(self.args.inv_add_ports_pxe)
+        cmd = []
+        cmd.append(gen.get_container_venv_python_exe())
+        cmd.append(os.path.join(
+            gen.get_container_python_path(), 'inv_add_ports.py'))
+        cmd.append(dhcp_lease_file)
+        cmd.append('pxe')
+        try:
+            cont.run_command(cmd)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('PXE ports added to inventory')
+
     def launch(self):
         """Launch actions"""
 
@@ -231,6 +267,10 @@ class Gen(object):
                 self._install_cobbler()
             if argparse_gen.is_arg_present(self.args.download_os_images):
                 self._download_os_images()
+            if argparse_gen.is_arg_present(self.args.inv_add_ports_ipmi):
+                self._inv_add_ports_ipmi()
+            if argparse_gen.is_arg_present(self.args.inv_add_ports_pxe):
+                self._inv_add_ports_pxe()
 
 
 if __name__ == '__main__':

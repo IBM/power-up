@@ -26,6 +26,17 @@ if [[ "$1" == "validate" ]] && [[ "$2" == "--cluster-hardware" ]]; then
 fi
 
 if [[ "$1" == "deploy" ]]; then
+    if [[ "$2" == "--inv-add-ports-ipmi" ]] || \
+        [[ "$2" == "--inv-add-ports-pxe" ]] || \
+        [[ "$2" == "--create-inventory" ]] || \
+        [[ "$2" == "--install-cobbler" ]] || \
+        [[ "$2" == "--help" ]] || [[ "$2" == "-h" ]]; then
+        gen.py $@
+        exit
+    fi
+fi
+
+if [[ "$1" == "deploy" ]]; then
     gen.py validate --config-file
     if [ $? -ne 0 ]; then
         exit

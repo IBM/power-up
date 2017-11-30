@@ -29,16 +29,22 @@ LOG = logger.getlogger()
 
 class SwitchFactory(object):
     """Common switch configuration."""
-    def __init__(self, switch_type, host=None, userid=None, password=None, mode=None, outfile=None):
+    def __init__(self, switch_type=None, host=None, userid=None, password=None,
+                 mode=None, outfile=None):
         pass
 
     @staticmethod
-    def factory(switch_type, host=None, userid=None, password=None, mode='passive', outfile='switch_cmds.txt'):
+    def factory(switch_type=None, host=None, userid=None, password=None,
+                mode='active', outfile='switch_cmds.txt'):
         """Return management switch model object.
 
         Args:
             inv (:obj:`Inventory`): Inventory object.
             switch_type (enum): Switch type.
+            host (str): Switch ipv4 address
+            userid (str): Switch userid. (This user must have configuration
+                authority on the switch)
+            password (str): Switch password.
 
         Raises:
             Exception: If management switch class is invalid.

@@ -356,7 +356,8 @@ class SwitchCommon(object):
 
         mac_lines = mac_address_table.splitlines()
         if log:
-            log.info('Converting MAC address table with %d lines to standard dictionary format' % len(mac_lines))
+            log.debug("Converting MAC address table with %d lines to 'standard'"
+                      " attribute dictionary format" % len(mac_lines))
         for line in mac_lines:
             if _mac_regex.search(line):
                 if log:

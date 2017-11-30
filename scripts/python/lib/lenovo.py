@@ -45,7 +45,6 @@ class Lenovo(SwitchCommon):
     are required. If 'mode' is not provided, it is defaulted to 'passive'.
 
     Args:
-        log (:obj:`Logger`): Log file object.
         host (string): Management switch management interface IP address
         or hostname or if in passive mode, a fully qualified filename of the
         acquired mac address table for the switch.
@@ -55,6 +54,8 @@ class Lenovo(SwitchCommon):
             Defaults to 'active'
         outfile (string): Name of file to direct switch output to when
         in passive mode.
+        access_list (list of str): Optional list containing host, userid
+        and password.
     """
     ENABLE_REMOTE_CONFIG = SwitchCommon.ENABLE_REMOTE_CONFIG
     # override ENABLE_REMOTE_CONFIG as needed.
@@ -90,10 +91,10 @@ class Lenovo(SwitchCommon):
     UP_STATE_IFC = 'up'
     MAX_INTF = 128
 
-    def __init__(self, host=None, userid=None,
-                 password=None, mode=None, outfile=None):
-        self.mode = mode
+    def __init__(self, host=None, userid=None, password=None, mode=None,
+                 outfile=None):
         self.log = logger.getlogger()
+        self.mode = mode
         self.host = host
         if self.mode == 'active':
             self.userid = userid
@@ -267,5 +268,6 @@ class Lenovo(SwitchCommon):
 
 class switch(object):
     @staticmethod
-    def factory(host=None, userid=None, password=None, mode=None, outfile=None):
+    def factory(host=None, userid=None, password=None, mode=None,
+                outfile=None):
         return Lenovo(host, userid, password, mode, outfile)

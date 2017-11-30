@@ -18,24 +18,28 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
 import os.path
 import re
 from orderedattrdict import AttrDict
 
+import lib.logger as logger
+from lib.exception import UserException
+
 
 class GetDhcpLeases(object):
-    def __init__(self, dhcp_leases_file, log):
+    def __init__(self, dhcp_leases_file):
         dhcp_leases_file = os.path.abspath(
             os.path.dirname(os.path.abspath(dhcp_leases_file)) +
             os.path.sep +
             os.path.basename(dhcp_leases_file))
+        log = logger.getlogger()
 
         try:
             fds = open(dhcp_leases_file, 'r')
         except:
-            log.error('DHCP leases file not found: %s' % (dhcp_leases_file))
-            sys.exit(1)
+            msg = 'DHCP leases file not found: %s'
+            log.error(msg % (dhcp_leases_file))
+            raise UserException(msg % dhcp_leases_file)
         self.mac_ip = AttrDict()
         for line in fds:
             match = re.search(
@@ -44,7 +48,7 @@ class GetDhcpLeases(object):
             mac = match.group(1)
             ipaddr = match.group(2)
             self.mac_ip[mac] = ipaddr
-            log.info('Lease found - MAC: %s - IP: %s' % (mac, ipaddr))
+            log.debug('Lease found - MAC: %s - IP: %s' % (mac, ipaddr))
 
     def get_mac_ip(self):
         return self.mac_ip

@@ -235,6 +235,44 @@ class Inventory(object):
         for member in self.get_nodes_hostname():
             yield member
 
+    def get_port_mac_ip(self, switch, port):
+        """Get the mac address and ip address for the specified port on the
+        specified switch.  Otherwise return None, None
+        Args:
+            switch (str): Switch label
+            port (str or int): Port name
+        Returns:
+            str: port mac address
+            str: port ipv4 address
+        """
+        mac, ipaddr = None, None
+        for node in self.inv.nodes:
+            if port in node.ipmi.ports:
+                idx = node.ipmi.ports.index(port)
+                if switch == node.ipmi.switches[idx]:
+                    try:
+                        mac = node.ipmi.macs[idx]
+                    except (AttributeError, IndexError):
+                        mac = None
+                    try:
+                        ipaddr = node.ipmi.ipaddrs[idx]
+                    except (AttributeError, IndexError):
+                        ipaddr = None
+                    return mac, ipaddr
+            if port in node.pxe.ports:
+                idx = node.pxe.ports.index(port)
+                if switch == node.pxe.switches[idx]:
+                    try:
+                        mac = node.pxe.macs[idx]
+                    except (AttributeError, IndexError):
+                        mac = None
+                    try:
+                        ipaddr = node.pxe.ipaddrs[idx]
+                    except (AttributeError, IndexError):
+                        ipaddr = None
+                    return mac, ipaddr
+        return mac, ipaddr
+
     def get_nodes_ipmi_userid(self, index=None):
         """Get nodes IPMI userid
         Args:

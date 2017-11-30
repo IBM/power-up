@@ -45,7 +45,6 @@ class Mellanox(SwitchCommon):
     are required. If 'mode' is not provided, it is defaulted to 'passive'.
 
     Args:
-        log (:obj:`Logger`): Log file object.
         host (string): Management switch management interface IP address
         or hostname or if in passive mode, a fully qualified filename of the
         acquired mac address table for the switch.
@@ -55,6 +54,8 @@ class Mellanox(SwitchCommon):
             Defaults to 'active'
         outfile (string): Name of file to direct switch output to when
         in passive mode.
+        access_list (list of str): optional list containing host, userid
+        and password.
     """
     ENABLE_REMOTE_CONFIG = 'cli enable "configure terminal" "%s"'
     FORCE = 'force'
@@ -102,15 +103,10 @@ class Mellanox(SwitchCommon):
     SHOW_INTERFACE = 'show interface vlan {}'
     SET_INTERFACE = 'interface vlan {} ip address {} {}'
 
-    def __init__(
-            self,
-            host=None,
-            userid=None,
-            password=None,
-            mode=None,
-            outfile=None):
-        self.mode = mode
+    def __init__(self, host=None, userid=None, password=None, mode=None,
+                 outfile=None):
         self.log = logger.getlogger()
+        self.mode = mode
         self.host = host
         if self.mode == 'active':
             self.userid = userid
@@ -123,8 +119,7 @@ class Mellanox(SwitchCommon):
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-        super(Mellanox, self).__init__(
-            host, userid, password, mode, outfile)
+        super(Mellanox, self).__init__(host, userid, password, mode, outfile)
 
     def set_switchport_mode(self, mode, port, nvlan=None):
         """Sets the switchport mode.  Note that Mellanox's 'hybrid'
@@ -587,5 +582,6 @@ class Mellanox(SwitchCommon):
 
 class switch(object):
     @staticmethod
-    def factory(host=None, userid=None, password=None, mode=None, outfile=None):
+    def factory(host=None, userid=None, password=None, mode=None,
+                outfile=None):
         return Mellanox(host, userid, password, mode, outfile)

@@ -48,6 +48,8 @@ def _string_int_array_field(**kwargs):
 class Globals(jsl.Document):
     introspection = jsl.fields.BooleanField()
     env_variables = jsl.fields.DictField()
+    switch_mode_mgmt = jsl.fields.StringField()
+    switch_mode_data = jsl.fields.StringField()
 
 
 class LocationRacks(jsl.Document):

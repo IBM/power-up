@@ -182,6 +182,20 @@ def get_args():
         help='Download OS images')
 
     parser_deploy.add_argument(
+        '--inv-add-ports-ipmi',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Discover and add IPMI ports to inventory')
+
+    parser_deploy.add_argument(
+        '--inv-add-ports-pxe',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Discover and add PXE ports to inventory')
+
+    parser_deploy.add_argument(
         '-a', '--all',
         action='store_true',
         help='TBD')
@@ -235,10 +249,13 @@ def _check_validate(args, subparser):
 def _check_deploy(args, subparser):
     if (args.create_inventory == ABSENT and
             args.install_cobbler == ABSENT and
-            args.download_os_images == ABSENT and not args.all):
+            args.download_os_images == ABSENT and
+            args.inv_add_ports_ipmi == ABSENT and
+            args.inv_add_ports_pxe == ABSENT and not args.all):
         subparser.error(
-            'one of the arguments --create-inventory --install-cobbler '
-            '--download-os-images -a/--all is required')
+            'one of the arguments --create-inventory --install-cobbler'
+            ' --inv-add-ports-pxe --inv-add-ports-ipmi'
+            ' --download-os-images -a/--all is required')
 
 
 def is_arg_present(arg):
