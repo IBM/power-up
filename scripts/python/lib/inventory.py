@@ -23,6 +23,7 @@ from enum import Enum
 from orderedattrdict import AttrDict, DefaultAttrDict
 
 import lib.logger as logger
+from lib.exception import UserException
 from lib.db import Database
 
 
@@ -356,3 +357,91 @@ class Inventory(object):
         """
 
         return self._get_members(self.inv.nodes, self.InvKey.RACK_ID, index)
+
+    def _add_macs(self, macs, type_):
+        for node in self.inv.nodes:
+            for index, _port in enumerate(node[type_][self.InvKey.PORTS]):
+                port = str(_port)
+                switch = node[type_][self.InvKey.SWITCHES][index]
+
+                # If 'macs' key does not exist
+                if self.InvKey.MACS not in node[type_]:
+                    node[type_][self.InvKey.MACS] = []
+                # If switch is not found
+                if switch not in macs:
+                    msg = "Switch '{}' not found".format(switch)
+                    self.log.error(msg)
+                    raise UserException(msg)
+                # If port is not found
+                if port not in macs[switch]:
+                    msg = "Switch '{}' port '{}' not found".format(
+                        switch, port)
+                    self.log.debug(msg)
+                    node[type_][self.InvKey.MACS].append(None)
+                    continue
+                # If port has no MAC
+                if not macs[switch][port]:
+                    msg = "Switch '{}' port '{}' no MAC".format(
+                        switch, port)
+                    self.log.debug(msg)
+                    node[type_][self.InvKey.MACS].append(None)
+                    continue
+                # If port has more than one MAC
+                if len(macs[switch][port]) > 1:
+                    msg = "Switch '{}' port '{}' too many MACs '{}'".format(
+                        switch, port, macs[switch][port])
+                    self.log.error(msg)
+                    raise UserException(msg)
+
+                if macs[switch][port][0] not in node[type_][self.InvKey.MACS]:
+                    node[type_][self.InvKey.MACS].append(macs[switch][port][0])
+
+    def add_macs_ipmi(self, macs):
+        """Add MAC addresses
+        Args:
+            macs (dict of dict of list of str): Switch{Port}{[MAC]}
+        """
+
+        self._add_macs(macs, self.InvKey.IPMI)
+        self.dbase.dump_inventory(self.inv)
+
+    def add_macs_pxe(self, macs):
+        """Add MAC addresses
+        Args:
+            macs (dict of dict of list of str): Switch{Port}{[MAC]}
+        """
+
+        self._add_macs(macs, self.InvKey.PXE)
+        self.dbase.dump_inventory(self.inv)
+
+    def _add_ipaddrs(self, ipaddrs, type_):
+        for node in self.inv.nodes:
+            for mac in node[type_][self.InvKey.MACS]:
+                # If 'ipaddrs' key does not exist
+                if self.InvKey.IPADDRS not in node[type_]:
+                    node[type_][self.InvKey.IPADDRS] = []
+                # If MAC is not found
+                if mac not in ipaddrs:
+                    msg = "MAC '{}' not found".format(mac)
+                    self.log.debug(msg)
+                    node[type_][self.InvKey.IPADDRS].append(None)
+                    continue
+
+                if ipaddrs[mac] not in node[type_][self.InvKey.IPADDRS]:
+                    node[type_][self.InvKey.IPADDRS].append(ipaddrs[mac])
+
+    def add_ipaddrs_ipmi(self, ipaddrs):
+        """Add IPMI IP addresses
+        Args:
+            ipaddrs (dict of str): MAC{IP}
+        """
+        self._add_ipaddrs(ipaddrs, self.InvKey.IPMI)
+        self.dbase.dump_inventory(self.inv)
+
+    def add_ipaddrs_pxe(self, ipaddrs):
+        """Add PXE IP addresses
+        Args:
+            ipaddrs (dict of str): MAC{IP}
+        """
+        self._add_ipaddrs(ipaddrs, self.InvKey.PXE)
+        self.dbase.dump_inventory(self.inv)
