@@ -75,6 +75,7 @@ def extract_iso_images(path):
                 os.mkdir(dest_dir)
                 os.chdir(dest_dir)
                 _bash_cmd('7z x %s' % (path + _file))
+                _bash_cmd('chmod 755 $(find %s -type d)' % dest_dir)
 
             # Do not return paths to "mini" isos
             if not _file.endswith('mini.iso'):
