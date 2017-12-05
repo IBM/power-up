@@ -23,20 +23,26 @@ from pyghmi.ipmi import command as ipmi_command
 from pyghmi import exceptions as pyghmi_exception
 
 from lib.inventory import Inventory
-from lib.logger import Logger
+import lib.logger as logger
 
 
 class IpmiSetBootdev(object):
-    def __init__(self, log, inv_file, bootdev, persist=False):
+    def __init__(self, bootdev, persist=False):
+        log = logger.getlogger()
+        inv = Inventory()
+
         if type(persist) is not bool:
             persist = (persist == 'True')
 
-        inv = Inventory(log, inv_file)
-        for rack_id, ipv4, _userid, _password in inv.yield_ipmi_access_info():
+        for index, hostname in enumerate(inv.yield_nodes_hostname()):
+            rack_id = inv.get_nodes_rack_id(index)
+            ipv4 = inv.get_nodes_ipmi_ipaddr(0, index)
+            userid = inv.get_nodes_ipmi_userid(index)
+            password = inv.get_nodes_ipmi_password(index)
             ipmi_cmd = ipmi_command.Command(
                 bmc=ipv4,
-                userid=_userid,
-                password=_password)
+                userid=userid,
+                password=password)
 
             try:
                 status = ipmi_cmd.set_bootdev(bootdev, persist)
@@ -89,23 +95,20 @@ class IpmiSetBootdev(object):
 
 if __name__ == '__main__':
     """
-    Arg1: inventory file
-    Arg2: boot device
-    Arg3: persistence (boolean)
-    Arg4: log level
+    Arg1: boot device
+    Arg2: persistence (boolean)
     """
-    LOG = Logger(__file__)
+    logger.create()
+    LOG = logger.getlogger()
 
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 3:
         try:
             raise Exception()
         except:
             LOG.error('Invalid argument count')
             sys.exit(1)
 
-    INV_FILE = sys.argv[1]
-    BOOTDEV = sys.argv[2]
-    PERSIST = sys.argv[3]
-    LOG.set_level(sys.argv[4])
+    BOOTDEV = sys.argv[1]
+    PERSIST = sys.argv[2]
 
-    IpmiSetBootdev(LOG, INV_FILE, BOOTDEV, PERSIST)
+    IpmiSetBootdev(BOOTDEV, PERSIST)

@@ -345,3 +345,14 @@ class Inventory(object):
                 index)[self.InvKey.KERNEL_OPTIONS]
         except KeyError:
             pass
+
+    def get_nodes_rack_id(self, index=None):
+        """Get nodes rack_id
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes label
+        """
+
+        return self._get_members(self.inv.nodes, self.InvKey.RACK_ID, index)

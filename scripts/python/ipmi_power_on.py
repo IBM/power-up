@@ -23,27 +23,29 @@ import time
 
 from lib.inventory import Inventory
 from lib.ipmi_power import IpmiPower
-from lib.logger import Logger
+import lib.logger as logger
+from lib.exception import UserException
 
 
 class IpmiPowerOn(object):
-    def __init__(self, log, inv_file, time_out, wait):
-        inv = Inventory(log, inv_file)
-        self.ipmi_power = IpmiPower(log)
-        self.log = log
+    def __init__(self, time_out, wait):
+        inv = Inventory()
+        self.log = logger.getlogger()
+        self.ipmi_power = IpmiPower()
 
         bmcs = []
-        for rack_id, ipv4, userid, password in inv.yield_ipmi_access_info():
+        for index, hostname in enumerate(inv.yield_nodes_hostname()):
             bmc = {}
-            bmc['rack_id'] = rack_id
-            bmc['ipv4'] = ipv4
-            bmc['userid'] = userid
-            bmc['password'] = password
+            bmc['rack_id'] = inv.get_nodes_rack_id(index)
+            bmc['ipv4'] = inv.get_nodes_ipmi_ipaddr(0, index)
+            bmc['userid'] = inv.get_nodes_ipmi_userid(index)
+            bmc['password'] = inv.get_nodes_ipmi_password(index)
 
             _rc, _ = self.ipmi_power.is_power_on(bmc)
             if _rc:
                 self.log.info(
-                    'Already powered on - Rack: %s - IP: %s' % (rack_id, ipv4))
+                    'Already powered on - Rack: %s - IP: %s' %
+                    (bmc['rack_id'], bmc['ipv4']))
             else:
                 bmcs.append(bmc)
                 self.ipmi_power.set_power_on(bmc)
@@ -61,11 +63,10 @@ class IpmiPowerOn(object):
             attempt += 1
 
         for bmc in bmcs:
-            self.log.error(
-                'Power on unsuccessful - Rack: %s - IP: %s - State: %s' %
-                (bmc['rack_id'], bmc['ipv4'], bmc['power_state']))
-        for bmc in bmcs:
-            sys.exit(1)
+            msg = ('Power on unsuccessful - Rack: %s - IP: %s - State: %s' %
+                   (bmc['rack_id'], bmc['ipv4'], bmc['power_state']))
+            self.log.error(msg)
+            raise UserException(msg)
 
     def _is_not_power_on(self, bmc, attempt):
         _rc, power_state = self.ipmi_power.is_power_on(bmc)
@@ -83,23 +84,20 @@ class IpmiPowerOn(object):
 
 if __name__ == '__main__':
     """
-    Arg1: inventory file
-    Arg2: time out
-    Arg3: wait time
-    Arg4: log level
+    Arg1: time out
+    Arg2: wait time
     """
-    LOG = Logger(__file__)
+    logger.create()
+    LOG = logger.getlogger()
 
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 3:
         try:
             raise Exception()
         except Exception:
             LOG.error('Invalid argument count')
             sys.exit(1)
 
-    INV_FILE = sys.argv[1]
-    TIME_OUT = int(sys.argv[2])
-    WAIT = int(sys.argv[3])
-    LOG.set_level(sys.argv[4])
+    TIME_OUT = int(sys.argv[1])
+    WAIT = int(sys.argv[2])
 
-    IpmiPowerOn(LOG, INV_FILE, TIME_OUT, WAIT)
+    IpmiPowerOn(TIME_OUT, WAIT)
