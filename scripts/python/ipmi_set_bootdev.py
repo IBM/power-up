@@ -24,73 +24,91 @@ from pyghmi import exceptions as pyghmi_exception
 
 from lib.inventory import Inventory
 import lib.logger as logger
+from lib.exception import UserException
 
 
-class IpmiSetBootdev(object):
-    def __init__(self, bootdev, persist=False):
-        log = logger.getlogger()
-        inv = Inventory()
+def ipmi_set_bootdev(bootdev, persist=False):
+    log = logger.getlogger()
+    inv = Inventory()
 
-        if type(persist) is not bool:
-            persist = (persist == 'True')
+    if type(persist) is not bool:
+        persist = (persist == 'True')
 
-        for index, hostname in enumerate(inv.yield_nodes_hostname()):
-            rack_id = inv.get_nodes_rack_id(index)
-            ipv4 = inv.get_nodes_ipmi_ipaddr(0, index)
-            userid = inv.get_nodes_ipmi_userid(index)
-            password = inv.get_nodes_ipmi_password(index)
+    for index, hostname in enumerate(inv.yield_nodes_hostname()):
+        rack_id = inv.get_nodes_rack_id(index)
+        ipv4 = inv.get_nodes_ipmi_ipaddr(0, index)
+        userid = inv.get_nodes_ipmi_userid(index)
+        password = inv.get_nodes_ipmi_password(index)
+        ipmi_cmd = ipmi_command.Command(
+            bmc=ipv4,
+            userid=userid,
+            password=password)
+
+        try:
+            status = ipmi_cmd.set_bootdev(bootdev, persist)
+        except pyghmi_exception.IpmiException as error:
+            msg = (
+                'set_bootdev failed (device=%s persist=%s), retrying once - '
+                'Rack: %s - IP: %s, %s' %
+                (bootdev, persist, rack_id, ipv4, str(error)))
+            log.warning(msg)
+            del ipmi_cmd
             ipmi_cmd = ipmi_command.Command(
                 bmc=ipv4,
                 userid=userid,
                 password=password)
-
             try:
                 status = ipmi_cmd.set_bootdev(bootdev, persist)
             except pyghmi_exception.IpmiException as error:
-                log.error(
+                msg = (
                     'set_bootdev failed (device=%s persist=%s) - '
                     'Rack: %s - IP: %s, %s' %
                     (bootdev, persist, rack_id, ipv4, str(error)))
-                # sys.exit(1)
+                log.error(msg)
+                raise UserException(msg)
 
-            if 'error' in status:
-                log.error(
-                    'set_bootdev failed (device=%s persist=%s) - '
-                    'Rack: %s - IP: %s, %s' %
-                    (bootdev, persist, rack_id, ipv4, str(status['error'])))
-                # sys.exit(1)
+        if 'error' in status:
+            msg = (
+                'set_bootdev failed (device=%s persist=%s) - '
+                'Rack: %s - IP: %s, %s' %
+                (bootdev, persist, rack_id, ipv4, str(status['error'])))
+            log.error(msg)
+            raise UserException(msg)
 
-            time.sleep(5)
+        time.sleep(5)
 
-            try:
-                status = ipmi_cmd.get_bootdev()
-            except pyghmi_exception.IpmiException as error:
-                log.error(
-                    'get_bootdev failed - '
-                    'Rack: %s - IP: %s, %s' %
-                    (rack_id, ipv4, str(error)))
-                # sys.exit(1)
+        try:
+            status = ipmi_cmd.get_bootdev()
+        except pyghmi_exception.IpmiException as error:
+            msg = (
+                'get_bootdev failed - '
+                'Rack: %s - IP: %s, %s' %
+                (rack_id, ipv4, str(error)))
+            log.error(msg)
+            raise UserException(msg)
 
-            if 'error' in status:
-                log.error(
-                    'get_bootdev failed - '
-                    'Rack: %s - IP: %s, %s' %
-                    (rack_id, ipv4, str(status['error'])))
-                # sys.exit(1)
-            elif (status['bootdev'] == bootdev and
-                  str(status['persistent']) == str(persist)):
-                log.info(
-                    'set_bootdev successful (device=%s persist=%s) - '
-                    'Rack: %s - IP: %s' %
-                    (bootdev, persist, rack_id, ipv4))
-            else:
-                log.error(
-                    'set_bootdev failed - set: (device=%s persist=%s) '
-                    'but read: (device=%s persist=%s) - '
-                    'Rack: %s - IP: %s' %
-                    (bootdev, persist, status['bootdev'], status['persistent'],
-                     rack_id, ipv4))
-                # sys.exit(1)
+        if 'error' in status:
+            msg = (
+                'get_bootdev failed - '
+                'Rack: %s - IP: %s, %s' %
+                (rack_id, ipv4, str(status['error'])))
+            log.error(msg)
+            raise UserException(msg)
+        elif (status['bootdev'] == bootdev and
+              str(status['persistent']) == str(persist)):
+            log.debug(
+                'set_bootdev successful (device=%s persist=%s) - '
+                'Rack: %s - IP: %s' %
+                (bootdev, persist, rack_id, ipv4))
+        else:
+            msg = (
+                'set_bootdev failed - set: (device=%s persist=%s) '
+                'but read: (device=%s persist=%s) - '
+                'Rack: %s - IP: %s' %
+                (bootdev, persist, status['bootdev'], status['persistent'],
+                 rack_id, ipv4))
+            log.error(msg)
+            raise UserException(msg)
 
 
 if __name__ == '__main__':
@@ -111,4 +129,4 @@ if __name__ == '__main__':
     BOOTDEV = sys.argv[1]
     PERSIST = sys.argv[2]
 
-    IpmiSetBootdev(BOOTDEV, PERSIST)
+    ipmi_set_bootdev(BOOTDEV, PERSIST)

@@ -210,6 +210,13 @@ def get_args():
         help='Add Cobbler systems')
 
     parser_deploy.add_argument(
+        '--install-client-os',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Initiate client OS installation(s)')
+
+    parser_deploy.add_argument(
         '-a', '--all',
         action='store_true',
         help='TBD')
@@ -268,11 +275,13 @@ def _check_deploy(args, subparser):
             args.inv_add_ports_pxe == ABSENT and
             args.add_cobbler_distros == ABSENT and
             args.add_cobbler_systems == ABSENT and
+            args.install_client_os == ABSENT and
             not args.all):
         subparser.error(
             'one of the arguments --create-inventory --install-cobbler'
             ' --inv-add-ports-pxe --inv-add-ports-ipmi --download-os-images'
-            ' --add-cobbler-distros --add-cobbler-systems -a/--all is required')
+            ' --add-cobbler-distros --add-cobbler-systems --install-client-os'
+            ' -a/--all is required')
 
 
 def is_arg_present(arg):

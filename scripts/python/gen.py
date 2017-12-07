@@ -231,6 +231,21 @@ class Gen(object):
             sys.exit(1)
         print('Success: Cobbler systems added')
 
+    def _install_client_os(self):
+        from lib.container import Container
+
+        cont = Container(self.args.install_client_os)
+        cmd = []
+        cmd.append(gen.get_container_venv_python_exe())
+        cmd.append(os.path.join(
+            gen.get_container_python_path(), 'install_client_os.py'))
+        try:
+            cont.run_command(cmd)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('Success: Client OS installaion initiated')
+
     def launch(self):
         """Launch actions"""
 
@@ -305,6 +320,8 @@ class Gen(object):
                 self._add_cobbler_distros()
             if argparse_gen.is_arg_present(self.args.add_cobbler_systems):
                 self._add_cobbler_systems()
+            if argparse_gen.is_arg_present(self.args.install_client_os):
+                self._install_client_os()
 
 
 if __name__ == '__main__':
