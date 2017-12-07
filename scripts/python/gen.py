@@ -27,6 +27,7 @@ import getpass
 import enable_deployer_networks
 import validate_cluster_hardware
 import configure_mgmt_switches
+import download_os_images
 import lxc_conf
 import lib.argparse_gen as argparse_gen
 import lib.logger as logger
@@ -145,6 +146,25 @@ class Gen(object):
             sys.exit(1)
         print('Success: Cobbler installed')
 
+    def _download_os_images(self):
+        from lib.container import Container
+
+        try:
+            download_os_images.download_os_images()
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+
+        cont = Container(self.args.download_os_images)
+        ssh = cont.open_ssh()
+        sftp = cont.open_sftp(ssh)
+        try:
+            cont.copy_dir_to_container(sftp, cont.depl_os_images_path)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('Success: OS images downloaded and copied into container')
+
     def launch(self):
         """Launch actions"""
 
@@ -207,8 +227,10 @@ class Gen(object):
                 sys.exit(1)
             if argparse_gen.is_arg_present(self.args.create_inventory):
                 self._create_inventory()
-            elif argparse_gen.is_arg_present(self.args.install_cobbler):
+            if argparse_gen.is_arg_present(self.args.install_cobbler):
                 self._install_cobbler()
+            if argparse_gen.is_arg_present(self.args.download_os_images):
+                self._download_os_images()
 
 
 if __name__ == '__main__':

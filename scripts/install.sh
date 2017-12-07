@@ -55,5 +55,5 @@ sudo -E -H pip install virtualenv
 virtualenv --no-wheel --system-site-packages deployenv
 source deployenv/bin/activate
 pip install 'ansible~=2.3.0.0' orderedattrdict pyroute2 jsonschema jsl \
-    'pyghmi==1.0.28'
+    'pyghmi==1.0.28' 'wget==3.2'
 deactivate

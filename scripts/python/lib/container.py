@@ -90,7 +90,22 @@ class Container(object):
             self.name = name
         self.cont = lxc.Container(self.name)
 
-    def _open_sftp(self, ssh):
+    def open_ssh(self):
+        cont_ipaddr = self.cont.get_ips(
+            interface='eth0', family='inet', timeout=5)[0]
+        try:
+            ssh = SSH_CONNECTION(
+                cont_ipaddr,
+                username='root',
+                key_filename=self.PRIVATE_SSH_KEY_FILE)
+        except SSH_Exception as exc:
+            msg = "SSH to container '{}' at '{}' failed - {}".format(
+                self.name, cont_ipaddr, exc)
+            self.log.error(msg)
+            raise UserException(msg)
+        return ssh
+
+    def open_sftp(self, ssh):
         try:
             return ssh.open_sftp_session()
         except Exception as exc:
@@ -114,16 +129,19 @@ class Container(object):
 
     def _mkdir_sftp(self, sftp, dir_):
         try:
-            sftp.mkdir(dir_)
-        except Exception as exc:
-            error = (
-                "Failed via sftp to create the '{}' directory in the '{}'"
-                " container - {}")
-            error = error.format(dir_, self.name, exc)
-            self.log.error(error)
-            raise UserException(error)
-        msg = "Created via sftp the '{}' directory in the '{}' container"
-        self.log.debug(msg.format(dir_, self.name))
+            sftp.chdir(dir_)
+        except IOError:
+            try:
+                sftp.mkdir(dir_)
+            except Exception as exc:
+                error = (
+                    "Failed via sftp to create the '{}' directory in the '{}'"
+                    " container - {}")
+                error = error.format(dir_, self.name, exc)
+                self.log.error(error)
+                raise UserException(error)
+            msg = "Created via sftp the '{}' directory in the '{}' container"
+            self.log.debug(msg.format(dir_, self.name))
 
     def _copy_sftp(self, sftp, src, dst):
         try:
@@ -332,18 +350,7 @@ class Container(object):
             self.cont_venv_path])
 
         # Open SSH to container
-        cont_ipaddr = self.cont.get_ips(
-            interface='eth0', family='inet', timeout=5)[0]
-        try:
-            ssh = SSH_CONNECTION(
-                cont_ipaddr,
-                username='root',
-                key_filename=self.PRIVATE_SSH_KEY_FILE)
-        except SSH_Exception as exc:
-            error = "SSH to container '{}' at '{}' failed".format(
-                self.name, cont_ipaddr)
-            self.log.error(error)
-            raise UserException(error)
+        ssh = self.open_ssh()
 
         # Install pip venv container packages
         if ini.has_section(self.Packages.VENV.value):
@@ -360,7 +367,7 @@ class Container(object):
                 raise UserException(error)
 
         # Open sftp session to container
-        sftp = self._open_sftp(ssh)
+        sftp = self.open_sftp(ssh)
 
         # Copy config file to container
         self._copy_sftp(
@@ -371,11 +378,11 @@ class Container(object):
         # Copy scripts/python directory to container
         self._mkdir_sftp(sftp, self.cont_scripts_path)
         self._mkdir_sftp(sftp, self.cont_python_path)
-        self._copy_dir_to_container(sftp, self.depl_python_path)
+        self.copy_dir_to_container(sftp, self.depl_python_path)
 
         # Copy os_images directory to container
         self._mkdir_sftp(sftp, self.cont_os_images_path)
-        self._copy_dir_to_container(sftp, self.depl_os_images_path)
+        self.copy_dir_to_container(sftp, self.depl_os_images_path)
 
         # Create file to indicate whether project is installed in a container
         self.run_command(['touch', self.cont_id_file])
@@ -383,7 +390,7 @@ class Container(object):
         # Close ssh session to container
         self._close_ssh(ssh)
 
-    def _copy_dir_to_container(self, sftp, dir_local_path):
+    def copy_dir_to_container(self, sftp, dir_local_path):
         for dirpath, dirnames, filenames in os.walk(dir_local_path):
             for dirname in dirnames:
                 self._mkdir_sftp(
