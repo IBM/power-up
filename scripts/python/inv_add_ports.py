@@ -130,7 +130,7 @@ class InventoryAddPorts(object):
                     port = self.cfg.get_ntmpl_phyintf_ipmi_ports(
                         idx_ntmplt, idx_ipmi, idx_port)
                     result = self.inv.get_port_mac_ip(switch_label, port)
-                    if result:
+                    if None not in result:
                         ports_found += 1
                         ports_list.append(
                             [True, switch_label, port, result[0], result[1], 'ipmi'])
@@ -189,7 +189,7 @@ class InventoryAddPorts(object):
                     port = cfg.get_ntmpl_phyintf_pxe_ports(
                         idx_ntmplt, idx_pxe, idx_port)
                     result = self.inv.get_port_mac_ip(switch_label, port)
-                    if result:
+                    if None not in result:
                         ports_found += 1
                         ports_list.append(
                             [True, switch_label, port, result[0], result[1], 'pxe'])

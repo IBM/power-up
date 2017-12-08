@@ -73,6 +73,10 @@ class InventoryNodes(object):
                 ports_pxe = []
                 switches_ipmi = []
                 switches_pxe = []
+                macs_ipmi = []
+                macs_pxe = []
+                ipaddrs_ipmi = []
+                ipaddrs_pxe = []
                 devices_pxe = []
                 # Iterate over IPMI members
                 for index_ipmi in cfg.yield_ntmpl_phyintf_ipmi_ind(
@@ -89,6 +93,14 @@ class InventoryNodes(object):
                     # Create client system PXE port list
                     ports_pxe.append(cfg.get_ntmpl_phyintf_pxe_ports(
                         index_ntmplt, index_ipmi, index_port))
+                    # Create client system IPMI mac list
+                    macs_ipmi.append(None)
+                    # Create client system PXE mac list
+                    macs_pxe.append(None)
+                    # Create client system IPMI ipaddrs list
+                    ipaddrs_ipmi.append(None)
+                    # Create client system PXE ipaddrs list
+                    ipaddrs_pxe.append(None)
                     # Create client PXE network device list
                     devices_pxe.append(cfg.get_ntmpl_phyintf_pxe_dev(
                         index_ntmplt, index_ipmi))
@@ -100,6 +112,16 @@ class InventoryNodes(object):
                 self.inv.add_nodes_ports_ipmi(ports_ipmi)
                 # Set client system PXE ports
                 self.inv.add_nodes_ports_pxe(ports_pxe)
+
+                # Set client system IPMI macs
+                self.inv.add_nodes_macs_ipmi(macs_ipmi)
+                # Set client system PXE macs
+                self.inv.add_nodes_macs_pxe(macs_pxe)
+                # Set client system IPMI apaddrs
+                self.inv.add_nodes_ipaddrs_ipmi(ipaddrs_ipmi)
+                # Set client system PXE ipaddrs
+                self.inv.add_nodes_ipaddrs_pxe(ipaddrs_pxe)
+
                 # Set client system IPMI userids
                 self.inv.add_nodes_userid_ipmi(cfg.get_ntmpl_ipmi_userid(
                     index_ntmplt))

@@ -115,9 +115,13 @@ class Inventory(object):
 
         self.nodes[self.InvKey.IPMI][self.InvKey.SWITCHES] = []
         self.nodes[self.InvKey.IPMI][self.InvKey.PORTS] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.MACS] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.IPADDRS] = []
         self.nodes[self.InvKey.IPMI][self.InvKey.USERID] = []
         self.nodes[self.InvKey.IPMI][self.InvKey.PASSWORD] = []
         self.nodes[self.InvKey.PXE][self.InvKey.PORTS] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.MACS] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.IPADDRS] = []
         self.nodes[self.InvKey.PXE][self.InvKey.DEVICES] = []
         self.nodes[self.InvKey.PXE][self.InvKey.SWITCHES] = []
 
@@ -144,6 +148,18 @@ class Inventory(object):
 
     def add_nodes_ports_pxe(self, ports):
         self.nodes.pxe.ports.append(ports)
+
+    def add_nodes_macs_ipmi(self, macs):
+        self.nodes.ipmi.macs.append(macs)
+
+    def add_nodes_macs_pxe(self, macs):
+        self.nodes.pxe.macs.append(macs)
+
+    def add_nodes_ipaddrs_ipmi(self, ipaddrs):
+        self.nodes.ipmi.ipaddrs.append(ipaddrs)
+
+    def add_nodes_ipaddrs_pxe(self, ipaddrs):
+        self.nodes.pxe.ipaddrs.append(ipaddrs)
 
     def add_nodes_userid_ipmi(self, userid):
         self.nodes.ipmi.userid.append(userid)
@@ -402,9 +418,6 @@ class Inventory(object):
                 port = str(_port)
                 switch = node[type_][self.InvKey.SWITCHES][index]
 
-                # If 'macs' key does not exist
-                if self.InvKey.MACS not in node[type_]:
-                    node[type_][self.InvKey.MACS] = []
                 # If switch is not found
                 if switch not in macs:
                     msg = "Switch '{}' not found".format(switch)
@@ -415,14 +428,12 @@ class Inventory(object):
                     msg = "Switch '{}' port '{}' not found".format(
                         switch, port)
                     self.log.debug(msg)
-                    node[type_][self.InvKey.MACS].append(None)
                     continue
                 # If port has no MAC
                 if not macs[switch][port]:
                     msg = "Switch '{}' port '{}' no MAC".format(
                         switch, port)
                     self.log.debug(msg)
-                    node[type_][self.InvKey.MACS].append(None)
                     continue
                 # If port has more than one MAC
                 if len(macs[switch][port]) > 1:
@@ -432,7 +443,7 @@ class Inventory(object):
                     raise UserException(msg)
 
                 if macs[switch][port][0] not in node[type_][self.InvKey.MACS]:
-                    node[type_][self.InvKey.MACS].append(macs[switch][port][0])
+                    node[type_][self.InvKey.MACS][index] = macs[switch][port][0]
 
     def add_macs_ipmi(self, macs):
         """Add MAC addresses
@@ -454,19 +465,13 @@ class Inventory(object):
 
     def _add_ipaddrs(self, ipaddrs, type_):
         for node in self.inv.nodes:
-            for mac in node[type_][self.InvKey.MACS]:
-                # If 'ipaddrs' key does not exist
-                if self.InvKey.IPADDRS not in node[type_]:
-                    node[type_][self.InvKey.IPADDRS] = []
+            for index, mac in enumerate(node[type_][self.InvKey.MACS]):
                 # If MAC is not found
                 if mac not in ipaddrs:
-                    msg = "MAC '{}' not found".format(mac)
-                    self.log.debug(msg)
-                    node[type_][self.InvKey.IPADDRS].append(None)
                     continue
 
                 if ipaddrs[mac] not in node[type_][self.InvKey.IPADDRS]:
-                    node[type_][self.InvKey.IPADDRS].append(ipaddrs[mac])
+                    node[type_][self.InvKey.IPADDRS][index] = ipaddrs[mac]
 
     def add_ipaddrs_ipmi(self, ipaddrs):
         """Add IPMI IP addresses
