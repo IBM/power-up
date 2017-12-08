@@ -196,6 +196,13 @@ def get_args():
         help='Discover and add PXE ports to inventory')
 
     parser_deploy.add_argument(
+        '--add-cobbler-distros',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Add Cobbler distros and profiles')
+
+    parser_deploy.add_argument(
         '-a', '--all',
         action='store_true',
         help='TBD')
@@ -251,11 +258,13 @@ def _check_deploy(args, subparser):
             args.install_cobbler == ABSENT and
             args.download_os_images == ABSENT and
             args.inv_add_ports_ipmi == ABSENT and
-            args.inv_add_ports_pxe == ABSENT and not args.all):
+            args.inv_add_ports_pxe == ABSENT and
+            args.add_cobbler_distros == ABSENT and
+            not args.all):
         subparser.error(
             'one of the arguments --create-inventory --install-cobbler'
             ' --inv-add-ports-pxe --inv-add-ports-ipmi'
-            ' --download-os-images -a/--all is required')
+            ' --download-os-images --add-cobbler-distros -a/--all is required')
 
 
 def is_arg_present(arg):

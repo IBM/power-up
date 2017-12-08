@@ -183,6 +183,21 @@ class Gen(object):
             sys.exit(1)
         print('IPMI ports added to inventory')
 
+    def _add_cobbler_distros(self):
+        from lib.container import Container
+
+        cont = Container(self.args.add_cobbler_distros)
+        cmd = []
+        cmd.append(gen.get_container_venv_python_exe())
+        cmd.append(os.path.join(
+            gen.get_container_python_path(), 'cobbler_add_distros.py'))
+        try:
+            cont.run_command(cmd)
+        except UserException as exc:
+            print('Fail:', exc.message, file=sys.stderr)
+            sys.exit(1)
+        print('Success: Cobbler distros and profiles added')
+
     def _inv_add_ports_pxe(self):
         dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
         from lib.container import Container
@@ -271,6 +286,8 @@ class Gen(object):
                 self._inv_add_ports_ipmi()
             if argparse_gen.is_arg_present(self.args.inv_add_ports_pxe):
                 self._inv_add_ports_pxe()
+            if argparse_gen.is_arg_present(self.args.add_cobbler_distros):
+                self._add_cobbler_distros()
 
 
 if __name__ == '__main__':
