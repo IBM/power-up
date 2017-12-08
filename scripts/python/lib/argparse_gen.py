@@ -218,8 +218,10 @@ def get_args():
 
     parser_deploy.add_argument(
         '-a', '--all',
-        action='store_true',
-        help='TBD')
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Run all cluster deployment steps')
 
     # Check arguments
     args = parser.parse_args()
@@ -276,7 +278,7 @@ def _check_deploy(args, subparser):
             args.add_cobbler_distros == ABSENT and
             args.add_cobbler_systems == ABSENT and
             args.install_client_os == ABSENT and
-            not args.all):
+            args.all == ABSENT):
         subparser.error(
             'one of the arguments --create-inventory --install-cobbler'
             ' --inv-add-ports-pxe --inv-add-ports-ipmi --download-os-images'

@@ -107,14 +107,34 @@ class Gen(object):
         print('Success: Config file validation passed')
 
     def _cluster_hardware(self):
+        print('\nDiscovering and validating cluster hardware')
         val = validate_cluster_hardware.ValidateClusterHardware()
-        rc1 = val.validate_mgmt_switches()
-        rc2 = val.validate_data_switches()
-        val.validate_ipmi()
-        val.validate_pxe()
-        if not rc1 and rc2:
-            self.log.critical('Failed switch validation')
+        try:
+            val.validate_mgmt_switches()
+        except UserException as exc:
+            print(exc)
             sys.exit(1)
+
+        try:
+            val.validate_data_switches()
+        except UserException as exc:
+            print(exc)
+            print('Warning. Cluster Genesis can continue with deployment, but')
+            print('network configuration will not succeed until issues are resolved')
+
+        try:
+            val.validate_ipmi()
+        except UserException as exc:
+            print(exc)
+            print('Warning. Cluster Genesis can continue with deployment, but')
+            print('Not all nodes will be deployed at this time')
+
+        try:
+            val.validate_pxe()
+        except UserException as exc:
+            print(exc)
+            print('Warning. Cluster Genesis can continue with deployment, but')
+            print('Not all nodes will be deployed at this time')
 
     def _create_inventory(self):
         from lib.container import Container
@@ -306,6 +326,17 @@ class Gen(object):
                 print(
                     'Fail: Invalid subcommand in container', file=sys.stderr)
                 sys.exit(1)
+
+            if argparse_gen.is_arg_present(self.args.all):
+                self.args.create_inventory = self.args.all
+                self.args.install_cobbler = self.args.all
+                self.args.download_os_images = self.args.all
+                self.args.inv_add_ports_ipmi = self.args.all
+                self.args.inv_add_ports_pxe = self.args.all
+                self.args.add_cobbler_distros = self.args.all
+                self.args.add_cobbler_systems = self.args.all
+                self.args.install_client_os = self.args.all
+
             if argparse_gen.is_arg_present(self.args.create_inventory):
                 self._create_inventory()
             if argparse_gen.is_arg_present(self.args.install_cobbler):
