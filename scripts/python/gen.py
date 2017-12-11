@@ -130,7 +130,7 @@ class Gen(object):
             print('Not all nodes will be deployed at this time')
 
         try:
-            val.validate_pxe()
+            val.validate_pxe(self.args.cluster_hardware)
         except UserException as exc:
             print(exc)
             print('Warning. Cluster Genesis can continue with deployment, but')
@@ -317,7 +317,7 @@ class Gen(object):
             if argparse_gen.is_arg_present(self.args.config_file):
                 self._check_non_root_user(cmd)
                 self._config_file()
-            elif self.args.cluster_hardware:
+            if argparse_gen.is_arg_present(self.args.cluster_hardware):
                 self._check_root_user(cmd)
                 self._cluster_hardware()
 

@@ -153,7 +153,9 @@ def get_args():
 
     parser_validate.add_argument(
         '--cluster-hardware',
-        action='store_true',
+        nargs='?',
+        default=ABSENT,
+        metavar='BOOTDEV',
         help='Cluster hardware discovery and validation')
 
     # 'deploy' subcommand arguments
@@ -263,7 +265,7 @@ def _check_config(args, subparser):
 
 
 def _check_validate(args, subparser):
-    if args.config_file == ABSENT and not args.cluster_hardware:
+    if args.config_file == ABSENT and args.cluster_hardware == ABSENT:
         subparser.error(
             'one of the arguments --config-file --cluster-hardware is'
             ' required')

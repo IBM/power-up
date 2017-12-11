@@ -51,7 +51,7 @@ if [[ "$1" == "deploy" ]]; then
     if [ $? -ne 0 ]; then
         exit
     fi
-    sudo env "PATH=$PATH" gen.py validate --cluster-hardware
+    sudo env "PATH=$PATH" gen.py validate --cluster-hardware network
     if [ $? -ne 0 ]; then
         exit
     fi
