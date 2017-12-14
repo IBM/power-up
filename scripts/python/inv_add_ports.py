@@ -82,6 +82,9 @@ class InventoryAddPorts(object):
         self.log.debug('Management switches MAC address tables: {}'.format(
             mgmt_sw_cfg_mac_lists))
 
+        # Remove all the mac address table entries which do not have a matching
+        # MAC address in the DHCP leases table, then remove any MAC addresses
+        # which do not have a  DHCP table entry.
         for switch in mgmt_sw_cfg_mac_lists.keys():
             for port in mgmt_sw_cfg_mac_lists[switch]:
                 port_macs = mgmt_sw_cfg_mac_lists[switch][port]
@@ -89,6 +92,8 @@ class InventoryAddPorts(object):
                 for mac in dhcp_mac_ip.keys():
                     if mac in port_macs:
                         found_mac = True
+                        # keep only the mac which has a dhcp address
+                        mgmt_sw_cfg_mac_lists[switch][port] = [mac]
                 if not found_mac:
                     del mgmt_sw_cfg_mac_lists[switch][port]
         self.log.debug('Management switches MAC address table of ports with'
