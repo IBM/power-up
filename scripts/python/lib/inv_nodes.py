@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -68,6 +68,8 @@ class InventoryNodes(object):
                     switch_index))
                 # Copy OS settings dictionary
                 self.inv.add_nodes_os_dict(cfg.get_ntmpl_os_dict(index_ntmplt))
+                # Copy roles
+                self.inv.add_nodes_roles(cfg.get_ntmpl_roles(index_ntmplt))
 
                 ports_ipmi = []
                 ports_pxe = []

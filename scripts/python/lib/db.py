@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Database"""
 
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -27,7 +27,8 @@ from orderedattrdict.yamlutils import AttrDictYAMLLoader
 import lib.logger as logger
 from lib.validate_config_schema import ValidateConfigSchema
 from lib.validate_config_logic import ValidateConfigLogic
-from lib.genesis import GEN_PATH
+from lib.genesis import CFG_FILE
+from lib.genesis import INV_FILE
 from lib.exception import UserException
 
 
@@ -39,14 +40,12 @@ class Database(object):
         db_file (string): Database file
     """
 
-    CFG_FILE = GEN_PATH + 'config.yml'
-    INV_FILE = GEN_PATH + 'inventory.yml'
     FILE_MODE = 0o666
 
     def __init__(self):
         self.log = logger.getlogger()
-        self.cfg_file = os.path.realpath(self.CFG_FILE)
-        self.inv_file = os.path.realpath(self.INV_FILE)
+        self.cfg_file = os.path.realpath(CFG_FILE)
+        self.inv_file = os.path.realpath(INV_FILE)
         self.cfg = None
         self.inv = None
 

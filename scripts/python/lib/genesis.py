@@ -44,6 +44,13 @@ PYTHON_DIR = 'python'
 OS_IMAGES_DIR = 'os-images'
 CONFIG_FILE = 'config.yml'
 LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
+SSH_PRIVATE_KEY_FILE = os.path.expanduser('~/.ssh/gen')
+SSH_PUBLIC_KEY_FILE = SSH_PRIVATE_KEY_FILE + '.pub'
+CFG_FILE_NAME = 'config.yml'
+CFG_FILE = GEN_PATH + CFG_FILE_NAME
+INV_FILE_NAME = 'inventory.yml'
+INV_FILE = GEN_PATH + INV_FILE_NAME
+LXC_DIR = os.path.expanduser('~/.local/share/lxc/')
 
 
 def load_localhost(filename):
@@ -136,8 +143,14 @@ def get_config_file_name():
     return CONFIG_FILE
 
 
+def get_ssh_private_key_file():
+    return SSH_PRIVATE_KEY_FILE
+
+
+def get_ssh_public_key_file():
+    return SSH_PUBLIC_KEY_FILE
+
+
 if os.path.isfile(GEN_PATH + "playbooks/host_vars/localhost"):
     localhost_content = load_localhost(GEN_PATH + "playbooks/host_vars/localhost")
     container_name = localhost_content['container_name']
-    ssh_key_private = localhost_content['ssh_key_private']
-    ssh_key_private = HOME + '/.ssh/' + re.search('.+\.ssh/(.+)', ssh_key_private).group(1)

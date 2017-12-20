@@ -1,6 +1,6 @@
 """Config"""
 
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -1792,3 +1792,12 @@ class Config(object):
 
         for member in self.get_client_switch_ports(switch_label, if_type):
             yield member
+
+    def get_interfaces(self):
+        """Get top level 'interfaces' dictionary
+
+        Returns:
+            dict: Interface definitions
+        """
+
+        return self.cfg.interfaces

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -18,11 +18,13 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-from inventory import load_input_file
-from inventory import get_host_ip_to_node
+from lib.inventory import Inventory
 
-inventory_source = load_input_file()
-ip_to_node = get_host_ip_to_node(inventory_source)
+inv = Inventory()
 
-for ip, value in ip_to_node.items():
-    print(ip + ",", end='')
+for index, hostname in enumerate(inv.yield_nodes_hostname()):
+    ipaddr = inv.get_nodes_pxe_ipaddr(0, index)
+    if index > 0:
+        ipaddr = ',' + ipaddr
+    print("%s" % ipaddr, end='')
+print()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Cluster Genesis 'gen' command"""
 
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -150,6 +150,17 @@ class Gen(object):
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
         print('Success: Created inventory file')
+
+        # Remove existing inventory file on deployer
+        deployer_inv_file = os.path.realpath(gen.INV_FILE)
+        if os.path.isfile(deployer_inv_file):
+            os.remove(deployer_inv_file)
+
+        # Create a sym link on deployer to inventory inside container
+        cont_inv_file = os.path.join(gen.LXC_DIR, cont.name, 'rootfs',
+                                     gen.CONTAINER_PACKAGE_PATH[1:],
+                                     gen.INV_FILE_NAME)
+        os.symlink(cont_inv_file, deployer_inv_file)
 
     def _install_cobbler(self):
         from lib.container import Container

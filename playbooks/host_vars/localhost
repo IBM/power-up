@@ -1,5 +1,5 @@
 ---
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -24,6 +24,6 @@ venv_path_local: "{{ project_path_local }}/deployenv"
 python_executable_local: "{{ venv_path_local }}/bin/python"
 config_local: "{{ project_path_local }}/config.yml"
 config_local_backup: "{{ project_path_local }}/config-backup.yml"
-ssh_key_private: "{{ ansible_env.HOME }}/.ssh/id_rsa_ansible-generated"
+ssh_key_private: "{{ ansible_env.HOME }}/.ssh/gen"
 ssh_key_public: "{{ ssh_key_private }}.pub"
 known_hosts: "{{ project_path_local }}/playbooks/known_hosts"

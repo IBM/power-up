@@ -1,6 +1,6 @@
 """Inventory"""
 
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -83,6 +83,7 @@ class Inventory(object):
         PROFILE = 'profile'
         INSTALL_DEVICE = 'install_device'
         KERNEL_OPTIONS = 'kernel_options'
+        ROLES = 'roles'
 
     def __init__(self):
         self.log = logger.getlogger()
@@ -112,6 +113,7 @@ class Inventory(object):
         self.nodes[self.InvKey.IPMI] = AttrDict()
         self.nodes[self.InvKey.PXE] = AttrDict()
         self.nodes[self.InvKey.OS] = []
+        self.nodes[self.InvKey.ROLES] = []
 
         self.nodes[self.InvKey.IPMI][self.InvKey.SWITCHES] = []
         self.nodes[self.InvKey.IPMI][self.InvKey.PORTS] = []
@@ -169,6 +171,9 @@ class Inventory(object):
 
     def add_nodes_devices_pxe(self, dev):
         self.nodes.pxe.devices.append(dev)
+
+    def add_nodes_roles(self, roles):
+        self.nodes.roles.append(roles)
 
     def _flatten(self, data):
         def items():
@@ -488,3 +493,25 @@ class Inventory(object):
         """
         self._add_ipaddrs(ipaddrs, self.InvKey.PXE)
         self.dbase.dump_inventory(self.inv)
+
+    def get_node_dict(self, index):
+        """Get node dictionary
+        Args:
+            index (int): List index
+
+        Returns:
+            dict: Node dictionary
+        """
+
+        return self.inv.nodes[index]
+
+    def get_nodes_roles(self, index=None):
+        """Get nodes hostname
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            list: Roles list
+        """
+
+        return self._get_members(self.inv.nodes, self.InvKey.ROLES, index)
