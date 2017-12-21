@@ -18,7 +18,8 @@
 version: v2.0
 
 globals:
-    log_level: info
+    introspection: False
+    switch_mode_mgmt: active
 
 location:
     racks:
@@ -32,14 +33,14 @@ deployer:
               netmask: 255.255.255.0
               vlan: 5
         client:
-            - type: ipmi
-              device: enP10p1s0f0
+            - device: enP10p1s0f0
+              type: ipmi
               container_ipaddr: 192.168.30.2
               bridge_ipaddr: 192.168.30.3
               netmask: 255.255.255.0
               vlan: 30
-            - type: pxe
-              device: enP10p1s0f0
+            - device: enP10p1s0f0
+              type: pxe
               container_ipaddr: 192.168.40.2
               bridge_ipaddr: 192.168.40.3
               netmask: 255.255.255.0
@@ -48,23 +49,30 @@ deployer:
 switches:
     mgmt:
         - label: mgmt1
+          class: lenovo
           userid: admin
           password: passw0rd
-          inband_interfaces:
-              - ipaddr: 192.168.5.10
+          interfaces:
+              - type: outband
+                ipaddr: 192.168.5.10
                 port: 1
-          external_links:
+          links:
               - target: deployer
-                port: 1
+                ports: 2
 
 interfaces:
+    - label: eth15
+      description: pxe interface
+      iface: eth0
+      method: dhcp
+
     - label: manual1
       description: manual network 1
-      iface: eth0
+      iface: eth1
       method: manual
 
 networks:
-    - label: manual1
+    - label: manual_1
       interfaces:
           - manual1
 
@@ -89,10 +97,20 @@ node_templates:
                     - 14
           pxe:
               - switch: mgmt1
+                interface: eth15
+                rename: true
                 ports:
                     - 11
                     - 13
                     - 15
+          data:
+              - switch: mgmt1
+                interface: manual1
+                rename: true
+                ports:
+                    - 23
+                    - 25
+                    - 27
 
     - label: rhel72
       ipmi:
@@ -108,12 +126,16 @@ node_templates:
       physical_interfaces:
           ipmi:
               - switch: mgmt1
+                interface: eth15
+                rename: true
                 ports:
                     - 16
                     - 18
                     - 20
           pxe:
               - switch: mgmt1
+                interface: eth15
+                rename: true
                 ports:
                     - 17
                     - 19

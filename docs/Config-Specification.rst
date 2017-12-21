@@ -55,6 +55,8 @@ globals:
   globals:
       introspection:
       env_variables:
+      switch_mode_mgmt:
+      switch_mode_data:
 
 +-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 | Element                           | Example(s)                                 | Description                                                                                | Required |
@@ -515,10 +517,10 @@ interfaces:
 |                           |     description: vlan interface 1                 | |   *pre_up*                                                                               |          |
 |                           |     iface: eth0.10                                | |   *vlan_raw_device*                                                                      |          |
 |                           |     method: manual                                |                                                                                            |          |
-|                           |                                                   |                                                                                            |          |
-|                           |   - label: vlan2                                  |                                                                                            |          |
-|                           |     description: vlan interface 2                 |                                                                                            |          |
-|                           |     iface: myvlan10                               |                                                                                            |          |
+|                           |                                                   |  Note: If the *iface* name does not match the physical name for a given node type,         |          |
+|                           |   - label: vlan2                                  |        'rename:' should be set to True in the node_templates: physical_interfaces:         |          |
+|                           |     description: vlan interface 2                 |        section of the config file.                                                         |          |
+|                           |     iface: myvlan.20                              |                                                                                            |          |
 |                           |     method: manual                                |                                                                                            |          |
 |                           |     vlan_raw_device: eth0                         |                                                                                            |          |
 |                           |                                                   |                                                                                            |          |
@@ -747,12 +749,12 @@ node_templates:
                     ports:
               pxe:
                   - switch:
-                    device:
+                    interface:
                     rename:
                     ports:
               data:
                   - switch:
-                    device:
+                    interface:
                     rename:
                     ports:
           interfaces:
@@ -845,24 +847,24 @@ node_templates:
 |                   ports:           |                   - 7                         |                                                                                  |          |
 |             pxe:                   |                   - 8                         | | Optional keys:                                                                 |          |
 |                 - switch:          |                   - 9                         | |   *data* - Data (OS) interface port mappings. See `physical_interfaces:        |          |
-|                   device:          |         pxe:                                  |              pxe/data <physical_ints_os_>`_.                                     |          |
+|                   interface:       |         pxe:                                  |              pxe/data <physical_ints_os_>`_.                                     |          |
 |                   rename:          |             - switch: mgmt_1                  |                                                                                  |          |
-|                   ports:           |               device: eth15                   |                                                                                  |          |
+|                   ports:           |               interface: eth15                |                                                                                  |          |
 |             data:                  |               rename: true                    |                                                                                  |          |
 |                 - switch:          |               ports:                          |                                                                                  |          |
-|                   device:          |                   - 10                        |                                                                                  |          |
+|                   interface        |                   - 10                        |                                                                                  |          |
 |                   rename:          |                   - 11                        |                                                                                  |          |
 |                   ports:           |                   - 12                        |                                                                                  |          |
 |                                    |         data:                                 |                                                                                  |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               device: eth10                   |                                                                                  |          |
+|                                    |               interface: eth10                |                                                                                  |          |
 |                                    |               rename: true                    |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 7                         |                                                                                  |          |
 |                                    |                   - 8                         |                                                                                  |          |
 |                                    |                   - 9                         |                                                                                  |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               device: eth11                   |                                                                                  |          |
+|                                    |               interface: eth11                |                                                                                  |          |
 |                                    |               rename: false                   |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 10                        |                                                                                  |          |
@@ -892,22 +894,22 @@ node_templates:
 |       - ...                        |     physical_interfaces:                      | |   *switch* - Reference to switch *label* defined in the `switches: mgmt:       |          |
 |         physical_interfaces:       |         pxe:                                  |                <switches_mgmt_>`_ or `switches: data: <switches_data_>`_         |          |
 |             ...                    |             - switch: mgmt_1                  |                elements.                                                         |          |
-|             pxe:                   |               device: eth15                   | |   *device*    - Reference to interface label defined in the `interfaces:`_     |          |
+|             pxe:                   |               interface: eth15                | |   *interface* - Reference to interface label defined in the `interfaces:`_     |          |
 |                 - switch:          |               rename: true                    |                elements.                                                         |          |
-|                   device:          |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces will |          |
-|                   rename:          |                   - 10                        |                be renamed to match the 'dev' value.                              |          |
+|                   interface:       |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces will |          |
+|                   rename:          |                   - 10                        |                be renamed to match the inerface label value.                     |          |
 |                   ports:           |                   - 11                        | |   *ports*  - List of port number/identifiers mapping to client node OS         |          |
 |             data:                  |                   - 12                        |                interfaces.                                                       |          |
 |                 - siwtch:          |         data:                                 |                                                                                  |          |
-|                   device:          |             - switch: data_1                  |                                                                                  |          |
-|                   rename:          |               device: eth10                   |                                                                                  |          |
-|                   ports            |               rename: true                    |                                                                                  |          |
+|                   interface:       |             - switch: data_1                  | Note: If *rename* is set to True, the physical interface name will be changed    |          |
+|                   rename:          |               interface: eth10                |       irregardless of whether it's original name matches the *iface* name        |          |
+|                   ports            |               rename: true                    |       specified in the *interfaces* definition.                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
-|                                    |                   - 7                         |                                                                                  |          |
-|                                    |                   - 8                         |                                                                                  |          |
-|                                    |                   - 9                         |                                                                                  |          |
+|                                    |                   - 7                         |       If *rename* is set to False and the physical interface name does not match |          |
+|                                    |                   - 8                         |       the *iface* name provided in the *interfaces* definition, the physical     |          |
+|                                    |                   - 9                         |       interface will not be configured.                                          |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               device: eth11                   |                                                                                  |          |
+|                                    |               interface: eth11                |                                                                                  |          |
 |                                    |               rename: false                   |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 10                        |                                                                                  |          |
