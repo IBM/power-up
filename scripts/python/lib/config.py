@@ -1415,7 +1415,10 @@ class Config(object):
             int: Role count
         """
 
-        return len(self.cfg.node_templates[node_template_index].roles)
+        try:
+            return len(self.cfg.node_templates[node_template_index].roles)
+        except AttributeError:
+            return 0
 
     def get_ntmpl_roles(self, node_template_index, index=None):
         """Get node_templates roles
@@ -1428,8 +1431,14 @@ class Config(object):
         """
 
         if index is None:
-            return self.cfg.node_templates[node_template_index].roles
-        return self.cfg.node_templates[node_template_index].roles[index]
+            try:
+                return self.cfg.node_templates[node_template_index].roles
+            except AttributeError:
+                return None
+        try:
+            return self.cfg.node_templates[node_template_index].roles[index]
+        except AttributeError:
+            return ''
 
     def yield_ntmpl_roles(self, node_template_index):
         """Yield node_templates roles
