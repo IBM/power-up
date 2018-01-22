@@ -17,166 +17,313 @@
 
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
-import sys
+
+import subprocess
+import os
+from shutil import copy2
 import xmlrpclib
 
-from lib.logger import Logger
+import lib.logger as logger
+from lib.genesis import get_container_os_images_path
 
+OS_IMAGES_DIR = get_container_os_images_path() + '/'
+OS_CONFIG_DIR = OS_IMAGES_DIR + 'config/'
+
+HTML_DIR = '/var/www/html/'
+KICKSTARTS_DIR = '/var/lib/cobbler/kickstarts/'
+SNIPPETS_DIR = '/var/lib/cobbler/snippets/'
 COBBLER_USER = 'cobbler'
 COBBLER_PASS = 'cobbler'
 
 
-class CobblerAddDistros(object):
-    def __init__(self, log, path, name):
-        name_list = [item.lower() for item in name.split('-')]
+def _bash_cmd(cmd):
+    log = logger.getlogger()
+    command = ['bash', '-c', cmd]
+    log.debug('Run subprocess: %s' % ' '.join(command))
+    output = subprocess.check_output(command, universal_newlines=True)
+    log.debug(output)
 
-        if 'ubuntu' in name_list:
-            breed = 'ubuntu'
-            for item in name_list:
-                if item == 'amd64':
-                    arch = 'x86_64'
-                    kernel = (
-                        "%s/install/netboot/ubuntu-installer/amd64/linux" %
-                        path)
-                    initrd = (
-                        "%s/install/netboot/ubuntu-installer/amd64/initrd.gz" %
-                        path)
-                elif item == 'ppc64el':
-                    arch = 'ppc64le'
-                    kernel = (
-                        "%s/install/netboot/ubuntu-installer/ppc64el/vmlinux"
-                        % path)
-                    initrd = (
-                        "%s/install/netboot/ubuntu-installer/ppc64el/initrd.gz"
-                        % path)
-                elif item.startswith('14.04'):
-                    os_version = 'trusty'
-                elif item.startswith('16.04'):
-                    os_version = 'xenial'
-            kernel_options = (
-                "netcfg/dhcp_timeout=1024 "
-                "netcfg/choose_interface=auto "
-                "ipv6.disable=1")
-            kickstart = "/var/lib/cobbler/kickstarts/%s.seed" % name
 
-        elif ('centos' in name_list) or ('rhel' in name_list):
-            breed = 'redhat'
-            for item in name_list:
-                if item == 'x86_64':
-                    arch = 'x86_64'
-                    kernel = "%s/images/pxeboot/vmlinuz" % path
-                    initrd = "%s/images/pxeboot/initrd.img" % path
-                elif item == 'ppc64le':
-                    arch = 'ppc64le'
-                    kernel = "%s/ppc/ppc64/vmlinuz" % path
-                    initrd = "%s/ppc/ppc64/initrd.img" % path
-                elif item.startswith('7'):
-                    os_version = 'rhel7'
-            kernel_options = "text"
-            kickstart = "/var/lib/cobbler/kickstarts/%s.ks" % name
+def _copy_file(source, dest):
+    log = logger.getlogger()
+    log.debug('Copy file, source:%s dest:%s' % (source, dest))
+    copy2(source, dest)
 
-        elif 'introspection' in name_list:
-            breed = 'redhat'  # use default since there is no "buildroot" breed
-            os_version = ''
-            arch = 'ppc64le'
-            kernel = "%s/vmlinux" % path
-            initrd = "%s/rootfs.cpio.gz" % path
-            kernel_options = ''
-            kickstart = ''
 
-        cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
-        token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
+def extract_iso_images(path):
+    """Extract ISO images into webserver directory
+    Args:
+        path (str): Directory path containing ISOs
 
-        new_distro_create = cobbler_server.new_distro(token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "name",
-            name,
-            token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "arch",
-            arch,
-            token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "kernel",
-            kernel,
-            token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "initrd",
-            initrd,
-            token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "breed",
-            breed,
-            token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "os_version",
-            os_version,
-            token)
-        cobbler_server.modify_distro(
-            new_distro_create,
-            "kernel_options",
-            kernel_options,
-            token)
-        cobbler_server.save_distro(new_distro_create, token)
+    Returns:
+        list: Paths to extracted ISO images
+    """
 
-        log.info(
-            "Cobbler Add Distro: name=%s, path=%s" %
-            (name, path))
+    return_list = []
 
-        new_profile_create = cobbler_server.new_profile(token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "name",
-            name,
-            token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "distro",
-            name,
-            token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "enable_menu",
-            "True",
-            token)
-        cobbler_server.modify_profile(
-            new_profile_create,
-            "kickstart",
-            kickstart,
-            token)
-        cobbler_server.save_profile(new_profile_create, token)
+    if not path.endswith('/'):
+        path += '/'
 
-        log.info(
-            "Cobbler Add Profile: name=%s, distro=%s" %
-            (name, name))
+    # Extract ISO into web directory for access over http
+    for _file in os.listdir(path):
+        if _file.endswith('.iso'):
+            name = os.path.splitext(_file)[0]
+            dest_dir = HTML_DIR + name
 
-        cobbler_server.sync(token)
-        log.info("Running Cobbler sync")
+            # If dest dir already exists continue to next file
+            if not os.path.isdir(dest_dir):
+                os.mkdir(dest_dir)
+                _bash_cmd('xorriso -osirrox on -indev %s -extract / %s' %
+                          ((path + _file), dest_dir))
+                _bash_cmd('chmod 755 $(find %s -type d)' % dest_dir)
+
+            # Do not return paths to "mini" isos
+            if not _file.endswith('mini.iso'):
+                return_list.append(dest_dir)
+
+    # Ubuntu ppc64el before 16.04.2 requires files from netboot mini iso
+    for _file in os.listdir(path):
+        if _file.endswith('mini.iso'):
+            src_dir = (HTML_DIR + _file[:-4] +
+                       '/install/')
+            dest_dir = (HTML_DIR + _file[:-9] +
+                        '/install/netboot/ubuntu-installer/ppc64el/')
+            if not os.path.isdir(dest_dir):
+                os.makedirs(dest_dir)
+            for netboot_file in os.listdir(src_dir):
+                _copy_file(src_dir + netboot_file, dest_dir)
+
+    return return_list
+
+
+def setup_image_config_files(path):
+    """Setup image config files
+    Args:
+        path (str): Directory path image config files
+    """
+
+    if not path.endswith('/'):
+        path += '/'
+
+    # Update preseed configurations with default user id
+
+    # Copy preseed & kickstart files to cobbler kickstart directory
+    for _file in os.listdir(path):
+        if _file.endswith('.ks') or _file.endswith('.seed'):
+            _copy_file(path + _file, KICKSTARTS_DIR)
+
+    # Copy custom snippets to cobbler snippets directory
+    snippets_src_dir = path + 'snippets/'
+    for _file in os.listdir(snippets_src_dir):
+        _copy_file(snippets_src_dir + _file, SNIPPETS_DIR)
+
+    # Copy apt source lists to web repo directory
+    for _file in os.listdir(path):
+        if _file.endswith('.list') and os.path.isdir(HTML_DIR + _file[:-13]):
+            _copy_file(path + _file, HTML_DIR)
+
+
+def cobbler_add_distro(path, name):
+    """Add distro and profile to Cobbler
+    Args:
+        path (str): Path to OS image files
+        name (str): Name of distro/profile
+    """
+
+    log = logger.getlogger()
+    name_list = [item.lower() for item in name.split('-')]
+
+    if 'ubuntu' in name_list:
+        breed = 'ubuntu'
+        for item in name_list:
+            if item == 'amd64':
+                arch = 'x86_64'
+                kernel = (
+                    "%s/install/netboot/ubuntu-installer/amd64/linux" %
+                    path)
+                initrd = (
+                    "%s/install/netboot/ubuntu-installer/amd64/initrd.gz" %
+                    path)
+            elif item == 'ppc64el':
+                arch = 'ppc64le'
+                kernel = (
+                    "%s/install/netboot/ubuntu-installer/ppc64el/vmlinux"
+                    % path)
+                initrd = (
+                    "%s/install/netboot/ubuntu-installer/ppc64el/initrd.gz"
+                    % path)
+            elif item.startswith('14.04'):
+                os_version = 'trusty'
+            elif item.startswith('16.04'):
+                os_version = 'xenial'
+        kernel_options = (
+            "netcfg/dhcp_timeout=1024 "
+            "netcfg/choose_interface=auto "
+            "ipv6.disable=1")
+        kickstart = "/var/lib/cobbler/kickstarts/%s.seed" % name
+
+    elif ('centos' in name_list) or ('rhel' in name_list):
+        breed = 'redhat'
+        for item in name_list:
+            if item == 'x86_64':
+                arch = 'x86_64'
+                kernel = "%s/images/pxeboot/vmlinuz" % path
+                initrd = "%s/images/pxeboot/initrd.img" % path
+            elif item == 'ppc64le':
+                arch = 'ppc64le'
+                kernel = "%s/ppc/ppc64/vmlinuz" % path
+                initrd = "%s/ppc/ppc64/initrd.img" % path
+            elif item.startswith('7'):
+                os_version = 'rhel7'
+        kernel_options = "text"
+        kickstart = "/var/lib/cobbler/kickstarts/%s.ks" % name
+
+    elif 'introspection' in name_list:
+        breed = 'redhat'  # use default since there is no "buildroot" breed
+        os_version = ''
+        arch = 'ppc64le'
+        kernel = "%s/vmlinux" % path
+        initrd = "%s/rootfs.cpio.gz" % path
+        kernel_options = ''
+        kickstart = ''
+
+    cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
+    token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
+
+    new_distro_create = cobbler_server.new_distro(token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "name",
+        name,
+        token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "arch",
+        arch,
+        token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "kernel",
+        kernel,
+        token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "initrd",
+        initrd,
+        token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "breed",
+        breed,
+        token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "os_version",
+        os_version,
+        token)
+    cobbler_server.modify_distro(
+        new_distro_create,
+        "kernel_options",
+        kernel_options,
+        token)
+    cobbler_server.save_distro(new_distro_create, token)
+
+    log.info(
+        "Cobbler Add Distro: name=%s, path=%s" %
+        (name, path))
+
+    new_profile_create = cobbler_server.new_profile(token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "name",
+        name,
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "distro",
+        name,
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "enable_menu",
+        "True",
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "kickstart",
+        kickstart,
+        token)
+    cobbler_server.save_profile(new_profile_create, token)
+
+    log.info(
+        "Cobbler Add Profile: name=%s, distro=%s" %
+        (name, name))
+
+    cobbler_server.sync(token)
+    log.info("Running Cobbler sync")
+
+
+def cobbler_add_profile(distro, name):
+    log = logger.getlogger()
+    cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
+    token = cobbler_server.login(COBBLER_USER, COBBLER_PASS)
+
+    distro_list = cobbler_server.get_distros()
+    existing_distro_list = []
+    for existing_distro in distro_list:
+        existing_distro_list.append(existing_distro['name'])
+
+    if distro not in existing_distro_list:
+        log.warning(
+            "Cobbler Skipping Profile - Distro Unavailable: "
+            "name=%s, distro=%s" %
+            (name, distro))
+        return
+
+    new_profile_create = cobbler_server.new_profile(token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "name",
+        name,
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "distro",
+        distro,
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "enable_menu",
+        "True",
+        token)
+    cobbler_server.modify_profile(
+        new_profile_create,
+        "kickstart",
+        "/var/lib/cobbler/kickstarts/%s.seed" % name,
+        token)
+    cobbler_server.save_profile(new_profile_create, token)
+
+    log.info(
+        "Cobbler Add Profile: name=%s, distro=%s" %
+        (name, distro))
+
+    cobbler_server.sync(token)
+    log.info("Running Cobbler sync")
 
 
 if __name__ == '__main__':
-    """
-    Arg1: path to install files
-    Arg2: distro name
-    Arg3: log level
-    """
-    LOG = Logger(__file__)
+    logger.create()
 
-    if len(sys.argv) != 4:
-        try:
-            raise Exception()
-        except:
-            LOG.error('Invalid argument count')
-            sys.exit(1)
+    distros = extract_iso_images(OS_IMAGES_DIR)
 
-    PATH = sys.argv[1]
-    NAME = sys.argv[2]
-    LOG.set_level(sys.argv[3])
+    setup_image_config_files(OS_CONFIG_DIR)
 
-    CobblerAddDistros(LOG, PATH, NAME)
+    for distro in distros:
+        cobbler_add_distro(distro, os.path.basename(distro))
+
+    for _file in os.listdir(OS_CONFIG_DIR):
+        if _file.endswith('.seed') or _file.endswith('.ks'):
+            profile = _file[:-5]
+            distro = _file.rsplit('.', 2)[0]
+            if profile != distro and os.path.isdir(HTML_DIR + distro):
+                cobbler_add_profile(distro, profile)

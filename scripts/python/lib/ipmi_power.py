@@ -22,6 +22,8 @@ import sys
 from pyghmi.ipmi import command as ipmi_command
 from pyghmi import exceptions as pyghmi_exception
 
+import lib.logger as logger
+
 
 class IpmiPower(object):
     WAIT = False
@@ -30,8 +32,8 @@ class IpmiPower(object):
     POWERSTATE = 'powerstate'
     ERROR = 'error'
 
-    def __init__(self, log):
-        self.log = log
+    def __init__(self):
+        self.log = logger.getlogger()
         self.ipmi_cmd = None
 
     def _command(self, bmc):

@@ -1,0 +1,492 @@
+---
+# Copyright 2017 IBM Corp.
+#
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: v2.0
+
+global:
+    log_level: info
+    introspection: false
+    env_variables:
+        https_proxy: http://192.168.1.2:3128
+        http_proxy: http://192.168.1.2:3128
+        no_proxy: localhost,127.0.0.1
+
+
+location:
+    time_zone: UTC
+    data_center: dataeast
+    racks:
+        - label: rack_1
+          room: room33
+          row: row1
+          cell: 42
+
+deployer:
+    networks:
+        external:
+            dev_label: enp1s0f0
+            dev_ipaddr: 192.168.1.10
+            prefix: 24
+        mgmt:
+            container_ipaddr: 192.168.5.2
+            bridge_ipaddr: 192.168.5.3
+            netmask: 255.255.255.0
+            vlan: 5
+        client:
+            container_ipaddr: 192.168.11.2
+            bridge_ipaddr: 192.168.11.3
+            prefix: 24
+            vlan: 12
+
+switches:
+    mgmt:
+        - label: mgmt_1_1
+          hostname: mymgmt_1_1
+          userid: admin
+          password: passw0rd
+          ssh_key: <path1>
+          rack_id: rack_1
+          rack_eia: 33
+          inband_interfaces:
+              - ipaddr: 192.168.1.20
+                port: 1
+          external_links:
+              - target: deployer
+                port: 10
+              - target: data_1_1
+                port: 44
+              - target: data_1_2
+                port: 45
+        - label: mgmt_1_2
+          hostname: mymgmt_1_2
+          userid: admin
+          password: passw0rd
+          ssh_key: <path1>
+          rack_id: rack_1
+          rack_eia: 35
+          inband_interfaces:
+              - ipaddr: 192.168.1.21
+                port: 2
+          external_links:
+              - target: deployer
+                port: 11
+              - target: data_1_1
+                port: 46
+              - target: data_1_2
+                port: 47
+        - label: mgmt_2
+          hostname: mymgmt_2
+          userid: admin
+          password: passw0rd
+          ssh_key: <path1>
+          rack_id: rack_2
+          rack_eia: 36
+    data:
+        - label: data_1_1
+          hostname: mydata_1
+          userid: admin
+          password: passw0rd
+          ssh_key: <path2>
+          rack_id: rack_1
+          rack_eia: 34
+          external_links:
+              - target: mgmt_1
+                ipaddr: 192.168.5.31
+                vip: 192.168.5.254
+                port: mgmt0
+              - target: data_1_2
+                ipaddr: 10.0.0.1
+                prefix: 24
+                vlan: 4000
+                port:
+                    - 7
+                    - 8
+        - label: data_1_2
+          hostname: mydata_2
+          userid: admin
+          password: passw0rd
+          ssh_key: <path3>
+          rack_id: rack_1
+          rack_eia: 35
+          external_links:
+              - target: mgmt_1
+                ipaddr: 192.168.5.31
+                vip: 192.168.5.254
+                port: mgmt0
+              - target: data_1_1
+                ipaddr: 10.0.0.2
+                network: 255.255.255.0
+                vlan: 4000
+                port:
+                    - 7
+                    - 8
+
+interfaces:
+    - label: manual1
+      description: manual network 1
+      iface: eth0
+      method: manual
+
+    - label: manual2
+      description: manual network 2
+      DEVICE: eth0
+      BOOTPROTO: none
+
+    - label: dhcp1
+      description: dhcp interface 1
+      iface: eth0
+      method: dhcp
+
+    - label: dhcp2
+      description: dhcp interface 2
+      DEVICE: eth0
+      BOOTPROTO: dhcp
+
+    - label: static1
+      description: static interface 1
+      iface: eth0
+      method: static
+      address_list:
+          - 9.3.89.14            # single address
+          - 9.3.89.18-9.3.89.22  # address range
+          - 9.3.89.111-9.3.89.112
+          - 9.3.89.120
+      netmask: 255.255.255.0
+      broadcast: 9.3.89.255
+      gateway: 9.3.89.1
+      dns_search: your.dns.com
+      dns_nameservers: 9.3.1.200 9.3.1.201
+      mtu: 9000
+      pre_up: command
+
+    - label: static2
+      description: static interface 2
+      DEVICE: eth0
+      BOOTPROTO: none
+      IPADDR_list:
+          - 9.3.89.14            # single address
+          - 9.3.89.18-9.3.89.22  # address range
+          - 9.3.89.111-9.3.89.112
+          - 9.3.89.120
+      NETMASK: 255.255.255.0
+      BROADCAST: 9.3.89.255
+      GATEWAY: 9.3.89.1
+      SEARCH: your.dns.com
+      DNS1: 9.3.1.200
+      DNS2: 9.3.1.201
+      MTU: 9000
+
+    - label: vlan1
+      description: vlan interface 1
+      iface: eth0.10
+      method: manual
+
+    - label: vlan2
+      description: vlan interface 2
+      iface: myvlan10
+      method: manual
+      vlan_raw_device: eth0
+
+    - label: vlan3
+      description: vlan interface 3
+      DEVICE: eth0.10
+      BOOTPROTO: none
+      VLAN: yes
+
+    - label: bridge1
+      description: bridge interface 1
+      iface: br1
+      method: static
+      address_start: 10.0.0.100
+      netmask: 255.255.255.0
+      bridge_ports: eth0
+      bridge_fd: 9
+      bridge_hello: 2
+      bridge_maxage: 12
+      bridge_stp: off
+
+    - label: bridge2
+      description: bridge interface 2
+      DEVICE: br2
+      BOOTPROTO: static
+      IPADDR_start: 10.0.0.100
+      NETMASK: 255.255.255.0
+      STP: off
+
+    - label: bridge2_port
+      description: port for bridge if 2
+      DEVICE: eth0
+      BOOTPROTO: none
+      BRIDGE: br2
+
+    - label: bond1_interface0
+      description: primary interface for bond 1
+      iface: eth0
+      method: manual
+      bond_master: bond1
+      bond_primary: eth0
+
+    - label: bond1_interface1
+      description: secondary interface for bond 1
+      iface: eth1
+      method: manual
+      bond_master: bond1
+
+    - label: bond1
+      description: bond interface 1
+      iface: bond1
+      address_start: 192.168.1.10
+      netmask: 255.255.255.0
+      bond_mode: active-backup
+      bond_miimon: 100
+      bond_slaves: none
+
+    - label: bond2_interface0
+      description: primary interface for bond 2
+      DEVICE: eth0
+      BOOTPROTO: manual
+      MASTER: bond2
+
+    - label: bond2_interface1
+      description: secondary interface for bond 2
+      DEVICE: eth1
+      BOOTPROTO: manual
+      MASTER: bond2
+
+    - label: bond2
+      description: bond interface 2
+      DEVICE: bond2
+      IPADDR_start: 192.168.1.10
+      NETMASK: 255.255.255.0
+      BONDING_OPTS: "mode=active-backup miimon=100"
+
+    - label: osbond0_interface0
+      description: primary interface for osbond0
+      iface: eth0
+      method: manual
+      bond_master: osbond0
+      bond_primary: eth0
+
+    - label: osbond0_interface1
+      description: secondary interface for osbond0
+      iface: eth1
+      method: manual
+      bond_master: osbond0
+
+    - label: osbond0
+      description: bond interface
+      iface: osbond0
+      address_start: 192.168.1.10
+      netmask: 255.255.255.0
+      bond_mode: active-backup
+      bond_miimon: 100
+      bond_slaves: none
+
+    - label: osbond0_vlan10
+      description: vlan interface 1
+      iface: osbond0.10
+      method: manual
+
+    - label: bridge10
+      description: bridge interface for vlan10
+      iface: br10
+      method: static
+      address_start: 10.0.10.100
+      netmask: 255.255.255.0
+      bridge_ports: osbond0.10
+      bridge_stp: off
+
+    - label: osbond0_vlan20
+      description: vlan interface 2
+      iface: osbond0.20
+      method: manual
+
+    - label: bridge20
+      description: bridge interface for vlan20
+      iface: br20
+      method: static
+      address_start: 10.0.20.100
+      netmask: 255.255.255.0
+      bridge_ports: osbond0.20
+      bridge_stp: off
+
+networks:
+    - label: bond1
+      interfaces:
+          - bond1_interface0
+          - bond1_interface1
+          - bond1
+
+    - label: bond2
+      interfaces:
+          - bond2_interface0
+          - bond2_interface1
+          - bond2
+
+    - label: openstack_mgmt
+      interfaces:
+          - bond2_interface0
+          - bond2_interface1
+          - bond2
+          - mgmt_vlan1
+          - mgmt_bridge
+
+node_templates:
+    - label: ubuntu-servers
+      ipmi:
+          userid: userid
+          password: password
+      os:
+          hostname_prefix: ubuntu1404
+          profile: ubuntu-14.04.4-server-ppc64el
+          users:
+              - name: root
+                password: passw0rd
+              - name: user1
+                groups: sudo
+              - name: testuser1
+                groups: testgroup
+          groups:
+              - name: testgroup
+          install_device: /dev/sdj
+      roles:
+          - openstackservers
+          - lab3n025
+          - scrapservers
+      networks:
+          - bond1
+          - bond2
+          - openstack_mgmt
+      interfaces:
+          - manual1
+      # Each host has one network interface for each of these ports and
+      # these port numbers represent the switch port number to which the host
+      # interface is physically cabled.
+      # To add or remove hosts for this node_template you add or remove
+      # switch port numbers to these ports.
+      physical_interfaces:
+          ipmi:
+              - switch: mgmt_1_1
+                ports:
+                    - 1
+                    - 2
+                    - 3
+              - switch: mgmt_1_2
+                ports:
+                    - 1
+                    - 2
+                    - 3
+          pxe:
+              - switch: mgmt_1_1
+                dev: eth15
+                rename: false
+                ports:
+                    - 4
+                    - 5
+                    - 6
+              - switch: mgmt_1_2
+                dev: eth16
+                rename: false
+                ports:
+                    - 4
+                    - 5
+                    - 6
+          data:
+              - switch: data_1_1
+                dev: eth10
+                rename: true
+                ports:
+                    - 1
+                    - 2
+                    - 3
+              - switch: data_1_2
+                dev: eth11
+                rename: myrenamedport
+                ports:
+                    - 4
+                    - 5
+                    - 6
+
+    - label: rhel-servers
+      ipmi:
+          userid: userid
+          password: password
+      os:
+          hostname_prefix: rhel72
+          profile: RHEL-7.2-20151030.0-Server-ppc64le-dvd1
+          users:
+              - name: root
+                password_crypted: $6$STFB8U/AyA$sVhg5a/2RvDiXof9EhADVcUm/7Tq8T4m
+              - name: user1
+                groups: sudo
+              - name: testuser1
+                groups: testgroup
+          groups:
+              - name: testgroup
+          install_device: /dev/sda
+          kernel_options: console=tty2 console=ttyS2,115200n8
+      roles:
+          - openstackserver
+      interfaces:
+          - manual1
+          - manual2
+      # Each host has one network interface for each of these ports and
+      # these port numbers represent the switch port number to which the host
+      # interface is cabled.
+      # To add or remove hosts for this node_template you add or remove
+      # switch port numbers to these ports.
+      physical_interfaces:
+          ipmi:
+              - switch: mgmt_2
+                ports:
+                    - 7
+                    - 8
+                    - 9
+          pxe:
+              - switch: mgmt_2
+                dev: eth15
+                ports:
+                    - 10
+                    - 11
+                    - 12
+          data:
+              - switch: data_2
+                dev: eth10
+                ports:
+                    - 7
+                    - 8
+                    - 9
+              - switch: data_2
+                dev: eth11
+                ports:
+                    - 10
+                    - 11
+                    - 12
+
+software_bootstrap:
+    - hosts: all
+      command: apt-get update
+    - hosts: openstackservers
+      executable: /bin/bash
+      command: |
+        set -e
+        apt update
+        apt upgrade -y
+
+# Additional key/value pairs are not processed by Genesis, but are copied into
+# the inventory.yml file and made available to post-Genesis scripts and/or
+# playbooks.

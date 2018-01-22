@@ -1,4 +1,6 @@
-# Copyright 2017 IBM Corp.
+"""Inventory"""
+
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -17,796 +19,541 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import sys
-import os.path
-import yaml
-from orderedattrdict.yamlutils import AttrDictYAMLLoader
-from orderedattrdict import AttrDict
-from collections import namedtuple
 from enum import Enum
+from orderedattrdict import AttrDict, DefaultAttrDict
 
-from lib.logger import Logger
-
-NONE = 'None'
-INV_IPADDR_MGMT_NETWORK = 'ipaddr-mgmt-network'
-INV_IPADDR_MGMT_SWITCH = 'ipaddr-mgmt-switch'
-INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV = 'label-mgmt-switch-external-dev'
-INV_CIDR_MGMT_SWITCH_EXTERNAL_DEV = 'cidr-mgmt-switch-external-dev'
-INV_IPADDR_MGMT_SWITCH_EXTERNAL = 'ipaddr-mgmt-switch-external'
-INV_IPADDR_DATA_SWITCH = 'ipaddr-data-switch'
-INV_IPADDR_MLAG_VIP = 'ipaddr-mlag-vip'
-INV_CIDR_MLAG_IPL = 'cidr-mlag-ipl'
-INV_MLAG_VLAN = 'mlag-vlan'
-INV_MLAG_PORT_CHANNEL = 'mlag-port-channel'
-INV_MLAG_IPL_PORTS = 'mlag-ipl-ports'
-INV_IPV4_ADDR = 'ipv4-addr'
-INV_USERID_DEFAULT = 'userid-default'
-INV_PASSWORD_DEFAULT = 'password-default'
-INV_USERID_MGMT_SWITCH = 'userid-mgmt-switch'
-INV_PASSWORD_MGMT_SWITCH = 'password-mgmt-switch'
-INV_CLASS_MGMT_SWITCH = 'class-mgmt-switch'
-INV_CLASS_DATA_SWITCH = 'class-data-switch'
-INV_USERID_DATA_SWITCH = 'userid-data-switch'
-INV_PASSWORD_DATA_SWITCH = 'password-data-switch'
-INV_WRITE_SWITCH_MEMORY = 'write-switch-memory'
-INV_NODES_TEMPLATES = 'node-templates'
-INV_ETH_PORT = 'eth-port'
-INV_BOND_INTS = 'bond-interfaces'
-INV_BOND = 'bond'
-INV_BOND_PRIMARY = 'bond-primary'
-INV_PORTS = 'ports'
-INV_ETH10 = 'eth10'
-INV_ETH11 = 'eth11'
-INV_ETH12 = 'eth12'
-INV_ETH13 = 'eth13'
-INV_IPMI = 'ipmi'
-INV_PXE = 'pxe'
-INV_USERID_IPMI = 'userid-ipmi'
-INV_PASSWORD_IPMI = 'password-ipmi'
-INV_NETWORKS = 'networks'
-INV_VLAN_MGMT_NETWORK = 'vlan-mgmt-network'
-INV_VLAN_MGMT_CLIENT_NETWORK = 'vlan-mgmt-client-network'
-INV_PORT_MGMT_NETWORK = 'port-mgmt-network'
-INV_PORT_MGMT_DATA_NETWORK = 'port-mgmt-data-network'
-INV_VLAN = 'vlan'
-INV_MTU = 'mtu'
-INV_MANAGEMENT_PORTS = ('ipmi', 'pxe')
-INV_SWITCHES = 'switches'
-INV_MGMT = 'mgmt'
-INV_DATA = 'data'
-INV_MGMTSWITCH = 'mgmtswitch'
-INV_DATASWITCH = 'dataswitch'
-INV_USERID = 'userid'
-INV_PASSWORD = 'password'
-INV_NODES = 'nodes'
-INV_HOSTNAME = 'hostname'
-INV_PORT_PATTERN = 'port-%s'
-INV_PORT_IPMI = 'port-ipmi'
-INV_PORT_PXE = 'port-pxe'
-INV_IPV4_IPMI = 'ipv4-ipmi'
-INV_IPV4_PXE = 'ipv4-pxe'
-INV_MAC_PATTERN = 'mac-%s'
-INV_MAC_IPMI = 'mac-ipmi'
-INV_MAC_PXE = 'mac-pxe'
-INV_RACK_ID = 'rack-id'
-INV_PORT_ETH10 = 'port-eth10'
-INV_PORT_ETH11 = 'port-eth11'
-INV_PORT_ETH12 = 'port-eth12'
-INV_PORT_ETH13 = 'port-eth13'
-INV_OS_DISK = 'os-disk'
-INV_TEMPLATE = 'template'
-INV_INFO = 'info'
-INV_CLASS = 'class'
+import lib.logger as logger
+from lib.exception import UserException
+from lib.db import Database
 
 
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(
+                Singleton, cls).__call__(*args, **kwargs)
+        else:
+            cls._instances[cls].__init__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+# Python 3
+# class Inventory(metaclass=Singleton):
 class Inventory(object):
+    __metaclass__ = Singleton
+    """Inventory
+
+    Args:
+        log (object): Log
+        inv_file (string): Inventory file
+    """
+
     class SwitchType(Enum):
         MGMT, DATA = range(2)
 
-    INV_CHASSIS_PART_NUMBER = 'chassis-part-number'
-    INV_CHASSIS_SERIAL_NUMBER = 'chassis-serial-number'
-    INV_MODEL = 'model'
-    INV_SERIAL_NUMBER = 'serial-number'
-    INV_IPV4_IPMI = 'ipv4-ipmi'
-    INV_USERID_IPMI = 'userid-ipmi'
-    INV_PASSWORD_IPMI = 'password-ipmi'
-    INV_ARCHITECTURE = 'architecture'
+    class InvKey(object):
+        NODES = 'nodes'
+        LABEL = 'label'
+        HOSTNAME = 'hostname'
+        USERID = 'userid'
+        PASSWORD = 'password'
+        SSH_KEY = 'ssh_key'
+        ROOM = 'room'
+        ROW = 'row'
+        CELL = 'cell'
+        IPADDRS = 'ipaddrs'
+        MACS = 'macs'
+        IPMI = 'ipmi'
+        PXE = 'pxe'
+        DATA = 'data'
+        SWITCHES = 'switches'
+        SWITCHES_IPMI = 'switches_ipmi'
+        SWITCHES_PXE = 'switches_pxe'
+        PORTS = 'ports'
+        PORTS_IPMI = 'ports_ipmi'
+        PORTS_PXE = 'ports_pxe'
+        RACK_ID = 'rack_id'
+        USERID = 'userid'
+        PASSWORD = 'password'
+        DEVICES = 'devices'
+        DEVICES_PXE = 'devices_pxe'
+        OS = 'os'
+        PROFILE = 'profile'
+        INSTALL_DEVICE = 'install_device'
+        KERNEL_OPTIONS = 'kernel_options'
+        ROLES = 'roles'
+        RENAME = 'rename'
+        INTERFACES = 'interfaces'
 
-    def __init__(self, log, inv_file):
-        self.log = Logger(__file__)
-        self.inv_file = os.path.abspath(
-            os.path.dirname(os.path.abspath(inv_file)) +
-            os.path.sep +
-            os.path.basename(inv_file))
-        self.inv = self._load_inv_file()
+    def __init__(self):
+        self.log = logger.getlogger()
+        self.dbase = Database()
 
-    def _load_inv_file(self):
+        self.inv = AttrDict()
+        inv = self.dbase.load_inventory()
+        if inv is not None:
+            self.inv = inv
+
+        self.switch = None
+        self.switch_type = None
+
+        if self.InvKey.NODES not in self.inv:
+            self.inv.nodes = []
+
+        # Order is only kept in Python 3.6 and above
+        # self.nodes = AttrDict({
+        #     self.InvKey.LABEL: 'a',
+        #     self.InvKey.HOSTNAME: 'b',
+        #     self.InvKey.PORT: 'c'})
+
+        self.nodes = AttrDict()
+        self.nodes[self.InvKey.LABEL] = []
+        self.nodes[self.InvKey.HOSTNAME] = []
+        self.nodes[self.InvKey.RACK_ID] = []
+        self.nodes[self.InvKey.IPMI] = AttrDict()
+        self.nodes[self.InvKey.PXE] = AttrDict()
+        self.nodes[self.InvKey.DATA] = AttrDict()
+        self.nodes[self.InvKey.OS] = []
+        self.nodes[self.InvKey.ROLES] = []
+        self.nodes[self.InvKey.INTERFACES] = []
+
+        self.nodes[self.InvKey.IPMI][self.InvKey.SWITCHES] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.PORTS] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.MACS] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.IPADDRS] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.USERID] = []
+        self.nodes[self.InvKey.IPMI][self.InvKey.PASSWORD] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.PORTS] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.MACS] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.IPADDRS] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.DEVICES] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.SWITCHES] = []
+        self.nodes[self.InvKey.PXE][self.InvKey.RENAME] = []
+        self.nodes[self.InvKey.DATA][self.InvKey.SWITCHES] = []
+        self.nodes[self.InvKey.DATA][self.InvKey.PORTS] = []
+        self.nodes[self.InvKey.DATA][self.InvKey.MACS] = []
+        self.nodes[self.InvKey.DATA][self.InvKey.IPADDRS] = []
+        self.nodes[self.InvKey.DATA][self.InvKey.DEVICES] = []
+        self.nodes[self.InvKey.DATA][self.InvKey.RENAME] = []
+
+    def add_nodes_hostname(self, hostname):
+        self.nodes.hostname.append(hostname)
+
+    def add_nodes_label(self, label):
+        self.nodes.label.append(label)
+
+    def add_nodes_os_dict(self, os_dict):
+        self.nodes.os.append(os_dict)
+
+    def add_nodes_rack_id(self, rack_id):
+        self.nodes.rack_id.append(rack_id)
+
+    def add_nodes_switches_ipmi(self, switches):
+        self.nodes.ipmi.switches.append(switches)
+
+    def add_nodes_switches_pxe(self, switches):
+        self.nodes.pxe.switches.append(switches)
+
+    def add_nodes_switches_data(self, switches):
+        self.nodes.data.switches.append(switches)
+
+    def add_nodes_ports_ipmi(self, ports):
+        self.nodes.ipmi.ports.append(ports)
+
+    def add_nodes_ports_pxe(self, ports):
+        self.nodes.pxe.ports.append(ports)
+
+    def add_nodes_ports_data(self, ports):
+        self.nodes.data.ports.append(ports)
+
+    def add_nodes_macs_ipmi(self, macs):
+        self.nodes.ipmi.macs.append(macs)
+
+    def add_nodes_macs_pxe(self, macs):
+        self.nodes.pxe.macs.append(macs)
+
+    def add_nodes_macs_data(self, macs):
+        self.nodes.data.macs.append(macs)
+
+    def add_nodes_ipaddrs_ipmi(self, ipaddrs):
+        self.nodes.ipmi.ipaddrs.append(ipaddrs)
+
+    def add_nodes_ipaddrs_pxe(self, ipaddrs):
+        self.nodes.pxe.ipaddrs.append(ipaddrs)
+
+    def add_nodes_userid_ipmi(self, userid):
+        self.nodes.ipmi.userid.append(userid)
+
+    def add_nodes_password_ipmi(self, password):
+        self.nodes.ipmi.password.append(password)
+
+    def add_nodes_devices_pxe(self, dev):
+        self.nodes.pxe.devices.append(dev)
+
+    def add_nodes_devices_data(self, dev):
+        self.nodes.data.devices.append(dev)
+
+    def add_nodes_roles(self, roles):
+        self.nodes.roles.append(roles)
+
+    def add_nodes_rename_data(self, renames):
+        self.nodes.data.rename.append(renames)
+
+    def add_nodes_rename_pxe(self, renames):
+        self.nodes.pxe.rename.append(renames)
+
+    def add_nodes_interfaces(self, interfaces):
+        self.nodes.interfaces.append(interfaces)
+
+    def _flatten(self, data):
+        def items():
+            for key, value in data.iteritems():
+                if isinstance(value, dict):
+                    for subkey, subvalue in self._flatten(value).iteritems():
+                        yield key + '.' + subkey, subvalue
+                else:
+                    yield key, value
+        return AttrDict(items())
+
+    def update_nodes(self):
+        nodes = []
+        flat = self._flatten(self.nodes)
+
+        for item_key, item_values in flat.iteritems():
+            for index, item_value in enumerate(item_values):
+                if len(nodes) <= index:
+                    nodes.append(DefaultAttrDict(dict))
+                if '.' in item_key:
+                    keys = item_key.split('.')
+                    nodes[index][keys[0]][keys[1]] = item_value
+                else:
+                    nodes[index][item_key] = item_value
+
+        self.inv.nodes = nodes
+        self.dbase.dump_inventory(self.inv)
+
+    @staticmethod
+    def _get_members(obj_list, key, index):
+        """Get dictionary value under a list
+        Args:
+            obj_list (list): Object list
+            key (dict key): Dictionary key
+            index (int): Index
+
+        Returns:
+            list or obj: Members or member
+        """
+
+        if index is None:
+            list_ = []
+            for member in obj_list:
+                if key in member:
+                    list_.append(getattr(member, key))
+                else:
+                    list_.append(None)
+            return list_
+        if key in obj_list[index]:
+            return getattr(obj_list[index], key)
+
+    def get_nodes_label(self, index=None):
+        """Get nodes label
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes label
+        """
+
+        return self._get_members(self.inv.nodes, self.InvKey.LABEL, index)
+
+    def get_nodes_hostname(self, index=None):
+        """Get nodes hostname
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes hostname
+        """
+
+        return self._get_members(self.inv.nodes, self.InvKey.HOSTNAME, index)
+
+    def yield_nodes_hostname(self):
+        """Yield nodes hostnames
+        Returns:
+            iter of str: Nodes hostnames
+        """
+
+        for member in self.get_nodes_hostname():
+            yield member
+
+    def get_port_mac_ip(self, switch, port):
+        """Get the mac address and ip address for the specified port on the
+        specified switch.  Otherwise return None, None
+        Args:
+            switch (str): Switch label
+            port (str or int): Port name
+        Returns:
+            str: port mac address
+            str: port ipv4 address
+        """
+        mac, ipaddr = None, None
+        for node in self.inv.nodes:
+            if port in node.ipmi.ports:
+                idx = node.ipmi.ports.index(port)
+                if switch == node.ipmi.switches[idx]:
+                    try:
+                        mac = node.ipmi.macs[idx]
+                    except (AttributeError, IndexError):
+                        mac = None
+                    try:
+                        ipaddr = node.ipmi.ipaddrs[idx]
+                    except (AttributeError, IndexError):
+                        ipaddr = None
+                    return mac, ipaddr
+            if port in node.pxe.ports:
+                idx = node.pxe.ports.index(port)
+                if switch == node.pxe.switches[idx]:
+                    try:
+                        mac = node.pxe.macs[idx]
+                    except (AttributeError, IndexError):
+                        mac = None
+                    try:
+                        ipaddr = node.pxe.ipaddrs[idx]
+                    except (AttributeError, IndexError):
+                        ipaddr = None
+                    return mac, ipaddr
+        return mac, ipaddr
+
+    def get_nodes_ipmi_userid(self, index=None):
+        """Get nodes IPMI userid
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes IPMI userid
+        """
+
+        return self._get_members(
+            self.inv.nodes, self.InvKey.IPMI, index)[self.InvKey.USERID]
+
+    def get_nodes_ipmi_password(self, index=None):
+        """Get nodes IPMI password
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes IPMI password
+        """
+
+        return self._get_members(
+            self.inv.nodes, self.InvKey.IPMI, index)[self.InvKey.PASSWORD]
+
+    def get_nodes_ipmi_ipaddr(self, if_index, index=None):
+        """Get nodes IPMI interface ipaddr
+        Args:
+            if_index (int): Interface index
+            index (int, optional): List index
+
+        Returns:
+            str: nodes IPMI ipaddr
+        """
+
+        return self._get_members(
+            self.inv.nodes, self.InvKey.IPMI,
+            index)[self.InvKey.IPADDRS][if_index]
+
+    def get_nodes_pxe_ipaddr(self, if_index, index=None):
+        """Get nodes PXE interface ipaddr
+        Args:
+            if_index (int): Interface index
+            index (int, optional): List index
+
+        Returns:
+            str: nodes PXE ipaddr
+        """
+
+        return self._get_members(
+            self.inv.nodes, self.InvKey.PXE,
+            index)[self.InvKey.IPADDRS][if_index]
+
+    def get_nodes_pxe_mac(self, if_index, index=None):
+        """Get nodes PXE interface MAC address
+        Args:
+            if_index (int): Interface index
+            index (int, optional): List index
+
+        Returns:
+            str: nodes PXE MAC
+        """
+
+        return self._get_members(
+            self.inv.nodes, self.InvKey.PXE,
+            index)[self.InvKey.MACS][if_index]
+
+    def get_nodes_os_profile(self, index=None):
+        """Get nodes OS profile
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes OS profile
+        """
+
+        return self._get_members(
+            self.inv.nodes, self.InvKey.OS, index)[self.InvKey.PROFILE]
+
+    def get_nodes_os_install_device(self, index=None):
+        """Get nodes OS install device
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes OS install device
+        """
+
         try:
-            return yaml.load(open(self.inv_file), Loader=AttrDictYAMLLoader)
-        except:
-            self.log.error('Could not load file: ' + self.inv_file)
-            sys.exit(1)
+            return self._get_members(
+                self.inv.nodes,
+                self.InvKey.OS,
+                index)[self.InvKey.INSTALL_DEVICE]
+        except KeyError:
+            pass
 
-    def _dump_inv_file(self):
+    def get_nodes_os_kernel_options(self, index=None):
+        """Get nodes OS kernel options
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes OS kernel options
+        """
+
         try:
-            yaml.safe_dump(
-                self.inv,
-                open(self.inv_file, 'w'),
-                indent=4,
-                default_flow_style=False)
-        except:
-            self.log.error(
-                'Could not dump inventory to file: ' + self.inv_file)
-            sys.exit(1)
-
-    def get_ipaddr_mgmt_network(self):
-        return self.inv[INV_IPADDR_MGMT_NETWORK]
-
-    def add_switches(self):
-        if (INV_USERID_MGMT_SWITCH in self.inv and
-                self.inv[INV_USERID_MGMT_SWITCH] is not None):
-            userid = self.inv[INV_USERID_MGMT_SWITCH]
-        elif INV_USERID_DEFAULT in self.inv:
-            userid = self.inv[INV_USERID_DEFAULT]
-        else:
-            userid = None
-
-        if (INV_PASSWORD_MGMT_SWITCH in self.inv and
-                self.inv[INV_PASSWORD_MGMT_SWITCH] is not None):
-            password = self.inv[INV_PASSWORD_MGMT_SWITCH]
-        elif INV_PASSWORD_DEFAULT in self.inv:
-            password = self.inv[INV_PASSWORD_DEFAULT]
-        else:
-            password = None
-
-        if (INV_CLASS_MGMT_SWITCH in self.inv and
-                self.inv[INV_CLASS_MGMT_SWITCH] is not None):
-            _class = self.inv[INV_CLASS_MGMT_SWITCH]
-        else:
-            _class = None
-
-        _list = []
-        for index, (key, value) in (
-                enumerate(self.inv[INV_IPADDR_MGMT_SWITCH].items())):
-            _dict = AttrDict()
-            _dict[INV_HOSTNAME] = INV_MGMTSWITCH + str(index + 1)
-            _dict[INV_IPV4_ADDR] = value
-            _dict[INV_RACK_ID] = key
-            _dict[INV_USERID] = userid
-            _dict[INV_PASSWORD] = password
-            _dict[INV_CLASS] = _class
-            _list.append(_dict)
-        inv = AttrDict()
-        inv[INV_MGMT] = _list
-
-        if (INV_USERID_DATA_SWITCH in self.inv and
-                self.inv[INV_USERID_DATA_SWITCH] is not None):
-            userid = self.inv[INV_USERID_DATA_SWITCH]
-        elif INV_USERID_DEFAULT in self.inv:
-            userid = self.inv[INV_USERID_DEFAULT]
-        else:
-            userid = None
-
-        if (INV_PASSWORD_DATA_SWITCH in self.inv and
-                self.inv[INV_PASSWORD_DATA_SWITCH] is not None):
-            password = self.inv[INV_PASSWORD_DATA_SWITCH]
-        elif INV_PASSWORD_DEFAULT in self.inv:
-            password = self.inv[INV_PASSWORD_DEFAULT]
-        else:
-            password = None
-
-        if (INV_CLASS_DATA_SWITCH in self.inv and
-                self.inv[INV_CLASS_DATA_SWITCH] is not None):
-            _class = self.inv[INV_CLASS_DATA_SWITCH]
-        else:
-            _class = None
-
-        _list = []
-        for index, (key, value) in (
-                enumerate(self.inv[INV_IPADDR_DATA_SWITCH].items())):
-            _dict = AttrDict()
-            _dict[INV_HOSTNAME] = INV_DATASWITCH + str(index + 1)
-            if type(value) == list:  # copy list
-                _dict[INV_IPV4_ADDR] = list(value)
-            else:
-                _dict[INV_IPV4_ADDR] = value
-            _dict[INV_RACK_ID] = key
-            _dict[INV_USERID] = userid
-            _dict[INV_PASSWORD] = password
-            _dict[INV_CLASS] = _class
-            _list.append(_dict)
-        inv[INV_DATA] = _list
-
-        self.inv[INV_SWITCHES] = inv
-        self._dump_inv_file()
-
-    def _get_switch_type(self, switch_type):
-        if switch_type == self.SwitchType.MGMT:
-            type = INV_MGMT
-        elif switch_type == self.SwitchType.DATA:
-            type = INV_DATA
-        else:
-            try:
-                raise Exception()
-            except:
-                self.log.error('Invalid switch type')
-                sys.exit(1)
-        return type
-
-    def get_mgmt_switch_name(self):
-        switch_class = None
-        for switch in self.inv[INV_SWITCHES][INV_MGMT]:
-            if switch_class is None:
-                switch_class = switch[INV_CLASS]
-            elif switch_class != switch[INV_CLASS]:
-                try:
-                    raise Exception()
-                except:
-                    self.log.error('Only one management switch model is supported')
-                    sys.exit(1)
-
-        return switch_class
-
-    def get_mgmt_switch_class(self):
-        switch_class = None
-        try:
-            switch_class = self.inv[INV_CLASS_MGMT_SWITCH]
-            if switch_class:
-                return switch_class
-            raise Exception()
-        except:
-            self.log.error('Management switch class is unspecified or not supported')
-            sys.exit(1)
-
-    def get_data_switch_name(self):
-        switch_class = None
-        for switch in self.inv[INV_SWITCHES][INV_DATA]:
-            if switch_class is None:
-                switch_class = switch[INV_CLASS]
-            elif switch_class != switch[INV_CLASS]:
-                try:
-                    raise Exception()
-                except:
-                    self.log.error('Only one data switch model is supported')
-                    sys.exit(1)
-
-        return switch_class
-
-    def get_data_switch_class(self):
-        switch_class = None
-        try:
-            switch_class = self.inv[INV_CLASS_DATA_SWITCH]
-            if switch_class:
-                return switch_class
-            raise Exception()
-        except:
-            self.log.error('Data switch class is unspecified or not supported')
-            sys.exit(1)
-
-    def yield_switches(self, switch_type):
-        if switch_type == self.SwitchType.MGMT:
-            if (INV_USERID_MGMT_SWITCH not in self.inv or
-                    not self.inv[INV_USERID_MGMT_SWITCH] or
-                    self.inv[INV_USERID_MGMT_SWITCH].lower() == NONE.lower()):
-                return
-        elif switch_type == self.SwitchType.DATA:
-            if (INV_USERID_DATA_SWITCH not in self.inv or
-                    not self.inv[INV_USERID_DATA_SWITCH] or
-                    self.inv[INV_USERID_DATA_SWITCH].lower() == NONE.lower()):
-                return
-
-        Switch = namedtuple('Switch', ['ip_addr', 'userid', 'password'])
-        for switch in self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]:
-            yield Switch(
-                switch[INV_IPV4_ADDR],
-                switch[INV_USERID],
-                switch[INV_PASSWORD])
-
-    def update_switch_model_info(self, switch_type, info):
-        for index, switch in enumerate(
-                self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]):
-            if info[index]:
-                switch[INV_INFO] = info[index]
-        self._dump_inv_file()
-
-    def update_switch_class(self, switch_type, classes):
-        for index, switch in enumerate(
-                self.inv[INV_SWITCHES][self._get_switch_type(switch_type)]):
-            if classes[index]:
-                switch[INV_CLASS] = classes[index]
-        self._dump_inv_file()
-
-    def yield_mgmt_switch_ip(self):
-        for ipv4 in self.inv[INV_IPADDR_MGMT_SWITCH].values():
-            yield ipv4
-
-    def get_vlan_mgmt_network(self):
-        return self.inv[INV_VLAN_MGMT_NETWORK]
-
-    def get_vlan_mgmt_client_network(self):
-        return self.inv[INV_VLAN_MGMT_CLIENT_NETWORK]
-
-    def get_port_mgmt_network(self):
-        return self.inv[INV_PORT_MGMT_NETWORK]
-
-    def yield_ports_mgmt_data_network(self):
-        for ports in self.inv[INV_PORT_MGMT_DATA_NETWORK].values():
-            if type(ports) is list:
-                for port in ports:
-                    yield port
-            else:
-                yield ports
-
-    def get_userid_mgmt_switch(self):
-        return self.inv[INV_USERID_MGMT_SWITCH]
-
-    def get_password_mgmt_switch(self):
-        return self.inv[INV_PASSWORD_MGMT_SWITCH]
-
-    def yield_mgmt_switch_ports(self):
-        port_list = []
-        for key, value in self.inv[INV_NODES_TEMPLATES].items():
-            for _key, _value in value.items():
-                if _key == INV_PORTS:
-                    for ports_key, ports_value in _value.items():
-                        if ports_key == INV_IPMI or ports_key == INV_PXE:
-                            for rack, ports in ports_value.items():
-                                for port in ports:
-                                    port_list.append(port)
-        for port in port_list:
-            yield port
-
-    def get_mgmt_switch_external_dev_label(self):
-        if INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV in self.inv:
-            return self.inv[INV_LABEL_MGMT_SWITCH_EXTERNAL_DEV]
-
-    def get_mgmt_switch_external_dev_ip(self):
-        return self.inv[INV_CIDR_MGMT_SWITCH_EXTERNAL_DEV].split('/')[0]
-
-    def get_mgmt_switch_external_prefix(self):
-        return self.inv[INV_CIDR_MGMT_SWITCH_EXTERNAL_DEV].split('/')[1]
-
-    def yield_mgmt_switch_external_switch_ip(self):
-        for ipv4 in self.inv[INV_IPADDR_MGMT_SWITCH_EXTERNAL].values():
-            yield ipv4
-
-    def get_userid_data_switch(self):
-        return self.inv[INV_USERID_DATA_SWITCH]
-
-    def get_password_data_switch(self):
-        return self.inv[INV_PASSWORD_DATA_SWITCH]
-
-    def yield_data_switch_ip(self):
-        for rack_list in self.inv[INV_IPADDR_DATA_SWITCH].values():
-            if type(rack_list) is list:
-                for ipv4 in rack_list:
-                    yield ipv4
-            else:
-                yield rack_list
-
-    def yield_data_vlans(self, userid, password):
-        _dict = AttrDict()
-        __dict = AttrDict()
-        vlan_list = []
-        vlan_dict = AttrDict()
-
-        for key, value in self.inv[INV_NODES_TEMPLATES].items():
-            for _key, _value in value.items():
-                if _key == INV_PORTS:
-                    index = 0
-                    for ports_key, ports_value in _value.items():
-                        if ports_key != INV_IPMI and ports_key != INV_PXE:
-                            switch_index = index % 2
-                            for rack in ports_value:
-                                if switch_index not in vlan_dict:
-                                    vlan_dict[switch_index] = []
-                                for network in value[INV_NETWORKS]:
-                                    if INV_VLAN in self.inv[INV_NETWORKS][network]:
-                                        _dict[INV_USERID_DATA_SWITCH] = userid
-                                        _dict[INV_PASSWORD_DATA_SWITCH] = password
-                                        if (type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list and
-                                                len(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == 2):
-                                            if self.inv[INV_NETWORKS][network][INV_VLAN] not in vlan_dict[switch_index]:
-                                                vlan_dict[switch_index].append(self.inv[INV_NETWORKS][network][INV_VLAN])
-                                                _dict['vlan'] = vlan_dict[switch_index]
-                                                __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][switch_index]] = _dict
-                                        else:
-                                            if self.inv[INV_NETWORKS][network][INV_VLAN] not in vlan_list:
-                                                vlan_list.append(self.inv[INV_NETWORKS][network][INV_VLAN])
-                                                _dict['vlan'] = vlan_list
-                                                if type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list:
-                                                    __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][0]] = _dict
-                                                else:
-                                                    __dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = _dict
-                            index += 1
-        for key, value in __dict.items():
-            yield (
-                key,
-                value[INV_USERID_DATA_SWITCH],
-                value[INV_PASSWORD_DATA_SWITCH],
-                value['vlan'])
-
-    def yield_data_switch_ports(self, userid, password):
-        _dict = AttrDict()
-        __dict = AttrDict()
-        ___dict = AttrDict()
-        _dict['vlan'] = AttrDict()
-        _dict['mtu'] = AttrDict()
-        _dict['bonds'] = AttrDict()
-        mtu = None
-
-        for key, value in self.inv[INV_NODES_TEMPLATES].items():
-            for _key, _value in value.items():
-                if _key == INV_PORTS:
-                    index = 0
-                    for ports_key, ports_value in _value.items():
-                        if ports_key != INV_IPMI and ports_key != INV_PXE:
-                            switch_index = index % 2
-                            for rack, ports in ports_value.items():
-                                port_index = 0
-                                for port in ports:
-                                    _list = []
-                                    mtu = None
-                                    for network in value[INV_NETWORKS]:
-                                        if INV_ETH_PORT in self.inv[INV_NETWORKS][network].keys():
-                                            if self.inv[INV_NETWORKS][network][INV_ETH_PORT] == ports_key:
-                                                if INV_VLAN in self.inv[INV_NETWORKS][network]:
-                                                    vlan = self.inv[INV_NETWORKS][network][INV_VLAN]
-                                                    _list.append(vlan)
-                                                    _dict['vlan'][port] = _list
-                                                if INV_MTU in self.inv[INV_NETWORKS][network]:
-                                                    if mtu is None:
-                                                        mtu = self.inv[INV_NETWORKS][network][INV_MTU]
-                                                    else:
-                                                        if mtu < self.inv[INV_NETWORKS][network][INV_MTU]:
-                                                            mtu = self.inv[INV_NETWORKS][network][INV_MTU]
-                                                    _dict['mtu'][port] = mtu
-                                        elif INV_BOND_INTS in self.inv[INV_NETWORKS][network].keys():
-                                            bond_interfaces = self.inv[INV_NETWORKS][network][INV_BOND_INTS]
-                                            bond_name = self.inv[INV_NETWORKS][network][INV_BOND]
-                                            if ports_key in bond_interfaces:
-                                                if INV_BOND_PRIMARY in self.inv[INV_NETWORKS][network].keys():
-                                                    if self.inv[INV_NETWORKS][network][INV_BOND_PRIMARY] == ports_key:
-                                                        _dict['bonds'][port] = []
-                                                        for int_port in bond_interfaces:
-                                                            _dict['bonds'][port].append(_value[int_port][rack][port_index])
-                                                elif bond_interfaces[0] == ports_key:
-                                                    _dict['bonds'][port] = []
-                                                    for int_port in bond_interfaces:
-                                                        _dict['bonds'][port].append(_value[int_port][rack][port_index])
-                                                if INV_VLAN in self.inv[INV_NETWORKS][network]:
-                                                    vlan = self.inv[INV_NETWORKS][network][INV_VLAN]
-                                                    _list.append(vlan)
-                                                    _dict['vlan'][port] = _list
-                                                if INV_MTU in self.inv[INV_NETWORKS][network]:
-                                                    if mtu is None:
-                                                        mtu = self.inv[INV_NETWORKS][network][INV_MTU]
-                                                    else:
-                                                        if mtu < self.inv[INV_NETWORKS][network][INV_MTU]:
-                                                            mtu = self.inv[INV_NETWORKS][network][INV_MTU]
-                                                    _dict['mtu'][port] = mtu
-                                                for network in value[INV_NETWORKS]:
-                                                    if INV_ETH_PORT in self.inv[INV_NETWORKS][network].keys():
-                                                        if self.inv[INV_NETWORKS][network][INV_ETH_PORT] == bond_name:
-                                                            if INV_VLAN in self.inv[INV_NETWORKS][network]:
-                                                                vlan = self.inv[INV_NETWORKS][network][INV_VLAN]
-                                                                _list.append(vlan)
-                                                                _dict['vlan'][port] = _list
-                                                            if INV_MTU in self.inv[INV_NETWORKS][network]:
-                                                                if mtu is None:
-                                                                    mtu = self.inv[INV_NETWORKS][network][INV_MTU]
-                                                                else:
-                                                                    if mtu < self.inv[INV_NETWORKS][network][INV_MTU]:
-                                                                        mtu = self.inv[INV_NETWORKS][network][INV_MTU]
-                                                                _dict['mtu'][port] = mtu
-                                    port_index += 1
-                                __dict[INV_USERID_DATA_SWITCH] = userid
-                                __dict[INV_PASSWORD_DATA_SWITCH] = password
-                                __dict['port_vlan'] = _dict['vlan']
-                                __dict['port_mtu'] = _dict['mtu']
-                                __dict['port_bonds'] = _dict['bonds']
-                                if (type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list and
-                                        len(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == 2):
-                                    ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][switch_index]] = __dict.copy()
-                                else:
-                                    if type(self.inv[INV_IPADDR_DATA_SWITCH][rack]) == list:
-                                        ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack][0]] = __dict
-                                    else:
-                                        ___dict[self.inv[INV_IPADDR_DATA_SWITCH][rack]] = __dict
-                            index += 1
-        for key, value in ___dict.items():
-            yield (
-                key,
-                value['port_vlan'],
-                value['port_mtu'],
-                value['port_bonds'])
-
-    def is_mlag(self):
-        for value in self.inv[INV_IPADDR_DATA_SWITCH].values():
-            if type(value) == list and len(value) == 2:
-                return True
-        return False
-
-    def get_mlag_vlan(self):
-        for value in self.inv[INV_MLAG_VLAN].values():
+            return self._get_members(
+                self.inv.nodes,
+                self.InvKey.OS,
+                index)[self.InvKey.KERNEL_OPTIONS]
+        except KeyError:
             pass
-        return value
 
-    def get_mlag_port_channel(self):
-        for value in self.inv[INV_MLAG_PORT_CHANNEL].values():
-            pass
-        return value
+    def get_nodes_rack_id(self, index=None):
+        """Get nodes rack_id
+        Args:
+            index (int, optional): List index
 
-    def get_cidr_mlag_ipl(self, switch_index):
-        for value in self.inv[INV_CIDR_MLAG_IPL].values():
-            pass
-        return value[switch_index].replace('/', ' /')
+        Returns:
+            str: nodes label
+        """
 
-    def get_ipaddr_mlag_ipl_peer(self, switch_index):
-        for value in self.inv[INV_CIDR_MLAG_IPL].values():
-            pass
-        if switch_index:
-            index = 0
-        else:
-            index = 1
-        return value[index].split('/')[0]
+        return self._get_members(self.inv.nodes, self.InvKey.RACK_ID, index)
 
-    def get_ipaddr_mlag_vip(self):
-        for value in self.inv[INV_IPADDR_MLAG_VIP].values():
-            pass
-        return (
-            value +
-            ' /' +
-            self.inv[INV_IPADDR_MGMT_NETWORK].split('/')[1])
+    def _add_macs(self, macs, type_):
+        for node in self.inv.nodes:
+            for index, _port in enumerate(node[type_][self.InvKey.PORTS]):
+                port = str(_port)
+                switch = node[type_][self.InvKey.SWITCHES][index]
 
-    def yield_mlag_ports(self, switch_index):
-        for value in self.inv[INV_MLAG_IPL_PORTS].values():
-            for port in value[switch_index]:
-                yield port
+                # If switch is not found
+                if switch not in macs:
+                    msg = "Switch '{}' not found".format(switch)
+                    self.log.error(msg)
+                    raise UserException(msg)
+                # If port is not found
+                if port not in macs[switch]:
+                    msg = "Switch '{}' port '{}' not found".format(
+                        switch, port)
+                    self.log.debug(msg)
+                    continue
+                # If port has no MAC
+                if not macs[switch][port]:
+                    msg = "Switch '{}' port '{}' no MAC".format(
+                        switch, port)
+                    self.log.debug(msg)
+                    continue
+                # If port has more than one MAC
+                if len(macs[switch][port]) > 1:
+                    msg = "Switch '{}' port '{}' too many MACs '{}'".format(
+                        switch, port, macs[switch][port])
+                    self.log.error(msg)
+                    raise UserException(msg)
 
-    def get_mlag_ports(self, switch_index):
-        port_list = []
-        for value in self.inv[INV_MLAG_IPL_PORTS].values():
-            for port in value[switch_index]:
-                port_list.append(port)
-        return port_list
+                if macs[switch][port][0] not in node[type_][self.InvKey.MACS]:
+                    node[type_][self.InvKey.MACS][index] = \
+                        macs[switch][port][0]
 
-    def get_data_switches(self):
-        # This methods a dict of switch IP to a dict with user
-        # userid and password
-        if INV_USERID_DATA_SWITCH in self.inv:
-            userid = self.inv[INV_USERID_DATA_SWITCH]
-        else:
-            userid = None
-        if INV_PASSWORD_DATA_SWITCH in self.inv:
-            password = self.inv[INV_PASSWORD_DATA_SWITCH]
-        else:
-            password = None
-        return_value = AttrDict()
-        for rack, rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].iteritems():
-            if type(rack_ip) == list:
-                for ip in rack_ip:
-                    return_value[ip] = {
-                        'user': userid,
-                        'password': password}
-            else:
-                return_value[rack_ip] = {
-                    'user': userid,
-                    'password': password}
-        return return_value
+    def add_macs_ipmi(self, macs):
+        """Add MAC addresses
+        Args:
+            macs (dict of dict of list of str): Switch{Port}{[MAC]}
+        """
 
-    def yield_mgmt_rack_ipv4(self):
-        for key, value in self.inv[INV_IPADDR_MGMT_SWITCH].items():
-            yield key, value
+        self._add_macs(macs, self.InvKey.IPMI)
+        self.dbase.dump_inventory(self.inv)
 
-    def create_nodes(self, dhcp_mac_ip, mgmt_switch_config):
-        if INV_NODES in self.inv:
-            _dict = self.inv[INV_NODES]
-        else:
-            self.inv[INV_NODES] = None
-            _dict = AttrDict()
-        for key, value in self.inv[INV_NODES_TEMPLATES].items():
-            index = 0
-            for rack, ipmi_ports in value[INV_PORTS][INV_IPMI].items():
-                _list = []
-                for port_index, ipmi_port in enumerate(ipmi_ports):
-                    ipmi_port = str(ipmi_port)
-                    for mgmt_port in mgmt_switch_config[rack]:
-                        if ipmi_port == mgmt_port:
-                            for mac in mgmt_switch_config[rack][mgmt_port]:
-                                if mac in dhcp_mac_ip:
-                                    node_dict = AttrDict()
-                                    if (INV_HOSTNAME not in value or
-                                            value[INV_HOSTNAME] is None):
-                                        node_dict[INV_HOSTNAME] = key
-                                    else:
-                                        node_dict[INV_HOSTNAME] = \
-                                            value[INV_HOSTNAME]
-                                    index += 1
-                                    node_dict[INV_HOSTNAME] += '-' + str(index)
-                                    node_dict[INV_USERID_IPMI] = \
-                                        self.inv[INV_NODES_TEMPLATES][key][INV_USERID_IPMI]
-                                    node_dict[INV_PASSWORD_IPMI] = \
-                                        self.inv[INV_NODES_TEMPLATES][key][INV_PASSWORD_IPMI]
-                                    node_dict[INV_PORT_IPMI] = ipmi_port
-                                    node_dict[INV_PORT_PXE] = \
-                                        value[INV_PORTS][INV_PXE][rack][port_index]
-                                    if INV_ETH10 in value[INV_PORTS]:
-                                        node_dict[INV_PORT_ETH10] = \
-                                            value[INV_PORTS][INV_ETH10][rack][port_index]
-                                    if INV_ETH11 in value[INV_PORTS]:
-                                        node_dict[INV_PORT_ETH11] = \
-                                            value[INV_PORTS][INV_ETH11][rack][port_index]
-                                    if INV_ETH12 in value[INV_PORTS]:
-                                        node_dict[INV_PORT_ETH12] = \
-                                            value[INV_PORTS][INV_ETH12][rack][port_index]
-                                    if INV_ETH13 in value[INV_PORTS]:
-                                        node_dict[INV_PORT_ETH13] = \
-                                            value[INV_PORTS][INV_ETH13][rack][port_index]
-                                    node_dict[INV_MAC_IPMI] = mac
-                                    node_dict[INV_IPV4_IPMI] = \
-                                        dhcp_mac_ip[mac]
-                                    node_dict[INV_RACK_ID] = rack
-                                    node_dict[INV_TEMPLATE] = key
-                                    if INV_OS_DISK in value:
-                                        node_dict[INV_OS_DISK] = value[INV_OS_DISK]
-                                    _list.append(node_dict)
-                                    _dict[key] = _list
-                                    self.inv[INV_NODES] = _dict
-        if self.inv[INV_NODES] is not None:
-            self._dump_inv_file()
+    def add_macs_pxe(self, macs):
+        """Add MAC addresses
+        Args:
+            macs (dict of dict of list of str): Switch{Port}{[MAC]}
+        """
 
-    def add_pxe(self, dhcp_mac_ip, mgmt_switch_config):
-        for key, value in self.inv[INV_NODES_TEMPLATES].items():
-            for rack, pxe_ports in value[INV_PORTS][INV_PXE].items():
-                for port_index, pxe_port in enumerate(pxe_ports):
-                    pxe_port = str(pxe_port)
-                    for mgmt_port in mgmt_switch_config[rack]:
-                        if pxe_port == mgmt_port:
-                            for mac in mgmt_switch_config[rack][mgmt_port]:
-                                if mac in dhcp_mac_ip:
-                                    self.inv[INV_NODES][key][port_index][INV_MAC_PXE] = \
-                                        mac
-                                    self.inv[INV_NODES][key][port_index][INV_IPV4_PXE] = \
-                                        dhcp_mac_ip[mac]
+        self._add_macs(macs, self.InvKey.PXE)
+        self.dbase.dump_inventory(self.inv)
 
-        self._dump_inv_file()
+    def add_macs_data(self, macs):
+        """Add MAC addresses
+        Args:
+            macs (dict of dict of list of str): Switch{Port}{[MAC]}
+        """
 
-    def yield_nodes(self):
-        for key, value in self.inv[INV_NODES].items():
-            for index, node in enumerate(value):
-                yield self.inv, INV_NODES, key, index, node
+        self._add_macs(macs, self.InvKey.DATA)
+        self.dbase.dump_inventory(self.inv)
 
-    def get_node_count(self):
-        count = 0
-        for key, value in self.inv[INV_NODES].items():
-            for index, node in enumerate(value):
-                count += 1
-        return count
+    def _add_ipaddrs(self, ipaddrs, type_):
+        for node in self.inv.nodes:
+            for index, mac in enumerate(node[type_][self.InvKey.MACS]):
+                # If MAC is not found
+                if mac not in ipaddrs:
+                    continue
 
-    def get_expected_node_count(self):
-        count = 0
-        for template, rack, ports in self.yield_template_ports(INV_IPMI):
-            for port in ports:
-                count += 1
-        return count
+                if ipaddrs[mac] not in node[type_][self.InvKey.IPADDRS]:
+                    node[type_][self.InvKey.IPADDRS][index] = ipaddrs[mac]
 
-    def yield_node_ipmi(self):
-        for key, value in self.inv[INV_NODES].items():
-            for node in value:
-                yield (
-                    node[INV_RACK_ID],
-                    node[INV_MAC_IPMI],
-                    node[INV_IPV4_IPMI])
+    def add_ipaddrs_ipmi(self, ipaddrs):
+        """Add IPMI IP addresses
+        Args:
+            ipaddrs (dict of str): MAC{IP}
+        """
+        self._add_ipaddrs(ipaddrs, self.InvKey.IPMI)
+        self.dbase.dump_inventory(self.inv)
 
-    def yield_node_pxe(self):
-        for key, value in self.inv[INV_NODES].items():
-            for node in value:
-                yield (
-                    node[INV_RACK_ID],
-                    node[INV_MAC_PXE],
-                    node[INV_IPV4_PXE])
+    def add_ipaddrs_pxe(self, ipaddrs):
+        """Add PXE IP addresses
+        Args:
+            ipaddrs (dict of str): MAC{IP}
+        """
+        self._add_ipaddrs(ipaddrs, self.InvKey.PXE)
+        self.dbase.dump_inventory(self.inv)
 
-    def yield_ipmi_access_info(self):
-        for key, value in self.inv[INV_NODES].items():
-            for node in value:
-                yield (
-                    node[INV_RACK_ID],
-                    node[INV_IPV4_IPMI],
-                    node[INV_USERID_IPMI],
-                    node[INV_PASSWORD_IPMI])
+    def get_node_dict(self, index):
+        """Get node dictionary
+        Args:
+            index (int): List index
 
-    def yield_ipmi_credential_sets(self):
-        credential_sets = []
-        for value in self.inv[INV_NODES_TEMPLATES].itervalues():
-            _set = (value[INV_USERID_IPMI], value[INV_PASSWORD_IPMI])
-            if _set not in credential_sets:
-                credential_sets.append(_set)
-        for _set in credential_sets:
-            yield _set
+        Returns:
+            dict: Node dictionary
+        """
 
-    def yield_template_ports(self, port_type):
-        for template, value in self.inv[INV_NODES_TEMPLATES].items():
-            if port_type in value[INV_PORTS]:
-                for rack, ports in value[INV_PORTS][port_type].items():
-                    yield (template, rack, ports)
+        return self.inv.nodes[index]
 
-    def check_port(self, template, port_type, rack, port):
-        # Find node associated with given port number and if both mac-* and
-        # ipv4-* keys defined return tuple
-        if self.inv[INV_NODES] is not None:
-            for key, value in self.inv[INV_NODES].items():
-                for node in value:
-                    if node['port-' + port_type] in [port, str(port)]:
-                        if (('mac-' + port_type) in node and
-                                ('ipv4-' + port_type) in node):
-                            return (node['mac-' + port_type],
-                                    node['ipv4-' + port_type])
-        return False
+    def get_nodes_roles(self, index=None):
+        """Get nodes hostname
+        Args:
+            index (int, optional): List index
 
-    def add_to_node(self, key, index, field, value):
-        self.inv[INV_NODES][key][index][field] = value
-        self._dump_inv_file()
+        Returns:
+            list: Roles list
+        """
 
-    def add_data_switch_port_macs(self, switch_ipv4, switch_ports_to_MACs, switch_index):
-        # Get map of rack IP to rack ID.
-        ip_to_rack_id = {}
-        for rack_id, rack_ip in self.inv[INV_IPADDR_DATA_SWITCH].iteritems():
-            if type(rack_ip) == list:
-                for ip in rack_ip:
-                    ip_to_rack_id[ip] = rack_id
-            else:
-                ip_to_rack_id[rack_ip] = rack_id
-
-        # Get list of all nodes
-        nodes = [node for sublist in self.inv['nodes'].values() for node
-                 in sublist]
-        success = True
-        rack_id = ip_to_rack_id[switch_ipv4]
-        for node in nodes:
-            if node['rack-id'] != rack_id:
-                continue
-            node_template = self.inv[INV_NODES_TEMPLATES][node[INV_TEMPLATE]]
-            for port_name in node_template['ports'].keys():
-                if port_name not in INV_MANAGEMENT_PORTS:
-                    if (not self.is_mlag() or
-                            (self.is_mlag() and switch_index == 0 and port_name == INV_ETH10) or
-                            (self.is_mlag() and switch_index == 1 and port_name == INV_ETH11) or
-                            (self.is_mlag() and switch_index == 0 and port_name == INV_ETH12) or
-                            (self.is_mlag() and switch_index == 1 and port_name == INV_ETH13)):
-                        node_port_on_rack = str(node.get(INV_PORT_PATTERN %
-                                                port_name, ''))
-                        macs = switch_ports_to_MACs.get(node_port_on_rack, [])
-                        if macs:
-                            mac_key = INV_MAC_PATTERN % port_name
-                            node[mac_key] = macs[0]
-                        else:
-                            msg = ('Unable to find a MAC address for '
-                                   '%(port_name)s of host %(host)s plugged '
-                                   'into port %(node_port_on_rack)s of switch '
-                                   '%(switch)s')
-                            msg_vars = {'port_name': port_name,
-                                        'host': node.get(INV_IPV4_PXE),
-                                        'node_port_on_rack': node_port_on_rack,
-                                        'switch': ip}
-                            print(msg % msg_vars)
-                            success = False
-        self._dump_inv_file()
-        return success
-
-    def is_write_switch_memory(self):
-        if INV_WRITE_SWITCH_MEMORY in self.inv and self.inv[INV_WRITE_SWITCH_MEMORY]:
-            return True
-        return False
-
-    def is_passive_mgmt_switches(self):
-        if (INV_USERID_MGMT_SWITCH in self.inv and
-                self.inv[INV_USERID_MGMT_SWITCH] is not None):
-            return False
-        return True
-
-    def is_passive_data_switches(self):
-        if (INV_USERID_DATA_SWITCH in self.inv and
-                self.inv[INV_USERID_DATA_SWITCH] is not None):
-            return False
-        return True
+        return self._get_members(self.inv.nodes, self.InvKey.ROLES, index)

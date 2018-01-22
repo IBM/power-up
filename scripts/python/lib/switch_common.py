@@ -63,7 +63,7 @@ class SwitchCommon(object):
         ';exit'
         ';prompting')
 
-    def __init__(self, log, host=None, userid=None,
+    def __init__(self, host=None, userid=None,
                  password=None, mode=None, outfile=None):
         pass
 
@@ -76,13 +76,11 @@ class SwitchCommon(object):
     def set_switchport_native_vlan(self, vlan, port):
         vlan = str(vlan)
         ports = self.show_ports(format='std')
-        if ports[str(port)]['mode'] == 'access':
+        if self.mode == 'passive' or ports[str(port)]['mode'] == 'access':
             self.send_cmd(self.SET_NATIVE_VLAN_ACCESS.format(port, vlan))
-        if ports[str(port)]['mode'] == 'trunk':
+        elif ports[str(port)]['mode'] == 'trunk':
             self.send_cmd(self.SET_NATIVE_VLAN_TRUNK.format(port, vlan, vlan))
-        if self.mode == 'passive':
-            return
-        if vlan == self.show_native_vlan(port):
+        if self.mode == 'passive' or vlan == self.show_native_vlan(port):
             self.log.info(
                 'Set native VLAN to {} for access port {}'.format(vlan, port))
         else:
@@ -143,7 +141,8 @@ class SwitchCommon(object):
                 self.INTERFACE_CONFIG.format(port) +
                 ' ' +
                 self.ADD_VLANS_TO_PORT.format(vlan))
-            if self.is_vlan_allowed_for_port(vlan, port):
+            if (self.mode == 'passive' or
+                    self.is_vlan_allowed_for_port(vlan, port)):
                 self.log.info(
                     'VLAN {} is allowed for port {}'.format(vlan, port))
             else:
@@ -177,10 +176,8 @@ class SwitchCommon(object):
         return vlan in ports[port]['avlans']
 
     def create_vlan(self, vlan):
-        if self.mode == 'passive':
-            return
         self.send_cmd(self.CREATE_VLAN.format(vlan))
-        if self.is_vlan_created(vlan):
+        if self.mode == 'passive' or self.is_vlan_created(vlan):
             self.log.info(
                 'Created VLAN {}'.format(vlan))
         else:
@@ -188,10 +185,8 @@ class SwitchCommon(object):
                 'Failed creating VLAN {}'.format(vlan))
 
     def delete_vlan(self, vlan):
-        if self.mode == 'passive':
-            return
         self.send_cmd(self.DELETE_VLAN.format(vlan))
-        if self.is_vlan_created(vlan):
+        if self.mode == 'active' and self.is_vlan_created(vlan):
             self.log.warning(
                 'Failed deleting VLAN {}'.format(vlan))
             raise SwitchException(
@@ -275,13 +270,13 @@ class SwitchCommon(object):
 
         if self.ENABLE_REMOTE_CONFIG:
             cmd = self.ENABLE_REMOTE_CONFIG % (cmd)
-        ssh = SSH(self.log)
+        ssh = SSH()
         __, data, _ = ssh.exec_cmd(
             self.host,
             self.userid,
             self.password,
             cmd,
-            ssh_log=FILE_PATH + '/switch_ssh.log',
+            ssh_log=True,
             look_for_keys=False)
         return data
 
@@ -361,7 +356,8 @@ class SwitchCommon(object):
 
         mac_lines = mac_address_table.splitlines()
         if log:
-            log.info('Converting MAC address table with %d lines to standard dictionary format' % len(mac_lines))
+            log.debug("Converting MAC address table with %d lines to 'standard'"
+                      " attribute dictionary format" % len(mac_lines))
         for line in mac_lines:
             if _mac_regex.search(line):
                 if log:

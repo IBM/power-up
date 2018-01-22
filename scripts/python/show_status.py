@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -33,7 +33,7 @@ GEN_PATH = genesis.gen_path
 GEN_CONTAINER_NAME = genesis.container_name
 GEN_CONTAINER_RUNNING = genesis.container_running()
 GEN_CONTAINER_ADDR = genesis.container_addr()
-GEN_CONTAINER_SSH_KEY_PRIVATE = genesis.ssh_key_private
+GEN_CONTAINER_SSH_KEY_PRIVATE = genesis.get_ssh_private_key_file()
 HOME_DIR = os.path.expanduser('~')
 
 FILE_PATH = os.path.dirname(os.path.abspath(__file__))

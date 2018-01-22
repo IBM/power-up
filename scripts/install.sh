@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -23,7 +23,7 @@ if [[ $ID == "ubuntu" ]]; then
     sudo apt-get update
     sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
         python-netaddr ipmitool aptitude lxc vim vlan bridge-utils gcc cpp \
-        g++ make unzip libncurses5 libncurses5-dev
+        python-tabulate fping g++ make unzip libncurses5 libncurses5-dev
 
     if [[ $VERSION_ID == "14.04" ]]; then
         sudo apt-get -y install lxc-dev liblxc1
@@ -35,7 +35,8 @@ elif [[ $ID == "rhel" ]]; then
     sudo yum -y install python-pip python-devel libffi-devel openssl-devel \
         python-netaddr ipmitool lxc lxc-devel lxc-extra lxc-templates libvirt \
         debootstrap gcc vim vlan bridge-utils cpp flex bison unzip cmake \
-        gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue ncurses-devel
+        fping gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue \
+        python-tabulate ncurses-devel
     sudo systemctl start lxc.service
     sudo systemctl start libvirtd
 
@@ -53,5 +54,6 @@ fi
 sudo -E -H pip install --upgrade virtualenv
 virtualenv --no-wheel --system-site-packages deployenv
 source deployenv/bin/activate
-pip install 'ansible~=2.3.0.0' orderedattrdict pyroute2
+pip install 'ansible~=2.3.0.0' orderedattrdict pyroute2 jsonschema jsl \
+    'pyghmi==1.0.28' 'wget==3.2'
 deactivate
