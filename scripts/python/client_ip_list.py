@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -18,11 +18,38 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-from inventory import load_input_file
-from inventory import get_host_ip_to_node
+import argparse
 
-inventory_source = load_input_file()
-ip_to_node = get_host_ip_to_node(inventory_source)
+from lib.inventory import Inventory
+from lib.config import Config
+from lib.exception import UserException
 
-for ip, value in ip_to_node.items():
-    print(ip + ",", end='')
+
+def _get_pxe_ips(inv):
+    ip_list = ''
+    for index, hostname in enumerate(inv.yield_nodes_hostname()):
+        ip = inv.get_nodes_pxe_ipaddr(0, index)
+        if ip is None:
+            raise UserException('No PXE IP Address in Inventory for client '
+                                '\'%s\'' % hostname)
+        if ip_list != '':
+            ip = ',' + ip
+        ip_list += ip
+
+    return ip_list
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--deployer', action='store_true')
+    args = parser.parse_args()
+
+    inv = Inventory()
+    cfg = Config()
+
+    ip_list = _get_pxe_ips(inv)
+
+    if args.deployer:
+        ip_list += "," + cfg.get_depl_netw_cont_ip()
+
+    print(ip_list)

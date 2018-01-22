@@ -1,4 +1,4 @@
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -22,8 +22,9 @@ import os.path
 import netaddr
 import datetime
 
+import lib.logger as logger
 from lib.switch_common import SwitchCommon
-from lib.genesis import gen_passive_path, gen_path
+from lib.genesis import GEN_PASSIVE_PATH, GEN_PATH
 from lib.switch_exception import SwitchException
 
 
@@ -44,7 +45,6 @@ class Mellanox(SwitchCommon):
     are required. If 'mode' is not provided, it is defaulted to 'passive'.
 
     Args:
-        log (:obj:`Logger`): Log file object.
         host (string): Management switch management interface IP address
         or hostname or if in passive mode, a fully qualified filename of the
         acquired mac address table for the switch.
@@ -54,6 +54,8 @@ class Mellanox(SwitchCommon):
             Defaults to 'active'
         outfile (string): Name of file to direct switch output to when
         in passive mode.
+        access_list (list of str): optional list containing host, userid
+        and password.
     """
     ENABLE_REMOTE_CONFIG = 'cli enable "configure terminal" "%s"'
     FORCE = 'force'
@@ -85,7 +87,7 @@ class Mellanox(SwitchCommon):
     INTERFACE_VLAN = 'interface vlan {}'
     IP_CIDR = 'ip address {}'
     PEER_ADDR = 'peer-address {}'
-    MLAG_VIP = 'mlag-vip my-mlag-vip-domain ip %s force'
+    MLAG_VIP = 'mlag-vip mlag-vip-domain ip %s force'
     NO_MLAG_VIP = 'no mlag-vip'
     ENABLE_MLAG = 'no mlag shutdown'
     DISABLE_MLAG = 'mlag shutdown'
@@ -96,35 +98,29 @@ class Mellanox(SwitchCommon):
     STP_BPDUFILTER_ENABLE = 'spanning-tree bpdufilter enable'
     MLAG_ACTIVE = 'mlag-channel-group {} mode active'
     NO_CHANNEL_GROUP = 'no channel-group'
+    NO_MLAG_CHANNEL_GROUP = 'no mlag-channel-group'
     MAC_RE = re.compile('([\da-fA-F]{2}:){5}([\da-fA-F]{2})')
     CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table dynamic'
     SHOW_INTERFACE = 'show interface vlan {}'
     SET_INTERFACE = 'interface vlan {} ip address {} {}'
 
-    def __init__(
-            self,
-            log,
-            host=None,
-            userid=None,
-            password=None,
-            mode=None,
-            outfile=None):
+    def __init__(self, host=None, userid=None, password=None, mode=None,
+                 outfile=None):
+        self.log = logger.getlogger()
         self.mode = mode
-        self.log = log
         self.host = host
         if self.mode == 'active':
             self.userid = userid
             self.password = password
         elif self.mode == 'passive':
-            if os.path.isdir(gen_passive_path):
-                self.outfile = gen_passive_path + '/' + outfile
+            if os.path.isdir(GEN_PASSIVE_PATH):
+                self.outfile = GEN_PASSIVE_PATH + '/' + outfile
             else:
-                self.outfile = gen_path + '/' + outfile
+                self.outfile = GEN_PATH + '/' + outfile
             f = open(self.outfile, 'a+')
             f.write(str(datetime.datetime.now()) + '\n')
             f.close()
-        super(Mellanox, self).__init__(
-            log, host, userid, password, mode, outfile)
+        super(Mellanox, self).__init__(host, userid, password, mode, outfile)
 
     def set_switchport_mode(self, mode, port, nvlan=None):
         """Sets the switchport mode.  Note that Mellanox's 'hybrid'
@@ -312,6 +308,13 @@ class Mellanox(SwitchCommon):
             self.INTERFACE_CONFIG.format(port) +
             ' ' +
             self.NO_CHANNEL_GROUP)
+
+    def remove_mlag_channel_group(self, port):
+        # Remove channel-group from interface
+        self.send_cmd(
+            self.INTERFACE_CONFIG.format(port) +
+            ' ' +
+            self.NO_MLAG_CHANNEL_GROUP)
 
     def add_vlans_to_lag_port_channel(self, port, vlans):
         # Enable hybrid mode for port
@@ -543,8 +546,10 @@ class Mellanox(SwitchCommon):
             self.PEER_ADDR.format(ipaddr_mlag_ipl_peer))
 
         # Set MLAG VIP
-        self.send_cmd(
-            self.MLAG_VIP % ipaddr_mlag_vip)
+        if ipaddr_mlag_vip:
+            self.send_cmd(self.MLAG_VIP % ipaddr_mlag_vip)
+        else:
+            self.send_cmd(self.MLAG_VIP.split(' ip')[0])
 
     def create_mlag_interface(self, mlag_ifc):
         # Create MLAG interface
@@ -587,5 +592,6 @@ class Mellanox(SwitchCommon):
 
 class switch(object):
     @staticmethod
-    def factory(log, host=None, userid=None, password=None, mode=None, outfile=None):
-        return Mellanox(log, host, userid, password, mode, outfile)
+    def factory(host=None, userid=None, password=None, mode=None,
+                outfile=None):
+        return Mellanox(host, userid, password, mode, outfile)

@@ -2,7 +2,7 @@
 Appendix - E Example system 2 - Simple Cluster with High Availability Network
 =============================================================================
 
-.. figure:: _images/cluster-genesis-simple-ha-cluster.png
+.. figure:: _images/simple-ha-cluster.png
    :alt:
    :width: 6.94650in
    :height: 4.87170in

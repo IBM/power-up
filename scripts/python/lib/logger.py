@@ -20,71 +20,156 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 import sys
 import os.path
 import logging
+from enum import Enum
+
+import lib.genesis as gen
 
 
-class Logger(object):
-    LOG_FILE = 'log.txt'
+class LogLevel(Enum):
+    NOLOG = 'nolog'
+    DEBUG = 'debug'
+    INFO = 'info'
+    WARNING = 'warning'
+    ERROR = 'error'
+    CRITICAL = 'critical'
 
-    DEBUG = 'DEBUG'
-    INFO = 'INFO'
-    WARNING = 'WARNING'
-    ERROR = 'ERROR'
-    CRITICAL = 'CRITICAL'
 
-    DEFAULT_LOG_LEVEL = getattr(logging, 'WARNING')
-    LOGGER_PATH = os.path.abspath(
-        os.path.dirname(os.path.abspath(__file__)) +
-        os.path.sep +
-        '..' +
-        os.path.sep +
-        '..' +
-        os.path.sep +
-        '..' +
-        os.path.sep +
-        LOG_FILE)
+LOG_NAME = 'gen'
+LOG_PATH = os.path.join(gen.get_package_path(), 'logs')
+LOG_FILE = os.path.join(LOG_PATH, 'gen')
 
-    def __init__(self, file_):
-        self.logger = logging.getLogger(os.path.basename(file_))
-        self.logger.setLevel(self.DEFAULT_LOG_LEVEL)
-        self.handler = logging.FileHandler(self.LOGGER_PATH)
-        self.handler.setLevel(self.DEFAULT_LOG_LEVEL)
-        self.handler.setFormatter(
-            logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(self.handler)
+GEN_LOG_LEVEL_FILE = 'GEN_LOG_LEVEL_FILE'
+GEN_LOG_LEVEL_PRINT = 'GEN_LOG_LEVEL_PRINT'
 
-    def set_level(self, log_level_str):
-        log_levels = (
-            self.DEBUG, self.INFO, self.WARNING, self.ERROR, self.CRITICAL)
-        self.log_level_str = log_level_str.upper()
-        if self.log_level_str not in log_levels:
-            try:
-                raise Exception()
-            except:
-                self.logger.error('Invalid log level: ' + self.log_level_str)
-                sys.exit(1)
+DEFAULT_LOG_LEVEL = getattr(logging, LogLevel.DEBUG.name)
+DEFAULT_FILE_HANDLER_LEVEL = LogLevel.DEBUG.value
+DEFAULT_STREAM_HANDLER_LEVEL = LogLevel.DEBUG.value
 
-        log_level = getattr(logging, self.log_level_str)
-        self.logger.setLevel(log_level)
-        self.handler.setLevel(log_level)
+FORMAT_FILE = (
+    '%(asctime)s'
+    ' - %(levelname)s'
+    ' - %(message)s')
+FORMAT_STREAM = (
+    '%(levelname)s'
+    ' - %(message)s')
+FORMAT_DEBUG = (
+    '%(asctime)s'
+    ' - %(filename)s|%(funcName)s|%(lineno)d'
+    ' - %(levelname)s'
+    ' - %(message)s')
 
-    def get_level(self):
-        return self.log_level_str
 
-    def clear(self):
-        self.logger.removeHandler(self.handler)
+def create(log_level_file=None, log_level_print=None):
+    if not os.path.exists(LOG_PATH):
+        try:
+            os.makedirs(LOG_PATH)
+        except OSError as exc:
+            print(
+                "Error: Failed to create '{}' directory - {}".format(
+                    LOG_PATH, exc),
+                file=sys.stderr)
+            exit(1)
+    else:
+        if not os.path.isdir(LOG_PATH):
+            print(
+                "Error: '{}' is not a directory".format(LOG_PATH),
+                file=sys.stderr)
+            exit(1)
 
-    def debug(self, msg):
-        self.logger.debug(msg)
+    env_file = os.getenv(GEN_LOG_LEVEL_FILE)
+    env_print = os.getenv(GEN_LOG_LEVEL_PRINT)
 
-    def info(self, msg):
-        self.logger.info(msg)
+    if env_file is not None:
+        level_file = env_file
+    elif log_level_file is not None:
+        level_file = log_level_file
+    else:
+        level_file = DEFAULT_FILE_HANDLER_LEVEL
+    if env_print is not None:
+        level_print = env_print
+    elif log_level_print is not None:
+        level_print = log_level_print
+    else:
+        level_print = DEFAULT_STREAM_HANDLER_LEVEL
 
-    def warning(self, msg):
-        self.logger.warning(msg)
+    if level_file.upper() not in LogLevel.__members__.keys():
+        print(
+            "Error: Invalid file log level '{}'".format(level_file),
+            file=sys.stderr)
+        sys.exit(1)
+    if level_print.upper() not in LogLevel.__members__.keys():
+        print(
+            "Error: Invalid print log level '{}'".format(level_print),
+            file=sys.stderr)
+        sys.exit(1)
 
-    def error(self, msg):
-        self.logger.error(msg)
+    logger = getlogger()
+    logger.setLevel(DEFAULT_LOG_LEVEL)
 
-    def critical(self, msg):
-        self.logger.critical(msg)
+    if level_file == LogLevel.NOLOG.value:
+        file_handler = logger.addHandler(logging.NullHandler())
+    else:
+        file_handler = logging.FileHandler(LOG_FILE)
+        file_handler.setLevel(getattr(logging, level_file.upper()))
+        if level_file == LogLevel.DEBUG.value:
+            file_handler.setFormatter(logging.Formatter(FORMAT_DEBUG))
+        else:
+            file_handler.setFormatter(logging.Formatter(FORMAT_FILE))
+        logger.addHandler(file_handler)
+
+    if level_print == LogLevel.NOLOG.value:
+        stream_handler = logger.addHandler(logging.NullHandler())
+    else:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(getattr(logging, level_print.upper()))
+        if level_print == LogLevel.DEBUG.value:
+            stream_handler.setFormatter(logging.Formatter(FORMAT_DEBUG))
+        else:
+            stream_handler.setFormatter(logging.Formatter(FORMAT_STREAM))
+        logger.addHandler(stream_handler)
+
+
+def getlogger():
+    return logging.getLogger(LOG_NAME)
+
+
+def _get_log_level(handler_type):
+    for handler in logging.getLogger(LOG_NAME).handlers:
+        if handler_type == handler.__class__:
+            return logging.getLevelName(handler.level).lower()
+    return None
+
+
+def get_log_level_file():
+    return _get_log_level(logging.FileHandler)
+
+
+def get_log_level_print():
+    return _get_log_level(logging.StreamHandler)
+
+
+def get_log_level_env_var_file():
+    return '{}={}'.format(
+        GEN_LOG_LEVEL_FILE, _get_log_level(logging.FileHandler))
+
+
+def get_log_level_env_var_print():
+    return '{}={}'.format(
+        GEN_LOG_LEVEL_PRINT, _get_log_level(logging.StreamHandler))
+
+
+def _is_log_level_debug(handler_type):
+    for handler in logging.getLogger(LOG_NAME).handlers:
+        if handler_type == handler.__class__:
+            if handler.level == logging.DEBUG:
+                return True
+            break
+    return False
+
+
+def is_log_level_file_debug():
+    return _is_log_level_debug(logging.FileHandler)
+
+
+def is_log_level_print_debug():
+    return _is_log_level_debug(logging.StreamHandler)
