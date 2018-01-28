@@ -1,5 +1,4 @@
 """Cluster Genesis 'gen' command argument parser"""
-
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -250,6 +249,14 @@ def get_args(parser_args=False):
         help='Gather MAC addresses')
 
     parser_deploy.add_argument(
+        '--lookup-interface-names',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help=('Lookup OS assigned name of all interfaces configured with '
+              '\'rename: false\' and update inventory'))
+
+    parser_deploy.add_argument(
         '--config-client-os',
         nargs='?',
         default=ABSENT,
@@ -306,14 +313,15 @@ def _check_deploy(args, subparser):
             args.install_client_os == ABSENT and
             args.ssh_keyscan == ABSENT and
             args.gather_mac_addr == ABSENT and
+            args.lookup_interface_names == ABSENT and
             args.config_client_os == ABSENT and
             args.all == ABSENT):
         subparser.error(
             'one of the arguments --create-inventory --install-cobbler'
             ' --inv-add-ports-pxe --inv-add-ports-ipmi --download-os-images'
             ' --add-cobbler-distros --add-cobbler-systems --install-client-os'
-            ' --ssh-keyscan --gather-mac-addr --config-client-os -a/--all is'
-            ' required')
+            ' --ssh-keyscan --gather-mac-addr --lookup-interface-names '
+            '--config-client-os -a/--all is required')
 
 
 def is_arg_present(arg):

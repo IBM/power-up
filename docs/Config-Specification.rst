@@ -517,18 +517,18 @@ interfaces:
 |                           |     description: vlan interface 1                 | |   *pre_up*                                                                               |          |
 |                           |     iface: eth0.10                                | |   *vlan_raw_device*                                                                      |          |
 |                           |     method: manual                                |                                                                                            |          |
-|                           |                                                   |  Note: If the *iface* name does not match the physical name for a given node type,         |          |
-|                           |   - label: vlan2                                  |        'rename:' should be set to True in the node_templates: physical_interfaces:         |          |
-|                           |     description: vlan interface 2                 |        section of the config file.                                                         |          |
-|                           |     iface: myvlan.20                              |                                                                                            |          |
-|                           |     method: manual                                |                                                                                            |          |
-|                           |     vlan_raw_device: eth0                         |                                                                                            |          |
-|                           |                                                   |                                                                                            |          |
-|                           |   - label: bridge1                                |                                                                                            |          |
-|                           |     description: bridge interface 1               |                                                                                            |          |
-|                           |     iface: br1                                    |                                                                                            |          |
-|                           |     method: static                                |                                                                                            |          |
-|                           |     address_start: 10.0.0.100                     |                                                                                            |          |
+|                           |                                                   | .. _interfaces_ubuntu_rename_notes:                                                        |          |
+|                           |   - label: vlan2                                  |                                                                                            |          |
+|                           |     description: vlan interface 2                 | | Notes:                                                                                   |          |
+|                           |     iface: myvlan.20                              | |   If 'rename: true' in                                                                   |          |
+|                           |     method: manual                                |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *iface*  |          |
+|                           |     vlan_raw_device: eth0                         |     value will be used to rename the interface.                                            |          |
+|                           |                                                   | |                                                                                          |          |
+|                           |   - label: bridge1                                | |   If 'rename: false' in                                                                  |          |
+|                           |     description: bridge interface 1               |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *iface*  |          |
+|                           |     iface: br1                                    |     value will be ignored and the interface name assigned by the OS will be used.          |          |
+|                           |     method: static                                |     If the iface value is referenced in any other interface definition it will also be     |          |
+|                           |     address_start: 10.0.0.100                     |     replaced.                                                                              |          |
 |                           |     netmask: 255.255.255.0                        |                                                                                            |          |
 |                           |     bridge_ports: eth0                            |                                                                                            |          |
 |                           |     bridge_fd: 9                                  |                                                                                            |          |
@@ -643,17 +643,17 @@ interfaces:
 |                           |   - label: vlan3                                  | |   *MTU*                                                                                  |          |
 |                           |     description: vlan interface 3                 | |   *VLAN*                                                                                 |          |
 |                           |     DEVICE: eth0.10                               |                                                                                            |          |
-|                           |     BOOTPROTO: none                               |                                                                                            |          |
+|                           |     BOOTPROTO: none                               | .. _interfaces_rhel_rename_notes:                                                          |          |
 |                           |     VLAN: yes                                     |                                                                                            |          |
-|                           |                                                   |                                                                                            |          |
-|                           |   - label: bridge2                                |                                                                                            |          |
-|                           |     description: bridge interface 2               |                                                                                            |          |
-|                           |     DEVICE: br2                                   |                                                                                            |          |
-|                           |     BOOTPROTO: static                             |                                                                                            |          |
-|                           |     IPADDR_start: 10.0.0.100                      |                                                                                            |          |
-|                           |     NETMASK: 255.255.255.0                        |                                                                                            |          |
-|                           |     STP: off                                      |                                                                                            |          |
-|                           |                                                   |                                                                                            |          |
+|                           |                                                   | | Notes:                                                                                   |          |
+|                           |   - label: bridge2                                | |   If 'rename: true' in                                                                   |          |
+|                           |     description: bridge interface 2               |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *DEVICE* |          |
+|                           |     DEVICE: br2                                   |     value will be used to rename the interface.                                            |          |
+|                           |     BOOTPROTO: static                             | |                                                                                          |          |
+|                           |     IPADDR_start: 10.0.0.100                      | |   If 'rename: false' in                                                                  |          |
+|                           |     NETMASK: 255.255.255.0                        |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *DEVICE* |          |
+|                           |     STP: off                                      |     value will be replaced by the interface name assigned by the OS. If the *DEVICE* value |          |
+|                           |                                                   |     is referenced in **any** other interface definition it will also be replaced.          |          |
 |                           |   - label: bridge2_port                           |                                                                                            |          |
 |                           |     description: port for bridge if 2             |                                                                                            |          |
 |                           |     DEVICE: eth0                                  |                                                                                            |          |
@@ -894,22 +894,22 @@ node_templates:
 |       - ...                        |     physical_interfaces:                      | |   *switch* - Reference to switch *label* defined in the `switches: mgmt:       |          |
 |         physical_interfaces:       |         pxe:                                  |                <switches_mgmt_>`_ or `switches: data: <switches_data_>`_         |          |
 |             ...                    |             - switch: mgmt_1                  |                elements.                                                         |          |
-|             pxe:                   |               interface: eth15                | |   *interface* - Reference to interface label defined in the `interfaces:`_     |          |
+|             pxe:                   |               interface: dhcp1                | |   *interface* - Reference to interface label defined in the `interfaces:`_     |          |
 |                 - switch:          |               rename: true                    |                elements.                                                         |          |
 |                   interface:       |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces will |          |
-|                   rename:          |                   - 10                        |                be renamed to match the inerface label value.                     |          |
-|                   ports:           |                   - 11                        | |   *ports*  - List of port number/identifiers mapping to client node OS         |          |
-|             data:                  |                   - 12                        |                interfaces.                                                       |          |
-|                 - siwtch:          |         data:                                 |                                                                                  |          |
-|                   interface:       |             - switch: data_1                  | Note: If *rename* is set to True, the physical interface name will be changed    |          |
-|                   rename:          |               interface: eth10                |       irregardless of whether it's original name matches the *iface* name        |          |
-|                   ports            |               rename: true                    |       specified in the *interfaces* definition.                                  |          |
-|                                    |               ports:                          |                                                                                  |          |
-|                                    |                   - 7                         |       If *rename* is set to False and the physical interface name does not match |          |
-|                                    |                   - 8                         |       the *iface* name provided in the *interfaces* definition, the physical     |          |
-|                                    |                   - 9                         |       interface will not be configured.                                          |          |
+|                   rename:          |                   - 10                        |                be renamed to match the interface iface (Ubuntu) or DEVICE (RHEL) |          |
+|                   ports:           |                   - 11                        |                value.                                                            |          |
+|             data:                  |                   - 12                        | |   *ports*  - List of port number/identifiers mapping to client node OS         |          |
+|                 - switch:          |         data:                                 |                interfaces.                                                       |          |
+|                   interface:       |             - switch: data_1                  |                                                                                  |          |
+|                   rename:          |               interface: manual1              | | Note: For additional information on using *rename* see notes in                |          |
+|                   ports            |               rename: true                    |   `interfaces: (Ubuntu) <interfaces_ubuntu_rename_notes_>`_ and                  |          |
+|                                    |               ports:                          |   `interfaces: (RHEL) <interfaces_rhel_rename_notes_>`_.                         |          |
+|                                    |                   - 7                         |                                                                                  |          |
+|                                    |                   - 8                         |                                                                                  |          |
+|                                    |                   - 9                         |                                                                                  |          |
 |                                    |             - switch: data_1                  |                                                                                  |          |
-|                                    |               interface: eth11                |                                                                                  |          |
+|                                    |               interface: manual2              |                                                                                  |          |
 |                                    |               rename: false                   |                                                                                  |          |
 |                                    |               ports:                          |                                                                                  |          |
 |                                    |                   - 10                        |                                                                                  |          |
