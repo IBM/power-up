@@ -2505,4 +2505,7 @@ class Config(object):
             dict: Network definitions
         """
 
-        return self.cfg.networks
+        if self.CfgKey.NETWORKS in self.cfg:
+            return self.cfg.networks
+        else:
+            return []
