@@ -29,8 +29,8 @@ COBBLER_PASS = 'cobbler'
 INV_IPV4_IPMI = 'ipv4-ipmi'
 INV_USERID_IPMI = 'userid-ipmi'
 INV_PASSWORD_IPMI = 'password-ipmi'
-INV_PASSWORD_DEFAULT = 'password-default'
-INV_PASSWORD_DEFAULT_CRYPTED = 'password-default-crypted'
+INV_OS_NAME = 'name'
+INV_OS_PASSWORD = 'password'
 INV_IPV4_PXE = 'ipv4-pxe'
 INV_MAC_PXE = 'mac-pxe'
 INV_CHASSIS_PART_NUMBER = 'chassis-part-number'
@@ -120,17 +120,23 @@ def cobbler_add_systems():
                 raid1_enabled = True
             else:
                 LOG.error(
-                    'Invalid install_device value: %s'
+                    '%s: Invalid install_device value: %s '
                     'Must be string or two item list.' %
-                    disks)
-        if INV_PASSWORD_DEFAULT in inv.inv:
-            passwd = inv.inv[INV_PASSWORD_DEFAULT]
-            ks_meta += 'passwd=%s passwdcrypted=false ' % passwd
-        if INV_PASSWORD_DEFAULT_CRYPTED in inv.inv:
-            passwd = inv.inv[INV_PASSWORD_DEFAULT_CRYPTED]
-            ks_meta += 'passwd=%s passwdcrypted=true ' % passwd
+                    (hostname, disks))
         if raid1_enabled:
-            ks_meta += 'raid1_enabled=true ' % passwd
+            ks_meta += 'raid1_enabled=true '
+        users = inv.get_nodes_os_users(index)
+        for user in users:
+            if INV_OS_NAME in user and user[INV_OS_NAME] != 'root':
+                ks_meta += 'default_user=%s ' % user[INV_OS_NAME]
+                LOG.debug("%s: Using \'%s\' as default user" %
+                          (hostname, user[INV_OS_NAME]))
+                if INV_OS_PASSWORD in user:
+                    ks_meta += ('passwd=%s passwdcrypted=true ' %
+                                user[INV_OS_PASSWORD])
+                break
+        else:
+            LOG.debug("%s: No default user found" % hostname)
         if ks_meta != "":
             cobbler_server.modify_system(
                 new_system_create,
