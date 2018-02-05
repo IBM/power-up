@@ -1,4 +1,5 @@
 """Cluster Genesis 'gen' command argument parser"""
+
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -42,6 +43,7 @@ class Cmd(Enum):
     CONFIG = CONFIG_CMD
     VALIDATE = VALIDATE_CMD
     DEPLOY = DEPLOY_CMD
+    POST_DEPLOY = POST_DEPLOY_CMD
 
 
 def get_args(parser_args=False):
@@ -235,35 +237,6 @@ def get_args(parser_args=False):
         help='Initiate client OS installation(s)')
 
     parser_deploy.add_argument(
-        '--ssh-keyscan',
-        nargs='?',
-        default=ABSENT,
-        metavar='CONTAINER-NAME',
-        help='Collect client node and container SSH host keys')
-
-    parser_deploy.add_argument(
-        '--gather-mac-addr',
-        nargs='?',
-        default=ABSENT,
-        metavar='CONTAINER-NAME',
-        help='Gather MAC addresses')
-
-    parser_deploy.add_argument(
-        '--lookup-interface-names',
-        nargs='?',
-        default=ABSENT,
-        metavar='CONTAINER-NAME',
-        help=('Lookup OS assigned name of all interfaces configured with '
-              '\'rename: false\' and update inventory'))
-
-    parser_deploy.add_argument(
-        '--config-client-os',
-        nargs='?',
-        default=ABSENT,
-        metavar='CONTAINER-NAME',
-        help='Configure client node operating systems')
-
-    parser_deploy.add_argument(
         '-a', '--all',
         nargs='?',
         default=ABSENT,
@@ -271,13 +244,47 @@ def get_args(parser_args=False):
         help='Run all cluster deployment steps')
 
     # 'post-deploy' subcommand arguments
-    parser_post_deploy.set_defaults(
-        setup=True)
+    parser_post_deploy.set_defaults(post_deploy=True)
+
+    parser_post_deploy.add_argument(
+        '--ssh-keyscan',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Scan SSH keys')
+
+    parser_post_deploy.add_argument(
+        '--gather-mac-addr',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Gather MAC addresses from switches and update inventory')
+
+    parser_post_deploy.add_argument(
+        '--lookup-interface-names',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help=('Lookup OS assigned name of all interfaces configured with '
+              '\'rename: false\' and update inventory'))
+
+    parser_post_deploy.add_argument(
+        '--config-client-os',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Configure cluster nodes client OS')
+
+    parser_post_deploy.add_argument(
+        '-a', '--all',
+        nargs='?',
+        default=ABSENT,
+        metavar='CONTAINER-NAME',
+        help='Run all cluster post deployment steps')
 
     if parser_args:
-        return (
-            parser,
-            parser_setup, parser_config, parser_validate, parser_deploy)
+        return (parser, parser_setup, parser_config, parser_validate,
+                parser_deploy, parser_post_deploy)
     return parser
 
 
@@ -313,14 +320,21 @@ def _check_deploy(args, subparser):
             args.install_client_os == ABSENT and
             args.ssh_keyscan == ABSENT and
             args.gather_mac_addr == ABSENT and
-            args.lookup_interface_names == ABSENT and
             args.config_client_os == ABSENT and
             args.all == ABSENT):
         subparser.error(
             'one of the arguments --create-inventory --install-cobbler'
             ' --inv-add-ports-pxe --inv-add-ports-ipmi --download-os-images'
             ' --add-cobbler-distros --add-cobbler-systems --install-client-os'
-            ' --ssh-keyscan --gather-mac-addr --lookup-interface-names '
+            ' -a/--all is required')
+
+
+def _check_post_deploy(args, subparser):
+    if (args.ssh_keyscan == ABSENT and args.gather_mac_addr == ABSENT and
+            args.config_client_os == ABSENT and args.data_switches == ABSENT and
+            args.all == ABSENT):
+        subparser.error(
+            'one of the arguments --ssh-keyscan --gather-mac-addr'
             '--config-client-os -a/--all is required')
 
 
@@ -333,8 +347,8 @@ def is_arg_present(arg):
 def get_parsed_args():
     """Get parsed 'gen' command arguments"""
 
-    parser, parser_setup, parser_config, parser_validate, parser_deploy = \
-        get_args(parser_args=True)
+    parser, parser_setup, parser_config, parser_validate, parser_deploy, \
+        parser_post_deploy = get_args(parser_args=True)
     args = parser.parse_args()
 
     # Check arguments
@@ -356,6 +370,11 @@ def get_parsed_args():
     try:
         if args.deploy:
             _check_deploy(args, parser_deploy)
+    except AttributeError:
+        pass
+    try:
+        if args.post_deploy:
+            _check_post_deploy(args, parser_post_deploy)
     except AttributeError:
         pass
 

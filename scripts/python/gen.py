@@ -383,6 +383,11 @@ class Gen(object):
                 cmd = argparse_gen.Cmd.DEPLOY.value
         except AttributeError:
             pass
+        try:
+            if self.args.post_deploy:
+                cmd = argparse_gen.Cmd.POST_DEPLOY.value
+        except AttributeError:
+            pass
 
         # Invoke subcommand method
         if cmd == argparse_gen.Cmd.SETUP.value:
@@ -430,11 +435,6 @@ class Gen(object):
                 self.args.add_cobbler_distros = self.args.all
                 self.args.add_cobbler_systems = self.args.all
                 self.args.install_client_os = self.args.all
-                self.args.ssh_keyscan = self.args.all
-                self.args.gather_mac_addr = self.args.all
-                self.args.data_switches = self.args.all
-                self.args.lookup_interface_names = self.args.all
-                self.args.config_client_os = self.args.all
 
             if argparse_gen.is_arg_present(self.args.create_inventory):
                 self._create_inventory()
@@ -455,10 +455,24 @@ class Gen(object):
             if argparse_gen.is_arg_present(self.args.all):
                 print("\n\nPress enter to continue with node configuration ")
                 print("and data switch setup, or 'T' to terminate ")
-                print("Cluster Genesis.  (To restart, type: 'gen post-deploy')")
+                print("Cluster Genesis.  (To restart, type: 'gen post-deploy "
+                      "--all')")
                 resp = raw_input("\nEnter or 'T': ")
                 if resp == 'T':
                     sys.exit('Cluster Genesis terminated at user request')
+                cmd = argparse_gen.Cmd.POST_DEPLOY.value
+
+        if cmd == argparse_gen.Cmd.POST_DEPLOY.value:
+            if gen.is_container():
+                print('Fail: Invalid subcommand in container', file=sys.stderr)
+                sys.exit(1)
+            if argparse_gen.is_arg_present(self.args.all):
+                self.args.ssh_keyscan = self.args.all
+                self.args.gather_mac_addr = self.args.all
+                self.args.data_switches = self.args.all
+                self.args.lookup_interface_names = self.args.all
+                self.args.config_client_os = self.args.all
+
             if argparse_gen.is_arg_present(self.args.ssh_keyscan):
                 self._ssh_keyscan()
             if argparse_gen.is_arg_present(self.args.gather_mac_addr):
