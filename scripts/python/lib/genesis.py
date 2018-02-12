@@ -65,6 +65,28 @@ COBBLER_PASS = 'cobbler'
 DHCP_POOL_START = 21
 
 
+class Color:
+    black = '\033[90m'
+    red = '\033[91m'
+    green = '\033[92m'
+    yellow = '\033[93m'
+    blue = '\033[94m'
+    purple = '\033[95m'
+    cyan = '\033[96m'
+    white = '\033[97m'
+    bold = '\033[1m'
+    underline = '\033[4m'
+    sol = '\033[1G'
+    clr_to_eol = '\033[K'
+    clr_to_bot = '\033[J'
+    scroll_five = '\n\n\n\n\n'
+    scroll_ten = '\n\n\n\n\n\n\n\n\n\n'
+    up_five = '\033[5A'
+    up_ten = '\033[10A'
+    header1 = '          ' + bold + underline
+    endc = '\033[0m'
+
+
 def load_localhost(filename):
     try:
         return yaml.safe_load(open(filename))
