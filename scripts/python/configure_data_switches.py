@@ -418,14 +418,14 @@ def configure_data_switch():
                                           format(mtu))
                                 sw_dict[sw].set_mtu_for_lag_port_channel(
                                     chan_num, mtu)
-                            for port in port_grp:
-                                print('.', end="")
-                                sys.stdout.flush()
-                                log.debug('Switch {}, adding port {} to mlag port'
-                                          ' channel: {}'.format(sw, port_grp,
-                                                                chan_num))
-                                sw_dict[sw].bind_port_to_mlag_interface(
-                                    port, chan_num)
+                            log.debug('Switch {}, adding ports {} to mlag chan '
+                                      'num: {}'.format(sw, port_grp, chan_num))
+                            try:
+                                sw_dict[sw].bind_ports_to_mlag_interface(
+                                    port_grp, chan_num)
+                            except SwitchException as exc:
+                                log.warning('Failure configuring port in switch:'
+                                            ' {}.\n{}'.format(sw, exc.message))
                 else:
                     # Configure LAG
                     for sw in chan_ports[bond][ntmpl][mstr_sw]:
@@ -445,15 +445,17 @@ def configure_data_switch():
                                 sw_dict[sw].add_vlans_to_lag_port_channel(
                                     chan_num, vlans)
                             if mtu:
-                                log.debug('set mtu for lag port channel: {}'.
-                                          format(mtu))
-                                sw_dict[sw].set_mtu_for_lag_port_channel(
-                                    chan_num, mtu)
+                                log.debug('set mtu for lag port channel: {}'.format(mtu))
+                                sw_dict[sw].set_mtu_for_lag_port_channel(chan_num, mtu)
 
                             log.debug('Switch: {}, adding port(s) {} to lag chan'
-                                      ' num: {}'.format(sw, port, chan_num))
-                            sw_dict[sw].bind_ports_to_lag_interface(port_grp,
-                                                                    chan_num)
+                                      ' num: {}'.format(sw, port_grp, chan_num))
+                            try:
+                                sw_dict[sw].bind_ports_to_lag_interface(
+                                    port_grp, chan_num)
+                            except SwitchException as exc:
+                                log.warning('Failure configuring port in switch:'
+                                            '{}.\n {}'.format(sw, exc.message))
 
 
 def deconfigure_data_switch():

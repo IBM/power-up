@@ -418,6 +418,13 @@ class Mellanox(SwitchCommon):
                 self.INTERFACE_CONFIG.format(port) +
                 ' ' +
                 self.LAG_ACTIVE.format(lag_ifc))
+        port_chan_summ = self.send_cmd('show interfaces port-channel summary')
+        for port in ports:
+            if 'Eth1/' + str(port) not in port_chan_summ:
+                self.log.error('Port {} not added to port channel {}'.format(
+                    port, lag_ifc))
+                raise SwitchException('Port {} not added to port channel {}'.
+                                      format(port, lag_ifc))
 
     def enable_lacp(self):
         self.send_cmd(self.ENABLE_LACP)
@@ -595,8 +602,8 @@ class Mellanox(SwitchCommon):
     def show_mlag_interfaces(self):
         return self.send_cmd(self.SHOW_IFC_MLAG_PORT_CHANNEL)
 
-    def bind_port_to_mlag_interface(self, port, mlag_ifc=None):
-        """ Bind a port to an MLAG interface and enable it. If no mlag
+    def bind_ports_to_mlag_interface(self, ports, mlag_ifc=None):
+        """ Bind ports to an MLAG interface and enable it. If no mlag
         interface is specified, the port is bound to the mlag interface
         number matching the first port number.
         Args:
@@ -607,12 +614,23 @@ class Mellanox(SwitchCommon):
             mlag_ifc))
         """
         if mlag_ifc is None:
-            mlag_ifc = port
-        self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + self.MLAG_ACTIVE.format(mlag_ifc))
+            mlag_ifc = min(ports)
+        for port in ports:
+            self.send_cmd(
+                self.INTERFACE_CONFIG.format(port) + self.MLAG_ACTIVE.format(
+                    mlag_ifc))
 
         self.send_cmd(
             self.MLAG_PORT_CHANNEL.format(mlag_ifc) + self.NO_SHUTDOWN)
+
+        mlag_port_chan_summ = self.send_cmd(
+            'show interfaces mlag-port-channel summary')
+        for port in ports:
+            if 'Eth1/' + str(port) not in mlag_port_chan_summ:
+                self.log.error('Port {} not added to mlag port channel {}'.
+                               format(port, mlag_ifc))
+                raise SwitchException('Port {} not added to mlag port channel {}'.
+                                      format(port, mlag_ifc))
 
 
 class switch(object):
