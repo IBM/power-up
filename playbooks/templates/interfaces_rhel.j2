@@ -22,7 +22,16 @@
 # {{ item['description'] }} ({{ item['DEVICE'] }})
 {% endif %}
 {% for key, value in item.iteritems() %}
-    {% if key not in ['label', 'description'] %}
+    {% if key not in ['label', 'description', 'BONDING_OPTS'] %}
+        {% if value == true %}
+{{ key }}={{ 'yes' }}
+        {% elif value == false %}
+{{ key }}={{ 'no' }}
+        {% else %}
 {{ key }}={{ value }}
+        {% endif %}
+    {% endif %}
+    {% if key == 'BONDING_OPTS' %}
+{{ key }}={{ '"' }}{{ value }}{{ '"' }}
     {% endif %}
 {% endfor %}
