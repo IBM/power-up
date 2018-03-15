@@ -1,3 +1,5 @@
+.. _creating_the_config_file:
+
 Creating the Config File
 ========================
 
@@ -15,7 +17,7 @@ as lists, dictionaries and scalars.  The *Cluster Configuration File
 Specification* describes the various fields.
 
 See :doc:`Config-Specification`.
-    
+
 YAML files use spaces as part of its syntax. For example, elements of the same
 list must have the exact same number of spaces preceding them. When editing the
 config file pay careful attention to spaces at the start of lines.  Incorrect
