@@ -1,4 +1,4 @@
-# Copyright 2017 IBM Corp.
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -57,28 +57,13 @@ class Lenovo(SwitchCommon):
         access_list (list of str): Optional list containing host, userid
         and password.
     """
-    ENABLE_REMOTE_CONFIG = SwitchCommon.ENABLE_REMOTE_CONFIG
-    # override ENABLE_REMOTE_CONFIG as needed.
-    # ENABLE_REMOTE_CONFIG = 'enable;configure terminal; %s'
-    # override as needed per switch syntax:
-    # SHOW_VLANS = 'show vlan'
-    # override as needed.
-    # SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table;'
-    # override as needed:
-    # CREATE_VLAN = 'vlan %d'
-    # override as needed:
-    # DELETE_VLAN = 'no vlan %d'
-    # override as needed:
-    # CLEAR_MAC_ADDRESS_TABLE = (
-    #    ENABLE_REMOTE_CONFIG %
-    #    'clear mac-address-table')
-    INTERFACE_CONFIG = 'interface port {}'
+    ENABLE_REMOTE_CONFIG = 'en ; configure terminal ; {} '
+    SEP = ';'
+    IFC_ETH_CFG = 'interface port {}'
     SHOW_PORT = 'show interface trunk'
-    ADD_VLANS_TO_PORT = (';switchport trunk allowed vlan add {}')
-    REMOVE_VLANS_FROM_PORT = (';switchport trunk allowed vlan remove {}')
-    # SET_NATIVE_VLAN = (
-    #     'interface port {}'
-    #     ';switchport access vlan {}')
+    PORT_PREFIX = ''
+    CLEAR_MAC_ADDRESS_TABLE = 'clear mac-address-table'
+    SHOW_MAC_ADDRESS_TABLE = 'show mac-address-table'
     MGMT_INTERFACE_CONFIG = 'interface ip {}'
     SET_INTERFACE_IPADDR = ';ip address {}'
     SET_INTERFACE_MASK = ';ip netmask {}'
@@ -159,10 +144,10 @@ class Lenovo(SwitchCommon):
             self.send_cmd(self.REMOVE_IFC.format(interfaces[-1][0]['found ifc']))
             interfaces = self.show_interfaces(vlan, host, netmask, format='std')
             if interfaces[-1][0]['configured']:
-                self.log.info('Failed to remove interface Vlan {}.'.format(vlan))
+                self.log.debug('Failed to remove interface Vlan {}.'.format(vlan))
                 raise SwitchException('Failed to remove interface Vlan {}.'.format(vlan))
         else:
-            self.log.info('Interface vlan {} does not exist.'.format(vlan))
+            self.log.debug('Interface vlan {} does not exist.'.format(vlan))
         return
 
     def show_interfaces(self, vlan='', host=None, netmask=None, format=None):
@@ -249,8 +234,9 @@ class Lenovo(SwitchCommon):
         """
         interfaces = self.show_interfaces(vlan, host, netmask, format='std')
         if self.mode == 'active' and interfaces[-1][0]['configured']:
-            self.log.info(
-                'Switch interface {} already configured'.format(interfaces[-1][0]['found ifc']))
+            self.log.debug(
+                'Switch interface {} already configured'.format(
+                    interfaces[-1][0]['found ifc']))
             return
         if vlan is not None:
             self.create_vlan(vlan)
