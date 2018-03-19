@@ -25,7 +25,6 @@ Additional key/value pairs are not processed by Cluster Genesis, but are
 copied into the inventory.yml file and made available to post-Genesis
 scripts and/or playbooks.
 
-
 version:
 ---------
 
@@ -35,15 +34,15 @@ version:
 |             |                  |                                                                                                                                      |          |
 | ::          | ::               | Config file version.                                                                                                                 | **yes**  |
 |             |                  |                                                                                                                                      |          |
-|   version:  |   version: v2.0  |  --------------------------------------------------                                                                                  |          |
-|             |                  |  | Release Branch | Supported Config File Version |                                                                                  |          |
-|             |                  |  ==================================================                                                                                  |          |
-|             |                  |  | release-2.x    | version: v2.0                 |                                                                                  |          |
-|             |                  |  --------------------------------------------------                                                                                  |          |
-|             |                  |  | release-1.x    | version: 1.1                  |                                                                                  |          |
-|             |                  |  --------------------------------------------------                                                                                  |          |
-|             |                  |  | release-0.9    | version: 1.0                  |                                                                                  |          |
-|             |                  |  --------------------------------------------------                                                                                  |          |
+|   version:  |   version: v2.0  |                                                                                                                                      |          |
+|             |                  |    Release Branch   Supported Config File Version                                                                                    |          |
+|             |                  |                                                                                                                                      |          |
+|             |                  |    release-2.x           version: v2.0                                                                                               |          |
+|             |                  |                                                                                                                                      |          |
+|             |                  |    release-1.x           version: 1.1                                                                                                |          |
+|             |                  |                                                                                                                                      |          |
+|             |                  |    release-0.9           version: 1.0                                                                                                |          |
+|             |                  |                                                                                                                                      |          |
 |             |                  |                                                                                                                                      |          |
 +-------------+------------------+--------------------------------------------------------------------------------------------------------------------------------------+----------+
 
@@ -190,12 +189,12 @@ deployer:
 |      ...                          |                                            |                                                                                            |          |
 |                                   |                                            | The deployer will be configured as the default gateway for all client nodes.               |          |
 |                                   |                                            |                                                                                            |          |
-|                                   |                                            | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables' NAT chain   |          |
-|                                   |                                            | and setting the 'dnsmasq' DHCP service to serve the deployer's client management bridge    |          |
-|                                   |                                            | address as the default gateway.                                                            |          |
+|                                   |                                            | Configuration includes adding a 'MASQUERADE' rule to the deployer's 'iptables'             |          |
+|                                   |                                            | NAT chain and setting the 'dnsmasq' DHCP service to serve the deployer's client            |          |
+|                                   |                                            | management bridge address as the default gateway.                                          |          |
 |                                   |                                            |                                                                                            |          |
-|                                   |                                            | Note: Specifying the 'gateway' explicitly on any of the data networks will override this   |          |
-|                                   |                                            | behaviour.                                                                                 |          |
+|                                   |                                            | | Note: Specifying the 'gateway' explicitly on any of the data networks will override      |          |
+|                                   |                                            | | this behaviour.                                                                          |          |
 |                                   |                                            |                                                                                            |          |
 +-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 | .. _deployer_networks_mgmt:       |                                            |                                                                                            |          |
@@ -222,8 +221,8 @@ deployer:
 +-----------------------------------+--------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 | .. _deployer_networks_client:     |                                            |                                                                                            |          |
 |                                   |                                            |                                                                                            |          |
-| ::                                | ::                                         | Client node BMC (IPMI) and OS (PXE) network interface configuration. Ansible communicates  | **yes**  |
-|                                   |                                            | with clients using this network during "post deploy" operations.                           |          |
+| ::                                | ::                                         | Client node BMC (IPMI) and OS (PXE) network interface configuration. Ansible               | **yes**  |
+|                                   |                                            | communicates with clients using this network during "post deploy" operations.              |          |
 |   deployer:                       |   client:                                  |                                                                                            |          |
 |       networks:                   |       - type: ipmi                         | | Required keys:                                                                           |          |
 |           client:                 |         device: enp1s0f0                   | |   *type*             - IPMI or PXE network (ipmi/pxe).                                   |          |
@@ -294,8 +293,8 @@ switches:
 +=================================+=======================================+=============================================================================================+==========+
 | .. _switches_mgmt:              |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
-| ::                              | ::                                    | Management switch configuration. Each physical switch is defined as an item in the *mgmt:*  | **yes**  |
-|                                 |                                       | list.                                                                                       |          |
+| ::                              | ::                                    | Management switch configuration. Each physical switch is defined as an                      | **yes**  |
+|                                 |                                       | item in the *mgmt:* list.                                                                   |          |
 |   switches:                     |   mgmt:                               |                                                                                             |          |
 |       mgmt:                     |       - label: mgmt_switch            | | Required keys:                                                                            |          |
 |           - label:              |         hostname: switch23423         | |   *label*  - Unique label used to reference this switch elsewhere in the config file.     |          |
@@ -321,8 +320,8 @@ switches:
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
 | .. _switches_data:              |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
-| ::                              | example #1::                          | Data switch configuration. Each physical switch is defined as an item in the *data:* list.  | **yes**  |
-|                                 |                                       |                                                                                             |          |
+| ::                              | example #1::                          | Data switch configuration. Each physical switch is defined as an item in the                | **yes**  |
+|                                 |                                       | *data:* list.                                                                               |          |
 |   switches:                     |   data:                               | Key/value specs are identical to `mgmt switches <switches_mgmt_>`_.                         |          |
 |       data:                     |       - label: data_switch_1          |                                                                                             |          |
 |           - label:              |         hostname: switch84579         |                                                                                             |          |
@@ -380,15 +379,15 @@ switches:
 +---------------------------------+---------------------------------------+---------------------------------------------------------------------------------------------+----------+
 | .. _links:                      |                                       |                                                                                             |          |
 |                                 |                                       |                                                                                             |          |
-| ::                              | example #1::                          | Switch link configuration. Links can be configured between any switches and/or the          | no       |
-|                                 |                                       | deployer.                                                                                   |          |
+| ::                              | example #1::                          | Switch link configuration. Links can be configured between any switches and/or              | no       |
+|                                 |                                       | the deployer.                                                                               |          |
 |   switches:                     |   mgmt:                               |                                                                                             |          |
 |       mgmt:                     |       - label: mgmt_switch            | | Required keys:                                                                            |          |
-|           - ...                 |         ...                           | |   *target* - Reference to destination target. This value must be set to 'deployer' or     |          |
-|             links:              |         interfaces:                   |                correspond to another switch's *label* (switches_mgmt_, switches_data_).     |          |
-|                 - target:       |             - type: inband            | |   *ports*   - Source port numbers (not target ports!). This can either be a single port   |          |
-|                   ports:        |               ipaddr: 192.168.5.10    |                 or a list of ports. If a list is given then the links will be aggregated.   |          |
-|       data:                     |               port: 15                |                                                                                             |          |
+|           - ...                 |         ...                           | |   *target* - Reference to destination target. This value must be set to 'deployer'        |          |
+|             links:              |         interfaces:                   |                or correspond to another switch's *label* (switches_mgmt_, switches_data_).  |          |
+|                 - target:       |             - type: inband            | |   *ports*   - Source port numbers (not target ports!). This can either be a single        |          |
+|                   ports:        |               ipaddr: 192.168.5.10    |                 port or a list of ports. If a list is given then the links will be          |          |
+|       data:                     |               port: 15                |                 aggregated.                                                                 |          |
 |           - ...                 |         links:                        | | Optional keys:                                                                            |          |
 |             links:              |             - target: deployer        | |   *ipaddr* - Management interface IP address.                                             |          |
 |                 - target:       |               ports: 10               | |   *vlan*   - Management interface vlan.                                                   |          |
@@ -399,11 +398,11 @@ switches:
 |                   ipaddr:       |         ...                           | |   --- or ---                                                                              |          |
 |                   vip:          |         interfaces:                   | |   *prefix*  - Management network bit-length.                                              |          |
 |                   netmask:      |             - type: outband           |                                                                                             |          |
-|                   vlan:         |               ipaddr: 192.168.5.10    | In example #1 port 10 of "mgmt_switch" is cabled directly to the deployer and port 11 of    |          |
-|                   ports:        |               vlan: 5                 | "mgmt_switch" is cabled to the mangement port 0 of "data_switch". An inband management      |          |
-|                                 |               port: mgmt0             | interface is configured with an IP address of '192.168.5.10' for "mgmt_switch", and the     |          |
-|                                 |         links:                        | dedicated management port 0 of "data_switch" is configured with an IP address of            |          |
-|                                 |             - target: mgmt_switch     | "192.168.5.11" on vlan "5".                                                                 |          |
+|                   vlan:         |               ipaddr: 192.168.5.10    | In example #1 port 10 of "mgmt_switch" is cabled directly to the deployer and port 11       |          |
+|                   ports:        |               vlan: 5                 | of "mgmt_switch" is cabled to the mangement port 0 of "data_switch". An inband              |          |
+|                                 |               port: mgmt0             | management interface is configured with an IP address of '192.168.5.10' for                 |          |
+|                                 |         links:                        | "mgmt_switch", and the dedicated management port 0 of "data_switch" is configured           |          |
+|                                 |             - target: mgmt_switch     | with an IP address of "192.168.5.11" on vlan "5".                                           |          |
 |                                 |               ports: mgmt0            |                                                                                             |          |
 |                                 |                                       | In example #2 a redundant data switch configuration is shown. Ports 7 and 8 (on both        |          |
 |                                 | example #2::                          | switches) are configured as an aggrated peer link on vlan "4000" with IP address of         |          |
@@ -482,8 +481,8 @@ interfaces:
 | Element                   | Example(s)                                        | Description                                                                                | Required |
 +===========================+===================================================+============================================================================================+==========+
 |                           |                                                   |                                                                                            |          |
-| ::                        |                                                   | List of OS interface configuration definitions. Each definition can be formatted for       | no       |
-|                           |                                                   | either `Ubuntu <interfaces_ubuntu_>`_ or `RHEL <interfaces_rhel_>`_.                       |          |
+| ::                        |                                                   | List of OS interface configuration definitions. Each definition can be formatted           | no       |
+|                           |                                                   | for either `Ubuntu <interfaces_ubuntu_>`_ or `RHEL <interfaces_rhel_>`_.                   |          |
 |   interfaces:             |                                                   |                                                                                            |          |
 |       - ...               |                                                   |                                                                                            |          |
 |       - ...               |                                                   |                                                                                            |          |
@@ -498,20 +497,20 @@ interfaces:
 |         description:      |     iface: eth0                                   |               `networks:`_ `node_templates: interfaces: <node_templates_interfaces_>`_.    |          |
 |         iface:            |     method: manual                                |                                                                                            |          |
 |         method:           |                                                   | | Optional keys:                                                                           |          |
-|         address_list:     |   - label: dhcp1                                  | |   *description*   - Short description of interface configuration to be included as a     |          |
-|         netmask:          |     description: dhcp interface 1                 |                       comment in OS config files.                                          |          |
+|         address_list:     |   - label: dhcp1                                  | |   *description*   - Short description of interface configuration to be included          |          |
+|         netmask:          |     description: dhcp interface 1                 |                       as a comment in OS config files.                                     |          |
 |         broadcast:        |     iface: eth0                                   | |   *address_list*  - List of IP address to assign client interfaces referencing this      |          |
-|         gateway:          |     method: dhcp                                  |                       configuration. Each list element may either be a single IP address   |          |
-|         dns_search:       |                                                   |                       or a range (formatted as *<start_address>*-<*end_address*>).         |          |
-|         dns_nameservers:  |   - label: static1                                | |   *address_start* - Starting IP address to assign client interfaces referencing this     |          |
-|         mtu:              |     description: static interface 1               |                       configuration. Addresses will be assigned to each client interface   |          |
-|         pre_up:           |     iface: eth0                                   |                       incrementally.                                                       |          |
+|         gateway:          |     method: dhcp                                  |                       configuration. Each list element may either be a single IP           |          |
+|         dns_search:       |                                                   |                       address or a range (formatted as *<start_address>*-<*end_address*>). |          |
+|         dns_nameservers:  |   - label: static1                                | |   *address_start* - Starting IP address to assign client interfaces referencing          |          |
+|         mtu:              |     description: static interface 1               |                       this configuration. Addresses will be assigned to each client        |          |
+|         pre_up:           |     iface: eth0                                   |                       interface incrementally.                                             |          |
 |         vlan_raw_device:  |     method: static                                |                                                                                            |          |
 |                           |     address_list:                                 | | Optional "drop-in" keys:                                                                 |          |
 |                           |         - 9.3.89.14                               | |   The following key names are derived directly from the Ubuntu *interfaces*              |          |
-|                           |         - 9.3.89.18-9.3.89.22                     |     configuration file (note that all "-" charactes are replaced with "_"). Values will be |          |
-|                           |         - 9.3.89.111-9.3.89.112                   |     copied directly into the *interfaces* file. Refer to the `interfaces manpage           |          |
-|                           |         - 9.3.89.120                              |     <http://manpages.ubuntu.com/manpages/xenial/man5/interfaces.5.html>`_ for usage.       |          |
+|                           |         - 9.3.89.18-9.3.89.22                     |     configuration file (note that all "-" charactes are replaced with "_"). Values         |          |
+|                           |         - 9.3.89.111-9.3.89.112                   |     will be copied directly into the *interfaces* file. Refer to the `interfaces`          |          |
+|                           |         - 9.3.89.120                              |     `manpage <http://manpages.ubuntu.com/manpages/xenial/man5/interfaces.5.html>`_         |          |
 |                           |     netmask: 255.255.255.0                        | |                                                                                          |          |
 |                           |     broadcast: 9.3.89.255                         | |   *iface*                                                                                |          |
 |                           |     gateway: 9.3.89.1                             | |   *method*                                                                               |          |
@@ -526,18 +525,18 @@ interfaces:
 |                           |     method: manual                                |                                                                                            |          |
 |                           |                                                   | .. _interfaces_ubuntu_rename_notes:                                                        |          |
 |                           |   - label: vlan2                                  |                                                                                            |          |
-|                           |     description: vlan interface 2                 | | Notes:                                                                                   |          |
-|                           |     iface: myvlan.20                              | |   If 'rename: true' in                                                                   |          |
-|                           |     method: manual                                |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *iface*  |          |
-|                           |     vlan_raw_device: eth0                         |     value will be used to rename the interface.                                            |          |
-|                           |                                                   | |                                                                                          |          |
-|                           |   - label: bridge1                                | |   If 'rename: false' in                                                                  |          |
-|                           |     description: bridge interface 1               |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *iface*  |          |
-|                           |     iface: br1                                    |     value will be ignored and the interface name assigned by the OS will be used.          |          |
-|                           |     method: static                                |     If the iface value is referenced in any other interface definition it will also be     |          |
-|                           |     address_start: 10.0.0.100                     |     replaced.                                                                              |          |
-|                           |     netmask: 255.255.255.0                        |                                                                                            |          |
-|                           |     bridge_ports: eth0                            |                                                                                            |          |
+|                           |     description: vlan interface 2                 |                                                                                            |          |
+|                           |     iface: myvlan.20                              |                                                                                            |          |
+|                           |     method: manual                                | | Notes:                                                                                   |          |
+|                           |     vlan_raw_device: eth0                         | |   If 'rename: true' in                                                                   |          |
+|                           |                                                   |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the          |          |
+|                           |   - label: bridge1                                |     *iface* value will be used to rename the interface.                                    |          |
+|                           |     description: bridge interface 1               | |                                                                                          |          |
+|                           |     iface: br1                                    | |   If 'rename: false' in                                                                  |          |
+|                           |     method: static                                |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the          |          |
+|                           |     address_start: 10.0.0.100                     |     *iface* value will be ignored and the interface name assigned by the OS will be        |          |
+|                           |     netmask: 255.255.255.0                        |     used. If the iface value is referenced in any other interface definition it will       |          |
+|                           |     bridge_ports: eth0                            |     also be replaced.                                                                      |          |
 |                           |     bridge_fd: 9                                  |                                                                                            |          |
 |                           |     bridge_hello: 2                               |                                                                                            |          |
 |                           |     bridge_maxage: 12                             |                                                                                            |          |
@@ -618,26 +617,26 @@ interfaces:
 +---------------------------+---------------------------------------------------+--------------------------------------------------------------------------------------------+----------+
 | .. _interfaces_rhel:      |                                                   |                                                                                            |          |
 |                           |                                                   |                                                                                            |          |
-| ::                        | ::                                                | RHEL styled OS interface configuration.                                                    | no       |
+| ::                        | ::                                                | Red Hat formatted OS interface configuration.                                              | no       |
 |                           |                                                   |                                                                                            |          |
 |   interfaces:             |   - label: manual2                                | | Required keys:                                                                           |          |
 |       - label:            |     description: manual network 2                 | |   *label* - Unique label of interface configuration to be referenced within              |          |
 |         description:      |     DEVICE: eth0                                  |               `networks:`_ `node_templates: interfaces: <node_templates_interfaces_>`_.    |          |
 |         DEVICE:           |     TYPE: Ethernet                                |                                                                                            |          |
 |         TYPE:             |     BOOTPROTO: none                               | | Optional keys:                                                                           |          |
-|         BOOTPROTO:        |     ONBOOT: yes                                   | |   *description*  - Short description of interface configuration to be included as a      |          |
-|         ONBOOT            |     NM_CONTROLLED: no                             |                      comment in OS config files.                                           |          |
+|         BOOTPROTO:        |     ONBOOT: yes                                   | |   *description*  - Short description of interface configuration to be included as        |          |
+|         ONBOOT            |     NM_CONTROLLED: no                             |                      a comment in OS config files.                                         |          |
 |         ONPARENT:         |                                                   | |   *IPADDR_list*  - List of IP address to assign client interfaces referencing this       |          |
-|         MASTER:           |   - label: dhcp2                                  |                      configuration. Each list element may either be a single IP address    |          |
-|         SLAVE:            |     description: dhcp interface 2                 |                      or a range (formatted as *<start_address>*-<*end_address*>).          |          |
+|         MASTER:           |   - label: dhcp2                                  |                      configuration. Each list element may either be a single IP            |          |
+|         SLAVE:            |     description: dhcp interface 2                 |                      address or a range (formatted as *<start_address>*-<*end_address*>).  |          |
 |         BONDING_MASTER:   |     DEVICE: eth0                                  | |   *IPADDR_start* - Starting IP address to assign client interfaces referencing this      |          |
-|         IPADDR_list:      |     TYPE: Ethernet                                |                      configuration. Addresses will be assigned to each client interface    |          |
-|         NETMASK:          |     BOOTPROTO: dhcp                               |                      incrementally.                                                        |          |
+|         IPADDR_list:      |     TYPE: Ethernet                                |                      configuration. Addresses will be assigned to each client              |          |
+|         NETMASK:          |     BOOTPROTO: dhcp                               |                      interface incrementally.                                              |          |
 |         BROADCAST:        |     ONBOOT: yes                                   |                                                                                            |          |
 |         GATEWAY:          |     NM_CONTROLLED: no                             | | Optional "drop-in" keys:                                                                 |          |
-|         SEARCH:           |                                                   | |   The following key names are derived directly from RHEL's *ifcfg* configuration files.  |          |
-|         DNS1:             |   - label: static2                                |     Values will be copied directly into the *ifcfg-<name>* files.  Refer to the            |          |
-|         DNS2:             |     description: static interface 2               |     `RHEL IP NETWORKING <rhel_ifcfg_doc_>`_ for usage.                                     |          |
+|         SEARCH:           |                                                   | |   The following key names are derived directly from RHEL's *ifcfg* configuration         |          |
+|         DNS1:             |   - label: static2                                |     files. Values will be copied directly into the *ifcfg-<name>* files.  Refer to         |          |
+|         DNS2:             |     description: static interface 2               |     the `RHEL IP NETWORKING <rhel_ifcfg_doc_>`_ for usage.                                 |          |
 |         MTU:              |     DEVICE: eth0                                  | |                                                                                          |          |
 |         VLAN:             |     TYPE: Ethernet                                | |   *DEVICE*                                                                               |          |
 |         NM_CONTROLLED:    |     BOOTPROTO: none                               | |   *TYPE*                                                                                 |          |
@@ -661,14 +660,14 @@ interfaces:
 |                           |     DEVICE: eth0.10                               |                                                                                            |          |
 |                           |     BOOTPROTO: none                               | | Notes:                                                                                   |          |
 |                           |     ONBOOT: yes                                   | |   If 'rename: true' in                                                                   |          |
-|                           |     ONPARENT: yes                                 |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *DEVICE* |          |
-|                           |     VLAN: yes                                     |     value will be used to rename the interface.                                            |          |
+|                           |     ONPARENT: yes                                 |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the          |          |
+|                           |     VLAN: yes                                     |     *DEVICE* value will be used to rename the interface.                                   |          |
 |                           |     NM_CONTROLLED: no                             | |                                                                                          |          |
 |                           |                                                   | |   If 'rename: false' in                                                                  |          |
-|                           |   - label: bridge2                                |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the *DEVICE* |          |
-|                           |     description: bridge interface 2               |     value will be replaced by the interface name assigned by the OS. If the *DEVICE* value |          |
-|                           |     DEVICE: br2                                   |     is referenced in **any** other interface definition it will also be replaced.          |          |
-|                           |     TYPE: Bridge                                  |                                                                                            |          |
+|                           |   - label: bridge2                                |     `node_templates: physical_interfaces: pxe/data <physical_ints_os_>`_ then the          |          |
+|                           |     description: bridge interface 2               |     *DEVICE* value will be replaced by the interface name assigned by the OS. If the       |          |
+|                           |     DEVICE: br2                                   |     *DEVICE* value is referenced in **any** other interface definition it will also        |          |
+|                           |     TYPE: Bridge                                  |     be replaced.                                                                           |          |
 |                           |     BOOTPROTO: static                             |                                                                                            |          |
 |                           |     ONBOOT: yes                                   |                                                                                            |          |
 |                           |     IPADDR_start: 10.0.0.100                      |                                                                                            |          |
@@ -803,10 +802,10 @@ node_templates:
 | Element                            | Example(s)                                    | Description                                                                      | Required |
 +====================================+===============================================+==================================================================================+==========+
 |                                    |                                               |                                                                                  |          |
-| ::                                 | ::                                            | Node templates define client node configurations. Existing IPMI credentials and  | **yes**  |
-|                                    |                                               | network interface physical connection information must be given to allow Cluster |          |
-|   node_templates:                  |   - label: controllers                        | Genesis to connect to nodes. OS installation characteristics and post install    |          |
-|       - label:                     |     ipmi:                                     | network configurations are also defined.                                         |          |
+| ::                                 | ::                                            | Node templates define client node configurations. Existing IPMI credentials      | **yes**  |
+|                                    |                                               | and network interface physical connection information must be given to           |          |
+|   node_templates:                  |   - label: controllers                        | allow Cluster POWER-Up to connect to nodes. OS installation characteristics      |          |
+|       - label:                     |     ipmi:                                     | and post install network configurations are also defined.                        |          |
 |         ipmi:                      |         userid: admin                         |                                                                                  |          |
 |         os:                        |         password: pass                        | | Required keys:                                                                 |          |
 |         physical_interfaces:       |     os:                                       | |   *label*   - Unique label used to reference this template.                    |          |
@@ -831,8 +830,8 @@ node_templates:
 +------------------------------------+-----------------------------------------------+----------------------------------------------------------------------------------+----------+
 | .. _node_templates_ipmi:           |                                               |                                                                                  |          |
 |                                    |                                               |                                                                                  |          |
-| ::                                 | ::                                            | Client node IPMI credentials. Note that IPMI credentials must be consistent for  | **yes**  |
-|                                    |                                               | all members of a node template.                                                  |          |
+| ::                                 | ::                                            | Client node IPMI credentials. Note that IPMI credentials must be consistent      | **yes**  |
+|                                    |                                               | for all members of a node template.                                              |          |
 |   node_templates:                  |   - label: ppc64el                            |                                                                                  |          |
 |       - ...                        |     ipmi:                                     | | Required keys:                                                                 |          |
 |         ipmi:                      |         userid: ADMIN                         | |   *userid*   - IPMI userid.                                                    |          |
@@ -854,28 +853,29 @@ node_templates:
 |         os:                        |         hostname_prefix: controller           |                                                                                  |          |
 |             hostname_prefix:       |         profile: ubuntu-14.04-server-ppc64el  |                                                                                  |          |
 |             profile:               |         install_device: /dev/sda              |                                                                                  |          |
-|             install_device:        |         users:                                | |   *profile*         - Cobbler profile to use for OS installation. This name    |          |
-|             users:                 |             - name: root                      |                         usually should match the name of the installation image  |          |
-|                 - name:            |               password: <crypted password>    |                         (without the'.iso' extension).                           |          |
+|             install_device:        |         users:                                | |   *profile*         - Cobbler profile to use for OS installation. This         |          |
+|             users:                 |             - name: root                      |                         name usually should match the name of the                |          |
+|                 - name:            |               password: <crypted password>    |                         installation image (without the'.iso' extension).        |          |
 |                   password:        |             - name: user1                     | |   *install_device*  - Path to installation disk device.                        |          |
 |             groups:                |               password: <crypted password>    |                                                                                  |          |
 |                 - name:            |               groups: sudo,testgroup1         | | Optional keys:                                                                 |          |
 |             kernel_options:        |         groups:                               | |   *hostname_prefix* - Prefix used to assign hostnames to client nodes          |          |
-|                                    |             - name: testgroup1                |                         belonging to this node template. A "-" and enumeration   |          |
-|                                    |             - name: testgroup2                |                         is added to the end of the prefix to make a unique       |          |
-|                                    |         kernel_options: quiet                 |                         hostname for each client node (e.g. "controller-1" and   |          |
-|                                    |                                               |                         "controoler-2").                                         |          |
+|                                    |             - name: testgroup1                |                         belonging to this node template. A "-" and               |          |
+|                                    |             - name: testgroup2                |                         enumeration is added to the end of the prefix to         |          |
+|                                    |         kernel_options: quiet                 |                         make a unique hostname for each client node              |          |
+|                                    |                                               |                         (e.g. "controller-1" and "controoler-2").                |          |
 |                                    |                                               | |   *users*           - OS user accounts to create. All parameters in the        |          |
 |                                    |                                               |                         `Ansible user module <ansible_user_module_>`_ are        |          |
 |                                    |                                               |                         supported.                                               |          |
 |                                    |                                               | |   *groups*          - OS groups to create. All parameters in the `Ansible      |          |
-|                                    |                                               |                         group module <ansible_group_module_>`_ are supported.    |          |
+|                                    |                                               |                         group module <ansible_group_module_>`_ are               |          |
+|                                    |                                               |                         supported.                                               |          |
 |                                    |                                               | |   *kernel_options*  - Kernel options                                           |          |
 |                                    |                                               |                                                                                  |          |
 +------------------------------------+-----------------------------------------------+----------------------------------------------------------------------------------+----------+
 | .. _node_templates_physical_ints:  |                                               |                                                                                  |          |
 |                                    |                                               |                                                                                  |          |
-| ::                                 | ::                                            | Client node operating system configuration.                                      | **yes**  |
+| ::                                 | ::                                            | Client node interface port mappings.                                             | **yes**  |
 |                                    |                                               |                                                                                  |          |
 |   node_templates:                  |   - ...                                       | | Required keys:                                                                 |          |
 |       - ...                        |     physical_interfaces:                      | |   *ipmi* - IPMI (BMC) interface port mappings. See `physical_interfaces: ipmi  |          |
@@ -920,8 +920,8 @@ node_templates:
 |             ipmi:                  |             - switch: mgmt_1                  | |   *ports*  - List of port number/identifiers mapping to client node IPMI       |          |
 |                 - switch:          |               ports:                          |                interfaces.                                                       |          |
 |                   ports:           |                   - 7                         |                                                                                  |          |
-|             ...                    |                   - 8                         | In the example three client nodes are defined and mapped to ports 7,8,9 of a     |          |
-|                                    |                   - 9                         | management switch labeled "mgmt_1".                                              |          |
+|             ...                    |                   - 8                         | In the example three client nodes are defined and mapped to ports 7,8,9 of       |          |
+|                                    |                   - 9                         | a management switch labeled "mgmt_1".                                            |          |
 |                                    |                                               |                                                                                  |          |
 +------------------------------------+-----------------------------------------------+----------------------------------------------------------------------------------+----------+
 | .. _physical_ints_os:              |                                               |                                                                                  |          |
@@ -934,9 +934,9 @@ node_templates:
 |             ...                    |             - switch: mgmt_1                  |                elements.                                                         |          |
 |             pxe:                   |               interface: dhcp1                | |   *interface* - Reference to interface label defined in the `interfaces:`_     |          |
 |                 - switch:          |               rename: true                    |                elements.                                                         |          |
-|                   interface:       |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces will |          |
-|                   rename:          |                   - 10                        |                be renamed to match the interface iface (Ubuntu) or DEVICE (RHEL) |          |
-|                   ports:           |                   - 11                        |                value.                                                            |          |
+|                   interface:       |               ports:                          | |   *rename* - Value (true/false) to control whether client node interfaces      |          |
+|                   rename:          |                   - 10                        |                will be renamed to match the interface iface (Ubuntu) or          |          |
+|                   ports:           |                   - 11                        |                DEVICE (RHEL) value.                                              |          |
 |             data:                  |                   - 12                        | |   *ports*  - List of port number/identifiers mapping to client node OS         |          |
 |                 - switch:          |         data:                                 |                interfaces.                                                       |          |
 |                   interface:       |             - switch: data_1                  |                                                                                  |          |
@@ -962,8 +962,8 @@ node_templates:
 | ::                                 | ::                                            | OS network interface configuration assignment.                                   | no       |
 |                                    |                                               |                                                                                  |          |
 |   node_templates:                  |   interfaces:                                 | | Required keys:                                                                 |          |
-|       - ...                        |       - label: data_int1                      | |   *interfaces* - List of references to interface *labels* from the top-level   |          |
-|         interfaces:                |       ...                                     |                    `interfaces:`_ dictionary.                                    |          |
+|       - ...                        |       - label: data_int1                      | |   *interfaces* - List of references to interface *labels* from the             |          |
+|         interfaces:                |       ...                                     |                    top-level `interfaces:`_ dictionary.                          |          |
 |                                    |       - label: data_int2                      |                                                                                  |          |
 |                                    |       ...                                     |                                                                                  |          |
 |                                    |       - label: data_int3                      |                                                                                  |          |
@@ -981,8 +981,8 @@ node_templates:
 | ::                                 | ::                                            | OS network interface configuration assignment by group.                          | no       |
 |                                    |                                               |                                                                                  |          |
 |   node_templates:                  |   interfaces:                                 | | Required keys:                                                                 |          |
-|       - ...                        |       - label: data_int1                      | |   *networks* - List of references to network *labels* from the top-level       |          |
-|         networks:                  |       ...                                     |                  `networks:`_ dictionary.                                        |          |
+|       - ...                        |       - label: data_int1                      | |   *networks* - List of references to network *labels* from the                 |          |
+|         networks:                  |       ...                                     |                  top-level `networks:`_ dictionary.                              |          |
 |                                    |       - label: data_int2                      |                                                                                  |          |
 |                                    |       ...                                     |                                                                                  |          |
 |                                    |       - label: data_int3                      |                                                                                  |          |
@@ -1027,9 +1027,9 @@ software_bootstrap:
 | Element                 | Example(s)                       | Description                                                                                              | Required |
 +=========================+==================================+==========================================================================================================+==========+
 |                         |                                  |                                                                                                          |          |
-| ::                      | ::                               | Software bootstrap defines commands to be run on client nodes after Cluster Genesis completes. This is   | no       |
-|                         |                                  | useful for various additional configuration activities, such as bootstrapping additional software        |          |
-|   software_bootstrap:   |   software_bootstrap:            | package installations.                                                                                   |          |
+| ::                      | ::                               | Software bootstrap defines commands to be run on client nodes after Cluster Genesis completes.           | no       |
+|                         |                                  | This is useful for various additional configuration activities, such as bootstrapping additional         |          |
+|   software_bootstrap:   |   software_bootstrap:            | software package installations.                                                                          |          |
 |       - hosts:          |       - hosts: all               |                                                                                                          |          |
 |         executable:     |         command: apt-get update  | | Required keys:                                                                                         |          |
 |         command:        |       - hosts: openstackservers  | |   *hosts*   - Hosts to run commands on. The value can be set to 'all' to run on all hosts,             |          |

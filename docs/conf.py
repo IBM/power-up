@@ -46,7 +46,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Cluster Genesis User Guide'
+project = u'POWER-Up User Guide'
 copyright = u'2017, Ray Harrington'
 author = u'Ray Harrington'
 
@@ -83,13 +83,14 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
-    html_theme = 'nature'
+    html_theme = 'sphinx_rtd_theme'
 else:
-    html_theme = 'nature'
+    html_theme = 'sphinx_rtd_theme'
 
-# html themes: 'alabaster' 'nature' ' default'
+# html themes: 'alabaster' 'nature' ' default' 'classic'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -100,14 +101,16 @@ else:
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ['_static']
 
+html_context = {
+    'css_files': [
+        '_static/my_theme.css', ], }
 
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'ClusterGenesisUserGuidedoc'
-
+htmlhelp_basename = 'POWER-UpUserGuidedoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
