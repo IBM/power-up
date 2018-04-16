@@ -212,7 +212,30 @@ class Gen(object):
             print('Successfully validated cluster hardware.\n')
 
     def _create_inventory(self):
+        from lib.inventory import Inventory
+        log = logger.getlogger()
+        inv = Inventory()
+        node_count = len(inv.inv['nodes'])
+        if node_count > 0:
+            log.info("Inventory already exists!")
+            print("\nInventory already exists with {} nodes defined."
+                  "".format(node_count))
+            print("Press enter to continue using the existing inventory.")
+            print("Type 'C' to continue creating a new inventory. "
+                  "WARNING: Contents of current file will be overwritten!")
+            resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+            if resp == 'T':
+                sys.exit('POWER-Up stopped at user request')
+            elif resp == 'C':
+                log.info("'{}' entered. Creating new inventory file."
+                         "".format(resp))
+            else:
+                log.info("Continuing with existing inventory.")
+                return
+
         from lib.container import Container
+
+        log = logger.getlogger()
 
         cont = Container(self.args.create_inventory)
         cmd = []
@@ -224,7 +247,7 @@ class Gen(object):
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
-        print('Success: Created inventory file')
+
         deployer_inv_file = gen.get_symlink_realpath()
 
         # If inventory file symlink is broken link remove it
@@ -233,12 +256,19 @@ class Gen(object):
             if not os.path.exists(os.readlink(symlink_path)):
                 os.unlink(symlink_path)
 
+        # If inventory is an empty file delete it
+        if os.stat(deployer_inv_file).st_size == 0:
+            os.remove(deployer_inv_file)
+
         # Create a sym link on deployer to inventory inside container
         if not os.path.isfile(deployer_inv_file):
             cont_inv_file = os.path.join(gen.LXC_DIR, cont.name, 'rootfs',
                                          gen.CONTAINER_PACKAGE_PATH[1:],
                                          gen.INV_FILE_NAME)
+            log.debug("Creating symlink on deployer to container inventory: "
+                      "{} -> {}".format(deployer_inv_file, cont_inv_file))
             os.symlink(cont_inv_file, deployer_inv_file)
+        print('Success: Created inventory file')
 
     def _install_cobbler(self):
         from lib.container import Container
@@ -265,16 +295,24 @@ class Gen(object):
             sys.exit(1)
 
         cont = Container(self.args.download_os_images)
-        ssh = cont.open_ssh()
-        sftp = cont.open_sftp(ssh)
+        local_os_images = gen.get_os_images_path()
+        cont_os_images = gen.get_container_os_images_path()
         try:
-            cont.copy_dir_to_container(sftp, cont.depl_os_images_path)
+            cont.copy_dir_to_container(local_os_images, cont_os_images)
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
         print('Success: OS images downloaded and copied into container')
 
     def _inv_add_ports_ipmi(self):
+        log = logger.getlogger()
+        from lib.inventory import Inventory
+        inv = Inventory()
+        if (inv.check_all_nodes_ipmi_macs() and
+                inv.check_all_nodes_ipmi_ipaddrs()):
+            log.info("IPMI ports MAC and IP addresses already in inventory")
+            return
+
         dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
         from lib.container import Container
 
@@ -308,6 +346,14 @@ class Gen(object):
         print('Success: Cobbler distros and profiles added')
 
     def _inv_add_ports_pxe(self):
+        log = logger.getlogger()
+        from lib.inventory import Inventory
+        inv = Inventory()
+        if (inv.check_all_nodes_pxe_macs() and
+                inv.check_all_nodes_pxe_ipaddrs()):
+            log.info("PXE ports MAC and IP addresses already in inventory")
+            return
+
         power_time_out = gen.get_power_time_out()
         power_wait = gen.get_power_wait()
         ipmi_power_off(power_time_out, power_wait)
