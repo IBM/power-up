@@ -54,6 +54,7 @@ NTP_CONF = '/etc/ntp.conf'
 COBBLER = '/usr/local/bin/cobbler'
 LOCAL_PY_DIST_PKGS = '/usr/local/lib/python2.7/dist-packages'
 PY_DIST_PKGS = '/usr/lib/python2.7/dist-packages'
+INITD = '/etc/init.d/'
 APACHE2_CONF = '/etc/apache2/apache2.conf'
 
 A2ENCONF = '/usr/sbin/a2enconf'
@@ -236,6 +237,10 @@ def cobbler_install():
         IPNetwork(cont_pxe_ipaddr + '/' + cont_pxe_netmask).broadcast)
     util.append_line(NTP_CONF, 'broadcast %s' % cont_pxe_broadcast)
 
+    # Add 'required-stop' line to cobblerd init.d to avoid warning
+    util.replace_regex(INITD + 'cobblerd', '### END INIT INFO',
+                       '# Required-Stop:\n### END INIT INFO')
+
     # Set Apache2 'ServerName'
     util.append_line(APACHE2_CONF, "ServerName localhost")
 
@@ -268,7 +273,13 @@ def _restart_service(service):
 
 
 def _service_start_on_boot(service):
-    util.bash_cmd('update-rc.d %s enable' % service)
+    util.replace_regex(INITD + service,
+                       '# Default-Start:.*',
+                       '# Default-Start: 2 3 4 5')
+    util.replace_regex(INITD + service,
+                       '# Default-Stop:.*',
+                       '# Default-Stop: 0 1 6')
+    util.bash_cmd('update-rc.d %s defaults' % service)
 
 
 def _generate_random_characters(length=100):
