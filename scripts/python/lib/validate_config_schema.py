@@ -25,7 +25,7 @@ from jsonschema import validate
 import jsl
 
 import lib.logger as logger
-from lib.exception import UserException
+from lib.exception import UserException, UserCriticalException
 
 
 def _string_int_field(**kwargs):
@@ -265,5 +265,7 @@ class ValidateConfigSchema(object):
             else:
                 exc = 'Schema validation failed - {} - {}'.format(
                     error.cause, error.message)
-            self.log.error(exc)
-            raise UserException(exc)
+            if 'Additional properties are not allowed' in error.message:
+                raise UserException(exc)
+            else:
+                raise UserCriticalException(exc)
