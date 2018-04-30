@@ -20,6 +20,7 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import importlib
 import os
 import sys
 import getpass
@@ -534,6 +535,11 @@ class Gen(object):
                 cmd = argparse_gen.Cmd.POST_DEPLOY.value
         except AttributeError:
             pass
+        try:
+            if self.args.software:
+                cmd = argparse_gen.Cmd.SOFTWARE.value
+        except AttributeError:
+            pass
 
         # Invoke subcommand method
         if cmd == argparse_gen.Cmd.SETUP.value:
@@ -640,6 +646,40 @@ class Gen(object):
             if argparse_gen.is_arg_present(self.args.all):
                 self._config_data_switches()
 
+        if cmd == argparse_gen.Cmd.SOFTWARE.value:
+            if not argparse_gen.is_arg_present(self.args.prep) and not \
+                    argparse_gen.is_arg_present(self.args.install):
+                self.args.all = True
+            try:
+                software_module = importlib.import_module(self.args.name)
+            except ImportError as exc:
+                print(exc)
+                sys.exit(1)
+            try:
+                soft = software_module.software()
+            except AttributeError as exc:
+                print(exc.message)
+                print('Software installation modules need to implement a '
+                      'class named "software"')
+                sys.exit(1)
+            if self.args.prep is True or self.args.all is True:
+                try:
+                    soft.setup()
+                except AttributeError as exc:
+                    print(exc.message)
+                    print('The software class needs to implement a '
+                          'method named "setup"')
+            if self.args.install is True or self.args.all is True:
+                try:
+                    soft.install()
+                except AttributeError as exc:
+                    print(exc.message)
+                    print('The software class needs to implement a '
+                          'method named "install"')
+
+        if not cmd:
+            print('Unrecognized POWER-Up command')
+
 
 def _run_playbook(playbook):
     log = logger.getlogger()
@@ -658,5 +698,9 @@ if __name__ == '__main__':
     logger.create(
         args.log_level_file[0],
         args.log_level_print[0])
+
+    if args.log_level_print[0] == 'debug':
+        print('DEBUG - {}'.format(args))
+
     GEN = Gen(args)
     GEN.launch()

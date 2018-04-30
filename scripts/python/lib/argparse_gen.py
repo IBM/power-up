@@ -24,12 +24,16 @@ SETUP_CMD = 'setup'
 CONFIG_CMD = 'config'
 VALIDATE_CMD = 'validate'
 DEPLOY_CMD = 'deploy'
+SOFTWARE_CMD = 'software'
+# UTIL_CMD = 'util'
 POST_DEPLOY_CMD = 'post-deploy'
 SETUP_DESC = 'Setup deployment environment (requires root privileges)'
 CONFIG_DESC = 'Configure deployment environment'
 VALIDATE_DESC = 'Validate deployment environment'
 DEPLOY_DESC = 'Deploy cluster'
 POST_DEPLOY_DESC = 'Configure cluster nodes and data switches'
+UTIL_DESC = 'Execute utility functions'
+SOFTWARE_DESC = 'Install software stack on client nodes'
 GITHUB = 'https://github.com/open-power-ref-design-toolkit/cluster-genesis'
 EPILOG = 'home page:\n  %s' % GITHUB
 ABSENT = '\u009fabsent\u009c'
@@ -44,6 +48,8 @@ class Cmd(Enum):
     VALIDATE = VALIDATE_CMD
     DEPLOY = DEPLOY_CMD
     POST_DEPLOY = POST_DEPLOY_CMD
+    SOFTWARE = SOFTWARE_CMD
+#    UTIL = UTIL_CMD
 
 
 def get_args(parser_args=False):
@@ -112,6 +118,22 @@ def get_args(parser_args=False):
         POST_DEPLOY_CMD,
         description='%s - %s' % (PROJECT, POST_DEPLOY_DESC),
         help=POST_DEPLOY_DESC,
+        epilog=EPILOG,
+        parents=[common_parser],
+        formatter_class=RawTextHelpFormatter)
+
+#    parser_util = subparsers.add_parser(
+#        UTIL_CMD,
+#        description='%s - %s' % (PROJECT, UTIL_DESC),
+#        help=UTIL_DESC,
+#        epilog=EPILOG,
+#        parents=[common_parser],
+#        formatter_class=RawTextHelpFormatter)
+
+    parser_software = subparsers.add_parser(
+        SOFTWARE_CMD,
+        description='%s - %s' % (PROJECT, SOFTWARE_DESC),
+        help=SOFTWARE_DESC,
         epilog=EPILOG,
         parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
@@ -289,10 +311,47 @@ def get_args(parser_args=False):
         metavar='CONTAINER-NAME',
         help='Run all cluster post deployment steps')
 
+    # 'software' subcommand arguments
+    parser_software.set_defaults(software=True)
+
+    parser_software.add_argument(
+        'name', nargs='?',
+        help='Create deployer interfaces, vlans and bridges')
+
+    parser_software.add_argument(
+        '--prep',
+        default=ABSENT,
+        action='store_true',
+        help='Create deployer interfaces, vlans and bridges')
+
+    parser_software.add_argument(
+        '--install',
+        default=ABSENT,
+        action='store_true',
+        help='Configure PXE network gateway and NAT record')
+
+    parser_software.add_argument(
+        '-a', '--all',
+        action='store_true',
+        help='Run all cluster setup steps')
+
     if parser_args:
         return (parser, parser_setup, parser_config, parser_validate,
-                parser_deploy, parser_post_deploy)
+                parser_deploy, parser_post_deploy, parser_software)
     return parser
+
+#    # 'util' subcommand arguments
+#    parser_util.set_defaults(util=True)
+#
+#    parser_util.add_argument(
+#        '--scan-pxe-network',
+#        action='store_true',
+#        help='Ping all addresses in PXE subnet')
+#
+#    parser_util.add_argument(
+#        '--scan-ipmi-network',
+#        action='store_true',
+#        help='Ping all addresses in IPMI subnet')
 
 
 def _check_setup(args, subparser):
@@ -346,6 +405,18 @@ def _check_post_deploy(args, subparser):
             '--config-client-os -a/--all is required')
 
 
+# def _check_util(args, subparser):
+#     if not args.scan-pxe-network and not args.scan-ipmi-networks:
+#         subparser.error(
+#             'one of the arguments --scan-pxe-networks --scan-ipmi-networks is required')
+
+
+def _check_software(args, subparser):
+    if not args.setup and not args.install and not args.name and not args.all:
+        subparser.error(
+            'one of the arguments --prep --install -a/--all is required')
+
+
 def is_arg_present(arg):
     if arg == ABSENT:
         return False
@@ -356,7 +427,7 @@ def get_parsed_args():
     """Get parsed 'gen' command arguments"""
 
     parser, parser_setup, parser_config, parser_validate, parser_deploy, \
-        parser_post_deploy = get_args(parser_args=True)
+        parser_post_deploy, parser_software = get_args(parser_args=True)
     args = parser.parse_args()
 
     # Check arguments
@@ -383,6 +454,11 @@ def get_parsed_args():
     try:
         if args.post_deploy:
             _check_post_deploy(args, parser_post_deploy)
+    except AttributeError:
+        pass
+    try:
+        if args.software:
+            _check_software(args, parser_software)
     except AttributeError:
         pass
 
