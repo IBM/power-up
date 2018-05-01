@@ -31,5 +31,7 @@ pip install \
     'pyaml==17.12.1' \
     'paramiko==2.4.1' \
     'tabulate==0.8.2' \
-    'gitpython==2.1.9'
+    'gitpython==2.1.9' \
+    'netaddr==0.7.19' \
+    'click==6.7'
 deactivate
