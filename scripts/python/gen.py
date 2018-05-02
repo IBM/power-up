@@ -214,26 +214,26 @@ class Gen(object):
             print('Successfully validated cluster hardware.\n')
 
     def _create_inventory(self):
-        from lib.inventory import Inventory
-        log = logger.getlogger()
-        inv = Inventory()
-        node_count = len(inv.inv['nodes'])
-        if node_count > 0:
-            log.info("Inventory already exists!")
-            print("\nInventory already exists with {} nodes defined."
-                  "".format(node_count))
-            print("Press enter to continue using the existing inventory.")
-            print("Type 'C' to continue creating a new inventory. "
-                  "WARNING: Contents of current file will be overwritten!")
-            resp = raw_input("Type 'T' to terminate Cluster Genesis ")
-            if resp == 'T':
-                sys.exit('POWER-Up stopped at user request')
-            elif resp == 'C':
-                log.info("'{}' entered. Creating new inventory file."
-                         "".format(resp))
-            else:
-                log.info("Continuing with existing inventory.")
-                return
+        # from lib.inventory import Inventory
+        # log = logger.getlogger()
+        # inv = Inventory()
+        # node_count = len(inv.inv['nodes'])
+        # if node_count > 0:
+        #     log.info("Inventory already exists!")
+        #     print("\nInventory already exists with {} nodes defined."
+        #           "".format(node_count))
+        #     print("Press enter to continue using the existing inventory.")
+        #     print("Type 'C' to continue creating a new inventory. "
+        #           "WARNING: Contents of current file will be overwritten!")
+        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     if resp == 'T':
+        #         sys.exit('POWER-Up stopped at user request')
+        #     elif resp == 'C':
+        #         log.info("'{}' entered. Creating new inventory file."
+        #                  "".format(resp))
+        #     else:
+        #         log.info("Continuing with existing inventory.")
+        #         return
 
         from lib.container import Container
 
