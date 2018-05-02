@@ -34,6 +34,7 @@ GEN_SCRIPTS_PYTHON_PATH = os.path.join(GEN_SCRIPTS_PATH, 'python', '')
 GEN_PLAY_PATH = os.path.join(GEN_PATH, 'playbooks', '')
 GEN_PASSIVE_PATH = os.path.join(GEN_PATH, 'passive', '')
 GEN_LOGS_PATH = os.path.join(GEN_PATH, 'logs', '')
+GEN_SOFTWARE_PATH = os.path.join(GEN_PATH, 'software', '')
 OPSYS = platform.dist()[0]
 DEFAULT_CONTAINER_NAME = PROJECT_NAME
 CONTAINER_PACKAGE_PATH = '/opt/' + PROJECT_NAME
