@@ -27,6 +27,13 @@ _pup()
 
     comm_opts=" --help --all --log-level-file --log-level-print"
 
+    opts="--prep --install"
+
+    if [[ ${cur} == * ]] && [[ ${prev} == software ]]; then
+        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+        return 0
+    fi
+
     opts="--networks --gateway"
 
     if [[ ${cur} == * ]] && [[ ${prev} == setup ]]; then
@@ -67,7 +74,7 @@ _pup()
         return 0
     fi
 
-    opts="setup config validate deploy post-deploy --help"
+    opts="setup config validate deploy post-deploy software --help"
 
     if [[ ${cur} == * ]] && [[ ${prev} == "$cmd" ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )

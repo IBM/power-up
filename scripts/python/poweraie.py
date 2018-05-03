@@ -43,14 +43,14 @@ def _sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
 def _sub_proc_display(cmd, stat_re=None, stdout=PIPE, stderr=PIPE):
     proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
     rc = None
-    ret = -1 if stat_re is not None else 0
+    ret = None
     while rc is None:
-        # rc = proc.poll()
         resp = proc.stderr.readline()
         resp = unicode(resp, 'utf-8')
         resp = resp.replace('\n', '   ')
-        if re.search(stat_re, resp):
-            ret = 0
+        r = re.search(stat_re, resp)
+        if r:
+            ret = r
         print(u'\r' + resp, end="")
         rc = proc.poll()
     print('')
@@ -91,15 +91,30 @@ class software(object):
             self.log.info('Downloading Anaconda')
             cmd = ('wget https://repo.continuum.io/archive/Anaconda2-5.1.0-Linux-'
                    'ppc64le.sh --directory-prefix=/srv/anaconda/')
-            resp, err = _sub_proc_display(cmd, stat_re=r'saved \[\d+/\d+\]')
-            if err != 0:
-                self.log.error('Failed to download Anaconda')
+            resp, stat = _sub_proc_display(cmd, stat_re=r'saved \[(\d+)/(\d+)\]')
+            if stat and stat.group(1) == stat.group(2):
+                self.log.info('PowerAI base downloaded succesfully')
             else:
-                self.log.info('Anaconda Downloaded succesfully')
+                self.log.error('Failed to download PowerAI base')
         else:
             self.log.info('Anaconda already downloaded')
 
-        sys.exit('BYE')
+        # Get PowerAI base
+        if not os.path.exists('/srv/powerai-rpm'):
+            os.mkdir('/srv/powerai-rpm')
+        if not os.path.isfile('/srv/powerai-rpm/mldl-repo-local-5.1.0-201804110899'
+                              '.fd91856.ppc64le.rpm'):
+            self.log.info('Downloading PowerAI base')
+            cmd = ('wget --directory-prefix=/srv/powerai-rpm http://ausgsa.ibm.com'
+                   '/projects/m/mldl-repo/releases/v1r5m1/rhel/mldl-repo-local-5.1.'
+                   '0-201804110899.fd91856.ppc64le.rpm')
+            resp, stat = _sub_proc_display(cmd, stat_re=r'saved \[(\d+)/(\d+)\]')
+            if stat and stat.group(1) == stat.group(2):
+                self.log.info('PowerAI base downloaded succesfully')
+            else:
+                self.log.error('Failed to download PowerAI base')
+        else:
+            self.log.info('PowerAI base already downloaded')
 
         repo = local_epel_repo()
 
@@ -110,11 +125,11 @@ class software(object):
         # repo.yum_create_local()
         self.yum_powerup_repo_files.append(repo.get_yum_client_powerup())
 
-        print(self.yum_powerup_repo_files[0]['filename'])
-        print(self.yum_powerup_repo_files[0]['content'])
+        self.log.debug(self.yum_powerup_repo_files[0]['filename'])
+        self.log.debug(self.yum_powerup_repo_files[0]['content'])
 
-        nginx_repo = remote_nginx_repo()
-        nginx_repo.yum_create_remote()
+        # nginx_repo = remote_nginx_repo()
+        # nginx_repo.yum_create_remote()
 
         return
         # Check if nginx installed. Install if necessary.
