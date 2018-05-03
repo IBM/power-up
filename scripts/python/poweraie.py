@@ -27,6 +27,7 @@ import time
 
 import lib.logger as logger
 from repos import local_epel_repo, remote_nginx_repo
+from software_hosts import get_ansible_inventory
 
 
 def _sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
@@ -192,6 +193,9 @@ class software(object):
         print('Good to go')
 
     def install(self):
+        cmd = 'ansible -i {} -m ping all'.format(get_ansible_inventory())
+        resp, err = _sub_proc_exec(cmd)
+        print(resp)
         print('All done')
 
 

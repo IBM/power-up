@@ -46,6 +46,8 @@ SCRIPTS_DIR = 'scripts'
 PYTHON_DIR = 'python'
 OS_IMAGES_DIR = 'os-images'
 PLAYBOOKS_DIR = 'playbooks'
+HOSTS_FILE = 'hosts'
+DYNAMIC_INVENTORY = 'inventory.py'
 CONFIG_FILE = 'config.yml'
 LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
 SSH_PRIVATE_KEY_FILE = os.path.expanduser('~/.ssh/gen')
@@ -217,6 +219,14 @@ def get_playbooks_path():
     if is_container():
         return get_container_playbooks_path()
     return os.path.join(GEN_PATH, PLAYBOOKS_DIR)
+
+
+def get_hosts_file_path():
+    return os.path.join(get_playbooks_path(), HOSTS_FILE)
+
+
+def get_dynamic_inventory_path():
+    return os.path.join(get_python_path(), DYNAMIC_INVENTORY)
 
 
 def get_lxc_conf_file_path():
