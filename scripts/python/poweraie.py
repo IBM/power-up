@@ -20,6 +20,8 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 from subprocess import Popen, PIPE
 import argparse
+import os
+import re
 import sys
 import time
 
@@ -36,6 +38,23 @@ def _sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
     data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
     stdout, stderr = data.communicate()
     return stdout, stderr
+
+
+def _sub_proc_display(cmd, stat_re=None, stdout=PIPE, stderr=PIPE):
+    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    rc = None
+    ret = -1 if stat_re is not None else 0
+    while rc is None:
+        # rc = proc.poll()
+        resp = proc.stderr.readline()
+        resp = unicode(resp, 'utf-8')
+        resp = resp.replace('\n', '   ')
+        if re.search(stat_re, resp):
+            ret = 0
+        print(u'\r' + resp, end="")
+        rc = proc.poll()
+    print('')
+    return resp, ret
 
 
 def _sub_proc_wait(proc):
@@ -65,6 +84,23 @@ class software(object):
         self.yum_powerup_repo_files = []
 
     def setup(self):
+        # Get Anaconda
+        if not os.path.exists('/srv/anaconda'):
+            os.mkdir('/srv/anaconda')
+        if not os.path.isfile('/srv/anaconda/Anaconda2-5.1.0-Linux-ppc64le.sh'):
+            self.log.info('Downloading Anaconda')
+            cmd = ('wget https://repo.continuum.io/archive/Anaconda2-5.1.0-Linux-'
+                   'ppc64le.sh --directory-prefix=/srv/anaconda/')
+            resp, err = _sub_proc_display(cmd, stat_re=r'saved \[\d+/\d+\]')
+            if err != 0:
+                self.log.error('Failed to download Anaconda')
+            else:
+                self.log.info('Anaconda Downloaded succesfully')
+        else:
+            self.log.info('Anaconda already downloaded')
+
+        sys.exit('BYE')
+
         repo = local_epel_repo()
 
         # repo.yum_create_remote()
@@ -78,7 +114,7 @@ class software(object):
         print(self.yum_powerup_repo_files[0]['content'])
 
         nginx_repo = remote_nginx_repo()
-        # nginx_repo.yum_create_remote()
+        nginx_repo.yum_create_remote()
 
         return
         # Check if nginx installed. Install if necessary.
