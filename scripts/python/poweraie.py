@@ -193,7 +193,7 @@ class software(object):
         print('Good to go')
 
     def install(self):
-        cmd = 'ansible -i {} -m ping all'.format(get_ansible_inventory())
+        cmd = 'ansible-playbook -i {} /home/user/power-up/playbooks/install_software.yml'.format(get_ansible_inventory())
         resp, err = _sub_proc_exec(cmd)
         print(resp)
         print('All done')
