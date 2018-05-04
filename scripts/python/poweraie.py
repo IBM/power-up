@@ -83,36 +83,6 @@ class software(object):
         # self.log.debug(self.yum_powerup_repo_files[0]['filename'])
         # self.log.debug(self.yum_powerup_repo_files[0]['content'])
 
-        nginx_repo = remote_nginx_repo()
-        nginx_repo.yum_create_remote()
-
-        # Check if nginx installed. Install if necessary.
-        cmd = 'nginx -v'
-        try:
-            resp, rc = sub_proc_exec(cmd)
-            print('nginx is installed:\n{}'.format(resp))
-        except OSError:
-            # if 'nginx version' in err:
-            cmd = 'yum -y install nginx'
-            resp, err = sub_proc_exec(cmd)
-            if err != 0:
-                self.log.error('Failed installing nginx')
-                self.log.error(resp)
-                sys.exit(1)
-            else:
-                # Fire it up
-                cmd = 'nginx'
-                resp, err = sub_proc_exec(cmd)
-                if err != 0:
-                    self.log.error('Failed starting nginx')
-                    self.log.error('resp: {}'.format(resp))
-                    self.log.error('err: {}'.format(err))
-
-        cmd = 'curl -I 127.0.0.1'
-        resp, err = sub_proc_exec(cmd)
-        if 'HTTP/1.1 200 OK' in resp:
-            self.log.info('nginx is running:\n')
-
         # Setup firewall to allow http
         fw_err = 0
         cmd = 'systemctl status firewalld.service'
@@ -144,6 +114,36 @@ class software(object):
             self.log.error('Error attempting to restart firewall')
         if fw_err == 0:
             self.log.info('Firewall is running and configured for http')
+
+        nginx_repo = remote_nginx_repo()
+        nginx_repo.yum_create_remote()
+
+        # Check if nginx installed. Install if necessary.
+        cmd = 'nginx -v'
+        try:
+            resp, rc = sub_proc_exec(cmd)
+            print('nginx is installed:\n{}'.format(resp))
+        except OSError:
+            # if 'nginx version' in err:
+            cmd = 'yum -y install nginx'
+            resp, err = sub_proc_exec(cmd)
+            if err != 0:
+                self.log.error('Failed installing nginx')
+                self.log.error(resp)
+                sys.exit(1)
+            else:
+                # Fire it up
+                cmd = 'nginx'
+                resp, err = sub_proc_exec(cmd)
+                if err != 0:
+                    self.log.error('Failed starting nginx')
+                    self.log.error('resp: {}'.format(resp))
+                    self.log.error('err: {}'.format(err))
+
+        cmd = 'curl -I 127.0.0.1'
+        resp, err = sub_proc_exec(cmd)
+        if 'HTTP/1.1 200 OK' in resp:
+            self.log.info('nginx is running:\n')
 
         print('Good to go')
 

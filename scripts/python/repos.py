@@ -118,7 +118,7 @@ class local_epel_repo(object):
     def yum_create_remote(self):
         self.log.info('Registering remote repo {} with yum.'.format(self.repo_name))
 
-        repo_link_path = '/etc/mum.repos.d/{}.repo'.format(self.repo_name)
+        repo_link_path = '/etc/yum.repos.d/{}.repo'.format(self.repo_name)
         if os.path.isfile(repo_link_path):
             self.log.info('Remote linkage for repo {} already exists.'
                           .format(self.repo_name))

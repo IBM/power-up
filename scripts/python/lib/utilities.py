@@ -161,11 +161,11 @@ def sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
     return stdout, proc.returncode
 
 
-def sub_proc_display(cmd):
+def sub_proc_display(cmd, stdout=None, stderr=None):
     """Popen subprocess created without PIPES to allow subprocess printing
     to the parent screen. This is a blocking function.
     """
-    proc = Popen(cmd.split())
+    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
     proc.wait()
     rc = proc.returncode
     return rc
