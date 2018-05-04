@@ -18,60 +18,14 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-from subprocess import Popen, PIPE
 import argparse
 import os
-import re
 import sys
-import time
 
 import lib.logger as logger
 from repos import local_epel_repo, remote_nginx_repo
 from software_hosts import get_ansible_inventory
-
-
-def _sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
-    data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-    return data
-
-
-def _sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
-    data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-    stdout, stderr = data.communicate()
-    return stdout, stderr
-
-
-def _sub_proc_display(cmd, stat_re=None, stdout=PIPE, stderr=PIPE):
-    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
-    rc = None
-    ret = None
-    while rc is None:
-        resp = proc.stderr.readline()
-        resp = unicode(resp, 'utf-8')
-        resp = resp.replace('\n', '   ')
-        r = re.search(stat_re, resp)
-        if r:
-            ret = r
-        print(u'\r' + resp, end="")
-        rc = proc.poll()
-    print('')
-    return resp, ret
-
-
-def _sub_proc_wait(proc):
-    cnt = 0
-    rc = None
-    while rc is None:
-        rc = proc.poll()
-        print('\rwaiting for process to finish. Time elapsed: {:2}:{:2}:{:2}'.
-              format(cnt // 3600, cnt % 3600 // 60, cnt % 60), end="")
-        sys.stdout.flush()
-        time.sleep(1)
-        cnt += 1
-    print('\n')
-    resp, err = proc.communicate()
-    print(resp)
-    return rc
+from lib.utilities import sub_proc_display, sub_proc_exec
 
 
 class software(object):
@@ -92,11 +46,11 @@ class software(object):
             self.log.info('Downloading Anaconda')
             cmd = ('wget https://repo.continuum.io/archive/Anaconda2-5.1.0-Linux-'
                    'ppc64le.sh --directory-prefix=/srv/anaconda/')
-            resp, stat = _sub_proc_display(cmd, stat_re=r'saved \[(\d+)/(\d+)\]')
-            if stat and stat.group(1) == stat.group(2):
-                self.log.info('PowerAI base downloaded succesfully')
+            stat = sub_proc_display(cmd)
+            if stat == 0:
+                self.log.info('Anaconda downloaded succesfully')
             else:
-                self.log.error('Failed to download PowerAI base')
+                self.log.error('Failed to download Anaconda')
         else:
             self.log.info('Anaconda already downloaded')
 
@@ -109,8 +63,8 @@ class software(object):
             cmd = ('wget --directory-prefix=/srv/powerai-rpm http://ausgsa.ibm.com'
                    '/projects/m/mldl-repo/releases/v1r5m1/rhel/mldl-repo-local-5.1.'
                    '0-201804110899.fd91856.ppc64le.rpm')
-            resp, stat = _sub_proc_display(cmd, stat_re=r'saved \[(\d+)/(\d+)\]')
-            if stat and stat.group(1) == stat.group(2):
+            stat = sub_proc_display(cmd)
+            if stat == 0:
                 self.log.info('PowerAI base downloaded succesfully')
             else:
                 self.log.error('Failed to download PowerAI base')
@@ -119,28 +73,28 @@ class software(object):
 
         repo = local_epel_repo()
 
-        # repo.yum_create_remote()
-        # repo.create_dirs()
+        repo.yum_create_remote()
+        repo.create_dirs()
         # repo.sync()
-        # repo.create_meta()
-        # repo.yum_create_local()
+        repo.create_meta()
+        repo.yum_create_local()
         self.yum_powerup_repo_files.append(repo.get_yum_client_powerup())
 
-        self.log.debug(self.yum_powerup_repo_files[0]['filename'])
-        self.log.debug(self.yum_powerup_repo_files[0]['content'])
+        # self.log.debug(self.yum_powerup_repo_files[0]['filename'])
+        # self.log.debug(self.yum_powerup_repo_files[0]['content'])
 
-        # nginx_repo = remote_nginx_repo()
-        # nginx_repo.yum_create_remote()
+        nginx_repo = remote_nginx_repo()
+        nginx_repo.yum_create_remote()
 
-        return
         # Check if nginx installed. Install if necessary.
         cmd = 'nginx -v'
-        resp, err = _sub_proc_exec(cmd)
-        if 'nginx version' in err:
+        try:
+            resp, rc = sub_proc_exec(cmd)
             print('nginx is installed:\n{}'.format(resp))
-        else:
+        except OSError:
+            # if 'nginx version' in err:
             cmd = 'yum -y install nginx'
-            resp, err = _sub_proc_exec(cmd)
+            resp, err = sub_proc_exec(cmd)
             if err != 0:
                 self.log.error('Failed installing nginx')
                 self.log.error(resp)
@@ -148,42 +102,43 @@ class software(object):
             else:
                 # Fire it up
                 cmd = 'nginx'
-                resp, err = _sub_proc_exec(cmd)
+                resp, err = sub_proc_exec(cmd)
                 if err != 0:
                     self.log.error('Failed starting nginx')
-                    sys.exit(1)
+                    self.log.error('resp: {}'.format(resp))
+                    self.log.error('err: {}'.format(err))
 
         cmd = 'curl -I 127.0.0.1'
-        resp, err = _sub_proc_exec(cmd)
+        resp, err = sub_proc_exec(cmd)
         if 'HTTP/1.1 200 OK' in resp:
             self.log.info('nginx is running:\n')
 
         # Setup firewall to allow http
         fw_err = 0
         cmd = 'systemctl status firewalld.service'
-        resp, err = _sub_proc_exec(cmd)
+        resp, err = sub_proc_exec(cmd)
         if 'Active: active (running)' in resp.splitlines()[2]:
             self.log.debug('Firewall is running')
         else:
             cmd = 'systemctl enable firewalld.service'
-            resp, err = _sub_proc_exec(cmd)
+            resp, err = sub_proc_exec(cmd)
             if err != 0:
                 fw_err += 1
                 self.log.error('Failed to enable firewall')
 
             cmd = 'systemctl start firewalld.service'
-            resp, err = _sub_proc_exec(cmd)
+            resp, err = sub_proc_exec(cmd)
             if err != 0:
                 fw_err += 10
                 self.log.error('Failed to start firewall')
         cmd = 'firewall-cmd --permanent --add-service=http'
-        resp, err = _sub_proc_exec(cmd)
-        if 'ALREADY_ENABLED: http' not in err:
+        resp, rc = sub_proc_exec(cmd)
+        if rc != 0:
             fw_err += 100
             self.log.error('Failed to enable http service on firewall')
 
         cmd = 'firewall-cmd --reload'
-        resp, err = _sub_proc_exec(cmd)
+        resp, err = sub_proc_exec(cmd)
         if 'success' not in resp:
             fw_err += 1000
             self.log.error('Error attempting to restart firewall')
@@ -194,7 +149,7 @@ class software(object):
 
     def install(self):
         cmd = 'ansible-playbook -i {} /home/user/power-up/playbooks/install_software.yml'.format(get_ansible_inventory())
-        resp, err = _sub_proc_exec(cmd)
+        resp, err = sub_proc_exec(cmd)
         print(resp)
         print('All done')
 
