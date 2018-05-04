@@ -19,9 +19,11 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import os
 import re
+import sys
 import subprocess
 import fileinput
 from shutil import copy2
+from subprocess import Popen, PIPE
 
 import lib.logger as logger
 
@@ -139,3 +141,51 @@ def copy_file(source, dest):
     log = logger.getlogger()
     log.debug('Copy file, source:%s dest:%s' % (source, dest))
     copy2(source, dest)
+
+
+def sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
+    """Launch a subprocess and return the Popen process object.
+    This is non blocking. This is useful for long running processes.
+    """
+    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    return proc
+
+
+def sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
+    """Launch a subprocess wait for the process to finish.
+    Returns stdout from the process
+    This is blocking
+    """
+    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    stdout, stderr = proc.communicate()
+    return stdout, proc.returncode
+
+
+def sub_proc_display(cmd):
+    """Popen subprocess created without PIPES to allow subprocess printing
+    to the parent screen. This is a blocking function.
+    """
+    proc = Popen(cmd.split())
+    proc.wait()
+    rc = proc.returncode
+    return rc
+
+
+def sub_proc_wait(proc):
+    """Launch a subprocess and display a simple time counter while waiting.
+    This is a blocking wait. NOTE: sleeping (time.sleep()) in the wait loop
+    dramatically reduces performace of the subprocess. It would appear the
+    subprocess does not get it's own thread.
+    """
+    cnt = 0
+    rc = None
+    while rc is None:
+        rc = proc.poll()
+        print('\rwaiting for process to finish. Time elapsed: {:2}:{:2}:{:2}'.
+              format(cnt // 3600, cnt % 3600 // 60, cnt % 60), end="")
+        sys.stdout.flush()
+        cnt += 1
+    print('\n')
+    resp, err = proc.communicate()
+    print(resp)
+    return rc

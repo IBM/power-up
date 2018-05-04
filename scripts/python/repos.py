@@ -20,40 +20,11 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import argparse
 import os
-import sys
-import time
 import lib.logger as logger
-from subprocess import Popen, PIPE
+from lib.utilities import sub_proc_display, sub_proc_exec
 # import code
 
 # from lib.genesis import GEN_SOFTWARE_PATH
-
-
-def _sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
-    data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-    return data
-
-
-def _sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
-    data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-    stdout, stderr = data.communicate()
-    return stdout, stderr
-
-
-def _sub_proc_wait(proc):
-    cnt = 0
-    rc = None
-    while rc is None:
-        rc = proc.poll()
-        print('\rwaiting for process to finish. Time elapsed: {:2}:{:2}:{:2}'.
-              format(cnt // 3600, cnt % 3600 // 60, cnt % 60), end="")
-        sys.stdout.flush()
-        time.sleep(1)
-        cnt += 1
-    print('\n')
-    resp, err = proc.communicate()
-    print(resp)
-    return rc
 
 
 class remote_nginx_repo(object):
@@ -113,18 +84,14 @@ class local_epel_repo(object):
 
     def sync(self):
         self.log.info('Syncing remote repository {}'.format(self.repo_name))
-        self.log.info('This can take many minutes or hours for large repositories')
+        self.log.info('This can take many minutes or hours for large repositories\n')
         cmd = 'reposync -a {} -r {} -p /srv/repos/epel/{} -l -m'.format(
             self.arch, self.repo_name, self.rhel_ver)
-        proc = _sub_proc_launch(cmd)
-        dat = proc.stdout.readline()
-        print(dat)
-        rc = _sub_proc_wait(proc)
-        # code.interact(banner='sync_repo', local=dict(globals(), **locals()))
+        rc = sub_proc_display(cmd)
         if rc != 0:
-            self.log.error(rc)
+            self.log.error('Failed EPEL repo sync. {}'.format(rc))
         else:
-            self.log.info('Process finished succesfully')
+            self.log.info('EPEL sync finished successfully')
 
     def create_dirs(self):
         if not os.path.exists('/srv/repos/epel/{}'.format(self.rhel_ver)):
@@ -140,8 +107,7 @@ class local_epel_repo(object):
             cmd = 'createrepo -v -g comps.xml /srv/repos/epel/{}/{}'.format(
                 self.rhel_ver, self.repo_name)
             print(cmd)
-            proc = _sub_proc_launch(cmd)
-            rc = _sub_proc_wait(proc)
+            proc, rc = sub_proc_exec(cmd)
             if rc != 0:
                 self.log.error('Repo creation error: {}'.format(rc))
             else:
