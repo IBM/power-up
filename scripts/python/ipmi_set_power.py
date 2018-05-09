@@ -27,14 +27,15 @@ from lib.inventory import Inventory
 import lib.logger as logger
 
 
-def ipmi_set_power(state, client_list=None, max_attempts=5, wait=6):
+def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
+                   wait=6):
     """Set power on or off
     Args:
         state (str) : 'on' or 'off'
         client_list (list of str): list of IP addresses
     """
     log = logger.getlogger()
-    inv = Inventory()
+    inv = Inventory(config_path)
     wait = float(wait)
     max_attempts = int(max_attempts)
 

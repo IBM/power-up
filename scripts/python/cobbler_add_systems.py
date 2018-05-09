@@ -18,6 +18,9 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import sys
+import os.path
+import argparse
 import xmlrpclib
 import re
 
@@ -26,7 +29,7 @@ import lib.genesis as gen
 import lib.logger as logger
 
 
-def cobbler_add_systems():
+def cobbler_add_systems(cfg_file=None):
     LOG = logger.getlogger()
 
     cobbler_user = gen.get_cobbler_user()
@@ -34,7 +37,7 @@ def cobbler_add_systems():
     cobbler_server = xmlrpclib.Server("http://127.0.0.1/cobbler_api")
     token = cobbler_server.login(cobbler_user, cobbler_pass)
 
-    inv = Inventory()
+    inv = Inventory(cfg_file=cfg_file)
 
     for index, hostname in enumerate(inv.yield_nodes_hostname()):
         ipv4_ipmi = inv.get_nodes_ipmi_ipaddr(0, index)
@@ -154,6 +157,25 @@ def cobbler_add_systems():
 
 
 if __name__ == '__main__':
-    logger.create()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
 
-    cobbler_add_systems()
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = gen.GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    cobbler_add_systems(args.config_path)

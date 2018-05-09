@@ -18,7 +18,9 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
 import re
+import os.path
 import sys
 from subprocess import Popen, PIPE
 from time import sleep
@@ -59,14 +61,14 @@ def _get_lists(latest_list, handled_list):
     return new_list, handled_list
 
 
-def install_client_os():
+def install_client_os(config_path=None):
     log = logger.getlogger()
     cobbler_set_netboot_enabled(True)
-    ipmi_set_power('off', wait=POWER_WAIT)
-    ipmi_set_bootdev('network', False)
-    ipmi_set_power('on', wait=POWER_WAIT)
-    cfg = Config()
-    inv = Inventory()
+    ipmi_set_power('off', config_path, wait=POWER_WAIT)
+    ipmi_set_bootdev('network', False, config_path)
+    ipmi_set_power('on', config_path, wait=POWER_WAIT)
+    cfg = Config(config_path)
+    inv = Inventory(config_path)
 
     client_list = inv.get_nodes_ipmi_ipaddr(0)
     client_cnt = len(client_list)
@@ -92,7 +94,7 @@ def install_client_os():
               format(installing_cnt, client_cnt, cnt, gen.Color.up_one))
         sys.stdout.flush()
         if new_list:
-            ipmi_set_bootdev('default', True, new_list)
+            ipmi_set_bootdev('default', True, config_path, new_list)
         else:
             sleep(10)
         if installing_cnt == client_cnt:
@@ -111,5 +113,24 @@ def install_client_os():
 
 
 if __name__ == '__main__':
-    logger.create()
-    install_client_os()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = gen.GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+    install_client_os(args.config_path)

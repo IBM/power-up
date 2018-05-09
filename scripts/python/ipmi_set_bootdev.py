@@ -27,9 +27,9 @@ from lib.inventory import Inventory
 import lib.logger as logger
 
 
-def ipmi_set_bootdev(bootdev, persist=False, client_list=None):
+def ipmi_set_bootdev(bootdev, persist=False, config_path=None, client_list=None):
     log = logger.getlogger()
-    inv = Inventory()
+    inv = Inventory(cfg_file=config_path)
 
     if type(persist) is not bool:
         persist = (persist == 'True')
@@ -142,6 +142,9 @@ if __name__ == '__main__':
     parser.add_argument('--persist', action='store_true',
                         help='Persist this boot device setting.')
 
+    parser.add_argument('config_path', default='config.yml', nargs='?',
+                        help='Boot device.  ie network or none...')
+
     parser.add_argument('client_list', default='', nargs='*',
                         help='List of ip addresses.')
 
@@ -156,4 +159,4 @@ if __name__ == '__main__':
     if args.log_lvl_print == 'debug':
         print(args)
 
-    ipmi_set_bootdev(args.bootdev, args.persist, args.client_list)
+    ipmi_set_bootdev(args.bootdev, args.persist, args.config_path, args.client_list)

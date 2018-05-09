@@ -53,6 +53,8 @@ class Gen(object):
 
     def __init__(self, args):
         self.args = args
+        self.config_file_path = gen.GEN_PATH
+        self.cont_config_file_path = gen.CONTAINER_PACKAGE_PATH + '/'
 
     def _check_root_user(self, cmd):
         if getpass.getuser() != self.ROOTUSER:
@@ -77,7 +79,8 @@ class Gen(object):
         print('This may take a few minutes depending on the size'
               ' of the cluster')
         try:
-            configure_mgmt_switches.configure_mgmt_switches()
+            configure_mgmt_switches.configure_mgmt_switches(
+                self.config_file_path)
         except UserCriticalException as exc:
             print('{}A critical error occured while configuring managment '
                   'switches: \n{}{}'.format(COL.red, exc, COL.endc))
@@ -90,7 +93,8 @@ class Gen(object):
         print('{}Setting up deployer interfaces and networks{}\n'.
               format(COL.header1, COL.endc))
         try:
-            enable_deployer_networks.enable_deployer_network()
+            enable_deployer_networks.enable_deployer_network(
+                self.config_file_path)
         except UserCriticalException as exc:
             print('{}Critical error occured while setting up deployer networks:'
                   '\n{}{}'.format(COL.red, exc, COL.endc))
@@ -106,7 +110,8 @@ class Gen(object):
         print('{}Setting up PXE network gateway and NAT record{}\n'.
               format(COL.header1, COL.endc))
         try:
-            enable_deployer_gateway.enable_deployer_gateway()
+            enable_deployer_gateway.enable_deployer_gateway(
+                self.config_file_path)
         except UserCriticalException as exc:
             print('{}Critical error occured while setting up PXE network '
                   'gateway and NAT record:\n{}{}'.
@@ -121,23 +126,24 @@ class Gen(object):
 
     def _create_container(self):
         print(COL.scroll_ten, COL.up_ten)
-        print('{}Creating container for running the Cluster '
-              'Genesis software{}\n'.format(COL.header1, COL.endc))
+        print('{}Creating container for running the POWER-Up '
+              'software{}\n'.format(COL.header1, COL.endc))
         from lib.container import Container
-
-        cont = Container(self.args.create_container)
+        cont = Container(self.config_file_path)
+        print('created container object')
         try:
             cont.check_permissions(getpass.getuser())
         except UserException as exc:
             print('Fail:', exc, file=sys.stderr)
             sys.exit(1)
         try:
-            conf = lxc_conf.LxcConf()
+            conf = lxc_conf.LxcConf(self.config_file_path)
             conf.create()
         except Exception as exc:
             print("Fail:", exc, file=sys.stderr)
             sys.exit(1)
         try:
+            print('create it')
             cont.create()
         except UserException as exc:
             print('Fail:', exc, file=sys.stderr)
@@ -149,11 +155,11 @@ class Gen(object):
         print(COL.scroll_ten, COL.up_ten)
         print('{}Validating cluster configuration file{}\n'.
               format(COL.header1, COL.endc))
-        dbase = DatabaseConfig()
+        dbase = DatabaseConfig(self.config_file_path)
         inv_path = gen.GEN_LOGS_PATH + gen.INV_FILE_NAME
-        nodes = InventoryNodes(inv_path)
+        nodes = InventoryNodes(inv_path, self.config_file_path)
         try:
-            dbase.validate_config(self.args.config_file)
+            dbase.validate_config()
             nodes.create_nodes()
         except UserCriticalException as exc:
             exc.message = 'Failure: Config file validation.\n' + exc.message
@@ -170,7 +176,8 @@ class Gen(object):
         print('{}Discovering and validating cluster hardware{}\n'.
               format(COL.header1, COL.endc))
         err = False
-        val = validate_cluster_hardware.ValidateClusterHardware()
+        val = validate_cluster_hardware.ValidateClusterHardware(
+            self.config_file_path)
         try:
             val.validate_mgmt_switches()
         except UserCriticalException as exc:
@@ -198,7 +205,7 @@ class Gen(object):
             print('Not all nodes will be deployed at this time')
 
         try:
-            val.validate_pxe(self.args.cluster_hardware)
+            val.validate_pxe()
         except UserException as exc:
             err = True
             print('{}Failure: Node PXE validation error\n{}{}'.
@@ -214,7 +221,7 @@ class Gen(object):
     def _create_inventory(self):
         # from lib.inventory import Inventory
         # log = logger.getlogger()
-        # inv = Inventory()
+        # inv = Inventory(cfg_file=self.config_file_path)
         # node_count = len(inv.inv['nodes'])
         # if node_count > 0:
         #     log.info("Inventory already exists!")
@@ -237,21 +244,22 @@ class Gen(object):
 
         log = logger.getlogger()
 
-        cont = Container(self.args.create_inventory)
+        cont = Container(self.config_file_path, self.args.create_inventory)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'inv_create.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
 
-        deployer_inv_file = gen.get_symlink_realpath()
+        deployer_inv_file = gen.get_symlink_realpath(self.config_file_path)
 
         # If inventory file symlink is broken link remove it
-        symlink_path = gen.get_symlink_path()
+        symlink_path = gen.get_symlink_path(self.config_file_path)
         if os.path.islink(symlink_path):
             if not os.path.exists(os.readlink(symlink_path)):
                 os.unlink(symlink_path)
@@ -273,11 +281,12 @@ class Gen(object):
     def _install_cobbler(self):
         from lib.container import Container
 
-        cont = Container(self.args.install_cobbler)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'cobbler_install.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -289,12 +298,12 @@ class Gen(object):
         from lib.container import Container
 
         try:
-            download_os_images.download_os_images()
+            download_os_images.download_os_images(self.config_file_path)
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
 
-        cont = Container(self.args.download_os_images)
+        cont = Container(self.config_file_path)
         local_os_images = gen.get_os_images_path()
         cont_os_images = gen.get_container_os_images_path()
         try:
@@ -307,7 +316,7 @@ class Gen(object):
     def _inv_add_ports_ipmi(self):
         log = logger.getlogger()
         from lib.inventory import Inventory
-        inv = Inventory()
+        inv = Inventory(cfg_file=self.config_file_path)
         if (inv.check_all_nodes_ipmi_macs() and
                 inv.check_all_nodes_ipmi_ipaddrs()):
             log.info("IPMI ports MAC and IP addresses already in inventory")
@@ -316,13 +325,14 @@ class Gen(object):
         dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
         from lib.container import Container
 
-        cont = Container(self.args.inv_add_ports_ipmi)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'inv_add_ports.py'))
         cmd.append(dhcp_lease_file)
         cmd.append('ipmi')
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -333,11 +343,12 @@ class Gen(object):
     def _add_cobbler_distros(self):
         from lib.container import Container
 
-        cont = Container(self.args.add_cobbler_distros)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'cobbler_add_distros.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -348,26 +359,27 @@ class Gen(object):
     def _inv_add_ports_pxe(self):
         log = logger.getlogger()
         from lib.inventory import Inventory
-        inv = Inventory()
+        inv = Inventory(cfg_file=self.config_file_path)
         if (inv.check_all_nodes_pxe_macs() and
                 inv.check_all_nodes_pxe_ipaddrs()):
             log.info("PXE ports MAC and IP addresses already in inventory")
             return
 
         power_wait = gen.get_power_wait()
-        ipmi_set_power('off', wait=power_wait)
-        ipmi_set_power('on', wait=power_wait)
+        ipmi_set_power('off', self.config_file_path, wait=power_wait)
+        ipmi_set_power('on', self.config_file_path, wait=power_wait)
 
         dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
         from lib.container import Container
 
-        cont = Container(self.args.inv_add_ports_pxe)
+        cont = Container(self.config_file_path, self.args.inv_add_ports_pxe)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'inv_add_ports.py'))
         cmd.append(dhcp_lease_file)
         cmd.append('pxe')
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -378,11 +390,12 @@ class Gen(object):
     def _reserve_ipmi_pxe_ips(self):
         from lib.container import Container
 
-        cont = Container(self.args.reserve_ipmi_pxe_ips)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'inv_reserve_ipmi_pxe_ips.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -393,11 +406,12 @@ class Gen(object):
     def _add_cobbler_systems(self):
         from lib.container import Container
 
-        cont = Container(self.args.add_cobbler_systems)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'cobbler_add_systems.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -408,22 +422,23 @@ class Gen(object):
     def _install_client_os(self):
         from lib.container import Container
 
-        cont = Container(self.args.install_client_os)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'install_client_os.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
-        _run_playbook("wait_for_clients_ping.yml")
+        _run_playbook("wait_for_clients_ping.yml", self.config_file_path)
 
         print('Success: Client OS installaion complete')
 
     def _ssh_keyscan(self):
-        _run_playbook("ssh_keyscan.yml")
+        _run_playbook("ssh_keyscan.yml", self.config_file_path)
         print('Success: SSH host key scan complete')
 
     def _config_data_switches(self):
@@ -436,11 +451,12 @@ class Gen(object):
               ' of the cluster')
         if gen.is_container_running():
             from lib.container import Container
-            cont = Container(self.args.data_switches)
+            cont = Container(self.config_file_path)
             cmd = []
             cmd.append(gen.get_container_venv_python_exe())
             cmd.append(os.path.join(
                 gen.get_container_python_path(), 'configure_data_switches.py'))
+            cmd.append(self.cont_config_file_path)
             try:
                 cont.run_command(cmd)
             except UserException as exc:
@@ -450,7 +466,7 @@ class Gen(object):
                 print('\nSuccesfully configured data switches')
         else:
             try:
-                configure_data_switches.configure_data_switch()
+                configure_data_switches.configure_data_switch(self.args.config_file_name)
             except UserException as exc:
                 print('\n{}Fail: {}{}'.format(COL.red, exc.message, COL.endc),
                       file=sys.stderr)
@@ -463,22 +479,22 @@ class Gen(object):
     def _gather_mac_addr(self):
         from lib.container import Container
 
-        cont = Container(self.args.gather_mac_addr)
+        cont = Container(self.config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'clear_port_macs.py'))
+        cmd.append(self.cont_config_file_path)
         try:
             cont.run_command(cmd)
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
 
-        _run_playbook("activate_client_interfaces.yml")
+        _run_playbook("activate_client_interfaces.yml", self.config_file_path)
 
-        del cmd[-1]
-        cmd.append(os.path.join(
-            gen.get_container_python_path(), 'set_port_macs.py'))
+        cmd[-2] = os.path.join(
+            gen.get_container_python_path(), 'set_port_macs.py')
         try:
             cont.run_command(cmd)
         except UserException as exc:
@@ -489,7 +505,8 @@ class Gen(object):
 
     def _lookup_interface_names(self):
         try:
-            _run_playbook("lookup_interface_names.yml")
+            _run_playbook("lookup_interface_names.yml --extra-vars config_path=" +
+                          self.cont_config_file_path, self.config_file_path)
         except UserException as exc:
             print('Fail:', exc.message, file=sys.stderr)
             sys.exit(1)
@@ -497,13 +514,31 @@ class Gen(object):
         print('Success: Interface names collected')
 
     def _config_client_os(self):
-        _run_playbook("configure_operating_systems.yml")
+        _run_playbook("configure_operating_systems.yml", self.config_file_path)
         print('Success: Client operating systems are configured')
 
     def launch(self):
         """Launch actions"""
 
         cmd = None
+        self.cont_config_file_path += self.args.config_file_name
+
+        path = self.args.config_file_name
+        if os.path.dirname(self.args.config_file_name) == '':
+            path = os.path.join(os.getcwd(), self.args.config_file_name)
+
+        if os.path.isfile(path):
+            self.config_file_path = path
+        else:
+            self.config_file_path += self.args.config_file_name
+
+        if not os.path.isfile(self.config_file_path):
+            print('{} not found. Please specify a config file'.format(
+                self.config_file_path))
+            sys.exit(1)
+
+        self.config_file_path = os.path.abspath(self.config_file_path)
+
         # Determine which subcommand was specified
         try:
             if self.args.setup:
@@ -518,6 +553,10 @@ class Gen(object):
         try:
             if self.args.validate:
                 cmd = argparse_gen.Cmd.VALIDATE.value
+                print('\nUsing {}'.format(self.config_file_path))
+                resp = raw_input('Enter to continue. "T" to terminate ')
+                if resp == 'T':
+                    sys.exit('POWER-Up stopped at user request')
         except AttributeError:
             pass
         try:
@@ -637,8 +676,11 @@ class Gen(object):
                 self._config_data_switches()
 
 
-def _run_playbook(playbook):
+def _run_playbook(playbook, config_path):
     log = logger.getlogger()
+    config_pointer_file = gen.get_python_path() + '/config_pointer_file'
+    with open(config_pointer_file, 'w') as f:
+        f.write(config_path)
     ansible_playbook = gen.get_ansible_playbook_path()
     inventory = ' -i ' + gen.get_python_path() + '/inventory.py'
     playbook = ' ' + playbook
@@ -651,6 +693,7 @@ def _run_playbook(playbook):
 
 if __name__ == '__main__':
     args = argparse_gen.get_parsed_args()
+
     logger.create(
         args.log_level_file[0],
         args.log_level_print[0])

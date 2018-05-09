@@ -20,24 +20,49 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
+import os.path
+import sys
+
 import lib.logger as logger
 from lib.inv_nodes import InventoryNodes
+from lib.genesis import GEN_PATH
 
 
 class InventoryCreate(object):
     """Create inventory"""
 
-    def __init__(self):
-        pass
+    def __init__(self, config_path=None):
+        self.config_path = config_path
 
     def create(self):
         """Create inventory"""
 
-        nodes = InventoryNodes()
+        nodes = InventoryNodes(cfg_path=self.config_path)
         nodes.create_nodes()
 
 
 if __name__ == '__main__':
-    logger.create()
-    INV = InventoryCreate()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+
+    INV = InventoryCreate(args.config_path)
     INV.create()
