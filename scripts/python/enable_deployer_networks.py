@@ -18,6 +18,7 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
 import os
 import re
 import sys
@@ -29,14 +30,13 @@ from pyroute2 import IPRoute
 
 import lib.logger as logger
 from lib.config import Config
-from lib.genesis import GEN_PATH
 from lib.exception import UserCriticalException
-from lib.genesis import Color
+from lib.genesis import Color, GEN_PATH
 
 IPR = IPRoute()
 
 
-def enable_deployer_network():
+def enable_deployer_network(config_path=None):
     """creates or modifies the network elements on the deployer which allow
     communication between the Genesis container and the cluster nodes
     and switches. The management networks can utilize the default linux
@@ -47,7 +47,7 @@ def enable_deployer_network():
     This function is idempotent.
     """
     global LOG
-    cfg = Config()
+    cfg = Config(config_path)
     LOG = logger.getlogger()
     LOG.debug('------------------- enable_deployer_networks ----------------------')
 
@@ -209,7 +209,7 @@ def _create_network(
             mode = 'w'
 
         if IPR.link_lookup(ifname=br_label):
-            LOG.info('{}NOTE: bridge {} is already in use{}'.format(Color.bold,
+            LOG.info('{}NOTE: bridge {} is already configured.{}'.format(Color.bold,
                      br_label, Color.endc))
             print("Enter to continue, or 'T' to terminate deployment")
             resp = raw_input("\nEnter or 'T': ")
@@ -497,5 +497,25 @@ def _wait_for_ifc_up(ifname, timespan=10):
 
 
 if __name__ == '__main__':
-    logger.create()
-    enable_deployer_network()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative to '
+                        'power-up/ sudo env "PATH=$PATH"  '
+                        'enable_deployer_networks.py config-name')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+    enable_deployer_network(args.config_path)

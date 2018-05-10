@@ -21,6 +21,7 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
 import sys
+import os.path
 
 import teardown_deployer_container
 import enable_deployer_gateway
@@ -28,7 +29,7 @@ import teardown_deployer_networks
 import lib.argparse_teardown as argparse_teardown
 import lib.logger as logger
 import configure_data_switches
-from lib.genesis import get_container_name
+from lib.genesis import GEN_PATH
 
 
 class Teardown(object):
@@ -39,30 +40,47 @@ class Teardown(object):
     """
 
     def __init__(self, args):
+        self.config_file_path = GEN_PATH
         self.args = args
-        print('\nUsing config file for container: {}'.format(get_container_name()))
-        print("Enter to continue or 'T' to terminate")
-        resp = raw_input("\nEnter or 'T': ")
-        if resp == 'T':
-            sys.exit('POWER-Up stopped at user request')
 
     def _destroy_deployer_container(self):
-        teardown_deployer_container.teardown_deployer_container()
+        teardown_deployer_container.teardown_deployer_container(self.config_file_path)
 
     def _teardown_deployer_gateway(self):
-        enable_deployer_gateway.enable_deployer_gateway(remove=True)
+        enable_deployer_gateway.enable_deployer_gateway(self.config_file_path,
+                                                        remove=True)
 
     def _teardown_deployer_networks(self):
-        teardown_deployer_networks.teardown_deployer_network()
+        teardown_deployer_networks.teardown_deployer_network(self.config_file_path)
 
     def _teardown_switch_data(self):
-        configure_data_switches.deconfigure_data_switch()
+        configure_data_switches.deconfigure_data_switch(self.config_file_path)
 
     def _teardown_switch_mgmt(self):
         sys.exit('Teardown Mgmt switch not yet implemented')
 
     def launch(self):
         """Launch actions"""
+        path = self.args.config_file_name
+        if os.path.dirname(self.args.config_file_name) == '':
+            path = os.path.join(os.getcwd(), self.args.config_file_name)
+
+        if os.path.isfile(path):
+            self.config_file_path = path
+        else:
+            self.config_file_path += self.args.config_file_name
+
+        if not os.path.isfile(self.config_file_path):
+            print('{} not found. Please specify a config file'.format(
+                self.config_file_path))
+            sys.exit(1)
+
+        self.config_file_path = os.path.abspath(self.config_file_path)
+
+        print('\nUsing {}'.format(self.config_file_path))
+        resp = raw_input('Enter to continue. "T" to terminate ')
+        if resp == 'T':
+            sys.exit('POWER-Up stopped at user request')
 
         # Determine which subcommand was specified
         try:
@@ -75,7 +93,6 @@ class Teardown(object):
                     self._teardown_deployer_networks()
         except AttributeError:
             pass
-
         try:
             if self.args.switches:
                 if self.args.data:
@@ -88,7 +105,6 @@ class Teardown(object):
 
 if __name__ == '__main__':
     args = argparse_teardown.get_parsed_args()
-
     logger.create(
         args.log_level_file[0],
         args.log_level_print[0])

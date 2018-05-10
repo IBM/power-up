@@ -18,6 +18,9 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
+import os.path
+import sys
 import xmlrpclib
 from netaddr import IPNetwork
 from pyghmi.ipmi import command as ipmi_command
@@ -28,7 +31,7 @@ from lib.config import Config
 from lib.inventory import Inventory
 import lib.genesis as gen
 import lib.utilities as util
-from ipmi_power_off import ipmi_power_off
+from ipmi_set_power import ipmi_set_power
 from lib.exception import UserException
 import lib.logger as logger
 
@@ -36,7 +39,6 @@ DNSMASQ_TEMPLATE = '/etc/cobbler/dnsmasq.template'
 COBBLER_USER = gen.get_cobbler_user()
 COBBLER_PASS = gen.get_cobbler_pass()
 WAIT_TIME = 1200
-POWER_TIME_OUT = gen.get_power_time_out()
 POWER_WAIT = gen.get_power_wait()
 SLEEP_TIME = gen.get_power_sleep_time()
 
@@ -76,7 +78,7 @@ class IPManager(object):
         return ip_address
 
 
-def inv_set_ipmi_pxe_ip():
+def inv_set_ipmi_pxe_ip(config_path):
     """Configure DHCP IP reservations for IPMI and PXE interfaces
 
     IP addresses are assigned sequentially within the appropriate
@@ -89,15 +91,15 @@ def inv_set_ipmi_pxe_ip():
                        - Unable to connect to BMC at new IPMI IP address
     """
     log = logger.getlogger()
-    cfg = Config()
-    inv = Inventory()
+    cfg = Config(config_path)
+    inv = Inventory(cfg_file=config_path)
 
     ipmiNetwork = None
     pxeNetwork = None
     nodes_list = []
 
     # All nodes should be powered off before starting
-    ipmi_power_off(POWER_TIME_OUT, POWER_WAIT)
+    ipmi_set_power('off', config_path, wait=POWER_WAIT)
 
     # Create IPManager object for IPMI and/or PXE networks
     start_offset = gen.get_dhcp_pool_start()
@@ -237,6 +239,25 @@ def _adjust_dhcp_pool(network, dhcp_pool_start, dhcp_lease_time):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
 
-    logger.create()
-    inv_set_ipmi_pxe_ip()
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = gen.GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+
+    inv_set_ipmi_pxe_ip(args.config_path)

@@ -18,6 +18,7 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
 import os
 import sys
 import pwd
@@ -57,12 +58,14 @@ PY_DIST_PKGS = '/usr/lib/python2.7/dist-packages'
 INITD = '/etc/init.d/'
 APACHE2_CONF = '/etc/apache2/apache2.conf'
 MANAGE_DNSMASQ = '/opt/cobbler/cobbler/modules/manage_dnsmasq.py'
+COBBLER_DLCONTENT = '/opt/cobbler/cobbler/action_dlcontent.py'
+COBBLER_SETTINGS_PY = '/opt/cobbler/cobbler/settings.py'
 
 A2ENCONF = '/usr/sbin/a2enconf'
 A2ENMOD = '/usr/sbin/a2enmod'
 
 
-def cobbler_install():
+def cobbler_install(config_path=None):
     """Install and configure Cobbler in container.
 
     This function must be called within the container 'pup-venv'
@@ -70,7 +73,7 @@ def cobbler_install():
     this environment.
     """
 
-    cfg = Config()
+    cfg = Config(config_path)
     log = logger.getlogger()
 
     # Check to see if cobbler is already installed
@@ -115,6 +118,22 @@ def cobbler_install():
     util.replace_regex(MANAGE_DNSMASQ, 'systxt \= systxt \+ \"\\\\n\"',
                        "systxt = systxt + \",{}\\\\n\"".
                        format(dhcp_lease_time))
+
+    # Use non-secure http to download network boot-loaders
+    util.replace_regex(COBBLER_DLCONTENT,
+                       'https://cobbler.github.io',
+                       'http://cobbler.github.io')
+
+    # Use non-secure http to download signatures
+    util.replace_regex(COBBLER_SETTINGS_PY,
+                       'https://cobbler.github.io',
+                       'http://cobbler.github.io')
+
+    # Disable 'manage_genders'
+    original = '    \"manage_dns\"                          \: \[0,\"bool\"\],'
+    replace = ('    "manage_dns"                          : [0,"bool"],\n'
+               '    "manage_genders"                      : [0,"bool"],')
+    util.replace_regex(COBBLER_SETTINGS_PY, original, replace)
 
     # Run cobbler make install
     util.bash_cmd('cd %s; make install' % install_dir)
@@ -298,5 +317,25 @@ def _generate_random_characters(length=100):
 
 
 if __name__ == '__main__':
-    logger.create()
-    cobbler_install()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = gen.GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    cobbler_install(args.config_path)

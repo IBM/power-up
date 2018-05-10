@@ -38,7 +38,8 @@ class ValidateConfigLogic(object):
     def __init__(self, config):
         self.config = config
         from lib.config import Config
-        self.cfg = Config(self.config)
+        # Instantiate Config with supplied config object
+        self.cfg = Config(cfg=self.config)
         self.exc = ''
 
     def _validate_version(self):
@@ -211,8 +212,8 @@ class ValidateConfigLogic(object):
         netprefix = self.cfg.get_depl_netw_mgmt_prefix()
         cont_ip = self.cfg.get_depl_netw_mgmt_cont_ip()
         br_ip = self.cfg.get_depl_netw_mgmt_brg_ip()
-        if cont_ip[0]:
-            for i, cip in enumerate(cont_ip):
+        for i, cip in enumerate(cont_ip):
+            if cip:
                 netp = netprefix[i]
                 bip = br_ip[i]
                 cidr_cip = IPNetwork(cip + '/' + str(netp))
@@ -242,7 +243,6 @@ class ValidateConfigLogic(object):
                    "\n".format(dhcp_lease_time))
             exc += ('Value can be in seconds, minutes (e.g. "15m"),\n'
                     'hours (e.g. "1h") or "infinite" (lease does not expire).')
-            self.log.error(exc)
             raise UserException(exc)
 
     def validate_config_logic(self):

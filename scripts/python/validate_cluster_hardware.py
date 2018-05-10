@@ -18,6 +18,7 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
 import time
 import sys
 import os
@@ -44,11 +45,11 @@ from lib.genesis import get_dhcp_pool_start, GEN_PATH
 NAME_SPACE_OFFSET_ADDR = 1
 
 
-def main():
+def main(config_path):
     """Validate config"""
     log = logger.getlogger()
 
-    val = ValidateClusterHardware()
+    val = ValidateClusterHardware(config_path)
     if not val.validate_mgmt_switches():
         log.error('Failed validating cluster management switches')
 
@@ -218,15 +219,16 @@ class ValidateClusterHardware(object):
         log (object): Log
     """
 
-    def __init__(self):
+    def __init__(self, config_file=None):
         self.log = logger.getlogger()
         try:
-            self.cfg = Config()
-            self.inv = Inventory()
+            self.cfg = Config(config_file)
+            self.inv = Inventory(None, config_file)
         except UserException as exc:
             self.log.critical(exc)
             raise UserException(exc)
         # initialize ipmi list of access info
+        self.ran_ipmi = False
         self.ipmi_list_ai = {}
         vlan_ipmi = self.cfg.get_depl_netw_client_vlan(if_type='ipmi')[0]
         vlan_pxe = self.cfg.get_depl_netw_client_vlan(if_type='pxe')[0]
@@ -495,25 +497,25 @@ class ValidateClusterHardware(object):
 
     def validate_ipmi(self):
         self.log.info("Discover and validate cluster nodes")
-        if self.inv.check_all_nodes_ipmi_macs():
-            self.log.info("Inventory exists with IPMI MACs populated.")
-            print("\nPress Enter to continue cluster deployment without "
-                  "running IPMI hardware validation.")
-            print("Type 'C' to validate cluster nodes defined in current "
-                  "'config.yml'")
-            resp = raw_input("Type 'T' to terminate Cluster Genesis ")
-            if resp == 'T':
-                resp = raw_input("Type 'y' to confirm ")
-                if resp == 'y':
-                    self.log.info("'{}' entered. Terminating Genesis at user "
-                                  "request".format(resp))
-                    sys.exit(1)
-            elif resp == 'C':
-                self.log.info("'{}' entered. Continuing with hardware "
-                              "validation".format(resp))
-            else:
-                print()
-                return
+        # if self.inv.check_all_nodes_ipmi_macs() and self.inv.check_all_nodes_pxe_macs():
+        #     self.log.info("Inventory exists with IPMI and PXE MACs populated.")
+        #     print("\nPress Enter to continue cluster deployment without "
+        #           "running IPMI hardware validation.")
+        #     print("Type 'C' to validate cluster nodes defined in current "
+        #           "'config.yml'")
+        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     if resp == 'T':
+        #         resp = raw_input("Type 'y' to confirm ")
+        #         if resp == 'y':
+        #             self.log.info("'{}' entered. Terminating Genesis at user "
+        #                           "request".format(resp))
+        #             sys.exit(1)
+        #     elif resp == 'C':
+        #         self.log.info("'{}' entered. Continuing with hardware "
+        #                       "validation".format(resp))
+        #     else:
+        #         print()
+        #         return
         ipmi_cnt, pxe_cnt = self._get_port_cnts()
         ipmi_addr, bridge_addr, ipmi_prefix, ipmi_vlan = self._get_network('ipmi')
         ipmi_network = ipmi_addr + '/' + str(ipmi_prefix)
@@ -545,7 +547,7 @@ class ValidateClusterHardware(object):
         print('Pause 20s for BMCs to begin reset')
         time.sleep(20)
 
-        cmd = 'dnsmasq --dhcp-leasefile={} --interface={} --dhcp-range={},{},{},300' \
+        cmd = 'dnsmasq --dhcp-leasefile={} --interface={} --dhcp-range={},{},{},600' \
             .format(self.dhcp_ipmi_leases_file, self.ipmi_ns._get_name_sp_ifc_name(),
                     addr_st, dhcp_end, netmask)
 
@@ -628,6 +630,7 @@ class ValidateClusterHardware(object):
         self._power_all(self.ipmi_list_ai, 'on', bootdev='network')
 
         self.log.debug('Cluster nodes IPMI validation complete')
+        self.ran_ipmi = True
         if not rc:
             raise UserException('Not all node IPMI ports validated')
 
@@ -700,25 +703,31 @@ class ValidateClusterHardware(object):
         return mac_list
 
     def validate_pxe(self, bootdev='default', persist=True):
-        if self.inv.check_all_nodes_pxe_macs():
-            self.log.info("Inventory exists with PXE MACs populated.")
-            print("\nPress Enter to continue cluster deployment without "
-                  "running PXE hardware validation.")
-            print("Type 'C' to validate cluster nodes defined in current "
-                  "'config.yml'")
-            resp = raw_input("Type 'T' to terminate Cluster Genesis ")
-            if resp == 'T':
-                resp = raw_input("Type 'y' to confirm ")
-                if resp == 'y':
-                    self.log.info("'{}' entered. Terminating Genesis at user "
-                                  "request".format(resp))
-                    sys.exit(1)
-            elif resp == 'C':
-                self.log.info("'{}' entered. Continuing with hardware "
-                              "validation".format(resp))
-            else:
-                print()
-                return
+        # if self.inv.check_all_nodes_pxe_macs():
+        #     self.log.info("Inventory exists with PXE MACs populated.")
+        #     if not self.ran_ipmi:
+        #         return
+        #     print("\nPress Enter to continue cluster deployment without "
+        #           "running PXE hardware validation.")
+        #     print("Type 'C' to validate cluster nodes defined in current "
+        #           "'config.yml'")
+        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     if resp == 'T':
+        #         resp = raw_input("Type 'y' to confirm ")
+        #         if resp == 'y':
+        #             self.log.info("'{}' entered. Terminating Genesis at user "
+        #                           "request".format(resp))
+        #             sys.exit(1)
+        #     elif resp == 'C':
+        #         self.log.info("'{}' entered. Continuing with hardware "
+        #                       "validation".format(resp))
+        #     else:
+        #         print()
+        #         return
+        # if not self.ran_ipmi:
+        #     return
+        if not self.node_table_ipmi:
+            raise UserCriticalException('No BMCs discovered')
         self.log.debug("Checking PXE networks and client PXE"
                        " ports ________\n")
         self.log.debug('Boot device: {}'.format(bootdev))
@@ -798,10 +807,10 @@ class ValidateClusterHardware(object):
                         self.log.warning('Failure reading tcpdump file - {}'.format(stderr))
                 mac_list = self._get_macs(mac_list, dump)
                 cnt = len(mac_list)
-                if cnt >= cnt_prev:
+                if cnt > cnt_prev:
                     cnt_prev = cnt
                     # Pause briefly for in flight DHCP to complete and lease file to update
-                    time.sleep(2)
+                    time.sleep(5)
                     self._build_port_table_pxe(mac_list)
                 if cnt >= pxe_cnt:
                     rc = True
@@ -866,7 +875,7 @@ class ValidateClusterHardware(object):
             raise UserException('Not all node PXE ports validated')
 
     def _reset_unfound_nodes(self):
-        """ Power cycle the nodes who's PXE ports are not responding to pings.
+        """ Power cycle the nodes who's PXE ports are not requesting pxe boot.
         """
         ipmi_missing_list_ai = {}
         for label in self.cfg.yield_sw_mgmt_label():
@@ -875,7 +884,7 @@ class ValidateClusterHardware(object):
             for node in self.node_table_ipmi[label]:
                 if node[0] in ipmi_ports:
                     idx = ipmi_ports.index(node[0])
-                    if not self._is_port_in_table(
+                    if label not in self.node_table_pxe or not self._is_port_in_table(
                             self.node_table_pxe[label], pxe_ports[idx]):
                         ipmi_missing_list_ai[node[2]] = self.ipmi_list_ai[node[2]]
         self.log.debug('Cycling power to missing nodes list: {}'
@@ -952,6 +961,19 @@ class ValidateClusterHardware(object):
                     except IpmiException as exc:
                         self.log.error('Failed attempting set boot device. {}'
                                        .format(exc.message))
+                    else:
+                        try:
+                            rc = bmc.get_bootdev()
+                        except IpmiException as exc:
+                            self.log.error('Failed attempting get boot device. {}'
+                                           .format(exc.message))
+                        else:
+                            if 'error' in rc or rc['bootdev'] != bootdev:
+                                self.log.error('Failed attempting get boot device on {}'
+                                               .format(node))
+                            else:
+                                self.log.debug('Get boot successful on {}: \n{}'.
+                                               format(node, rc))
                     rc = bmc.ipmi_session.logout()
                     self.log.debug('Logging out rc: {}'.format(rc['success']))
 
@@ -1015,11 +1037,10 @@ class ValidateClusterHardware(object):
             netprefix: (str)
             vlan: (str)
         """
-        cfg = Config()
-        types = cfg.get_depl_netw_client_type()
-        bridge_ipaddr = cfg.get_depl_netw_client_brg_ip()
-        vlan = cfg.get_depl_netw_client_vlan()
-        netprefix = cfg.get_depl_netw_client_prefix()
+        types = self.cfg.get_depl_netw_client_type()
+        bridge_ipaddr = self.cfg.get_depl_netw_client_brg_ip()
+        vlan = self.cfg.get_depl_netw_client_vlan()
+        netprefix = self.cfg.get_depl_netw_client_prefix()
         idx = types.index(type_)
 
         network = IPNetwork(bridge_ipaddr[idx] + '/' + str(netprefix[idx]))
@@ -1028,19 +1049,18 @@ class ValidateClusterHardware(object):
 
     def validate_data_switches(self):
         self.log.info('Verifying data switches')
-        cfg = Config()
 
-        sw_cnt = cfg.get_sw_data_cnt()
+        sw_cnt = self.cfg.get_sw_data_cnt()
         self.log.debug('Number of data switches defined in config file: {}'.
                        format(sw_cnt))
 
-        for index, switch_label in enumerate(cfg.yield_sw_data_label()):
+        for index, switch_label in enumerate(self.cfg.yield_sw_data_label()):
             print('.', end="")
             sys.stdout.flush()
-            label = cfg.get_sw_data_label(index)
+            label = self.cfg.get_sw_data_label(index)
             self.log.debug('switch_label: {}'.format(switch_label))
 
-            switch_class = cfg.get_sw_data_class(index)
+            switch_class = self.cfg.get_sw_data_class(index)
             if not switch_class:
                 self.log.error('No switch class found')
                 return False
@@ -1049,16 +1069,16 @@ class ValidateClusterHardware(object):
             rc = True
 
             try:
-                userid = cfg.get_sw_data_userid(index)
+                userid = self.cfg.get_sw_data_userid(index)
             except AttributeError:
                 self.log.info('Passive switch mode specified')
                 return True
 
             try:
-                password = cfg.get_sw_data_password(index)
+                password = self.cfg.get_sw_data_password(index)
             except AttributeError:
                 try:
-                    cfg.get_sw_data_ssh_key(index)
+                    self.cfg.get_sw_data_ssh_key(index)
                 except AttributeError:
                     return True
                 else:
@@ -1066,7 +1086,7 @@ class ValidateClusterHardware(object):
                         'Switch authentication via ssh keys not yet supported')
                     return False
             # Verify communication on each defined interface
-            for ip in cfg.yield_sw_data_interfaces_ip(index):
+            for ip in self.cfg.yield_sw_data_interfaces_ip(index):
                 self.log.debug('Verifying switch communication on ip'
                                ' address: {}'.format(ip))
                 sw = SwitchFactory.factory(
@@ -1106,19 +1126,18 @@ class ValidateClusterHardware(object):
 
     def validate_mgmt_switches(self):
         self.log.info('Verifying management switches')
-        cfg = Config()
 
-        sw_cnt = cfg.get_sw_mgmt_cnt()
+        sw_cnt = self.cfg.get_sw_mgmt_cnt()
         self.log.debug('Number of management switches defined in config file: {}'.
                        format(sw_cnt))
 
-        for index, switch_label in enumerate(cfg.yield_sw_mgmt_label()):
+        for index, switch_label in enumerate(self.cfg.yield_sw_mgmt_label()):
             print('.', end="")
             sys.stdout.flush()
-            label = cfg.get_sw_mgmt_label(index)
+            label = self.cfg.get_sw_mgmt_label(index)
             self.log.debug('switch_label: {}'.format(switch_label))
 
-            switch_class = cfg.get_sw_mgmt_class(index)
+            switch_class = self.cfg.get_sw_mgmt_class(index)
             if not switch_class:
                 self.log.error('No switch class found')
                 return False
@@ -1127,16 +1146,16 @@ class ValidateClusterHardware(object):
             rc = True
 
             try:
-                userid = cfg.get_sw_mgmt_userid(index)
+                userid = self.cfg.get_sw_mgmt_userid(index)
             except AttributeError:
                 self.log.debug('Passive switch mode specified')
                 return rc
 
             try:
-                password = cfg.get_sw_mgmt_password(index)
+                password = self.cfg.get_sw_mgmt_password(index)
             except AttributeError:
                 try:
-                    cfg.get_sw_mgmt_ssh_key(index)
+                    self.cfg.get_sw_mgmt_ssh_key(index)
                 except AttributeError:
                     return rc
                 else:
@@ -1144,7 +1163,7 @@ class ValidateClusterHardware(object):
                         'Switch authentication via ssh keys not yet supported')
                     rc = False
             # Verify communication on each defined interface
-            for ip in cfg.yield_sw_mgmt_interfaces_ip(index):
+            for ip in self.cfg.yield_sw_mgmt_interfaces_ip(index):
                 self.log.debug('Verifying switch communication on ip address:'
                                ' {}'.format(ip))
                 sw = SwitchFactory.factory(
@@ -1186,5 +1205,24 @@ class ValidateClusterHardware(object):
 
 
 if __name__ == '__main__':
-    logger.create()
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+    main(args.config_path)

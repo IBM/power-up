@@ -18,6 +18,8 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
+import argparse
+import os.path
 import sys
 
 import lib.logger as logger
@@ -25,16 +27,17 @@ from lib.config import Config
 from lib.switch import SwitchFactory
 from lib.switch_exception import SwitchException
 from lib.exception import UserCriticalException
+from lib.genesis import GEN_PATH
 # from write_switch_memory import WriteSwitchMemory
 
 ACTIVE = 'active'
 PASSIVE = 'passive'
 
 
-def configure_mgmt_switches():
+def configure_mgmt_switches(config_file=None):
 
     LOG = logger.getlogger()
-    cfg = Config()
+    cfg = Config(config_file)
     LOG.debug('------------------- configure_mgmt_switches -------------------')
 
     for index, switch_label in enumerate(cfg.yield_sw_mgmt_label()):
@@ -192,5 +195,24 @@ def configure_mgmt_switches():
 
 
 if __name__ == '__main__':
-    logger.create()
-    configure_mgmt_switches()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative '
+                        'to power-up/')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+    configure_mgmt_switches(args.config_path)
