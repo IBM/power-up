@@ -75,7 +75,7 @@ class software(object):
 
         repo.yum_create_remote()
         repo.create_dirs()
-        # repo.sync()
+        repo.sync()
         repo.create_meta()
         repo.yum_create_local()
         self.yum_powerup_repo_files.append(repo.get_yum_client_powerup())
@@ -150,6 +150,9 @@ class software(object):
     def install(self):
         cmd = 'ansible-playbook -i {} /home/user/power-up/playbooks/install_software.yml'.format(get_ansible_inventory())
         resp, err = sub_proc_exec(cmd)
+        print(resp)
+        cmd = 'ssh -t -i ~/.ssh/gen root@10.0.20.22 /opt/DL/license/bin/accept-powerai-license.sh'
+        resp = sub_proc_display(cmd)
         print(resp)
         print('All done')
 
