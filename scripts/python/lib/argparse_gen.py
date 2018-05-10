@@ -316,24 +316,25 @@ def get_args(parser_args=False):
 
     parser_software.add_argument(
         'name', nargs='?',
-        help='Create deployer interfaces, vlans and bridges')
+        help='Software module name')
 
     parser_software.add_argument(
         '--prep',
         default=ABSENT,
         action='store_true',
-        help='Create deployer interfaces, vlans and bridges')
+        help='Download software packages and pre-requisite repositories and sets\n'
+             'up this node as the server for the software')
 
     parser_software.add_argument(
         '--install',
         default=ABSENT,
         action='store_true',
-        help='Configure PXE network gateway and NAT record')
+        help='Install the specified software to cluster nodes')
 
     parser_software.add_argument(
         '-a', '--all',
         action='store_true',
-        help='Run all cluster setup steps')
+        help='Run all software prep and install steps')
 
     if parser_args:
         return (parser, parser_setup, parser_config, parser_validate,
