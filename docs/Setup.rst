@@ -1,132 +1,98 @@
 .. highlight:: none
 
-Introduction
-============
+Prerequisite Hardware Setup
+===========================
 
-Cluster POWER-Up enables greatly simplified configuration of clusters of
-bare metal OpenPOWER servers running Linux. It leverages widely used open
-source tools such as Cobbler, Ansible and Python. Because it relies
-solely on industry standard protocols such as IPMI and PXE boot, hybrid
-clusters of OpenPOWER and x86 nodes can readily be supported. Currently
-Cluster POWER-Up supports Ethernet networking. Cluster POWER-Up can
-configure simple flat networks for typical HPC
-environments or more advanced networks with VLANS and bridges for
-OpenStack environments. Complex heterogeneous clusters can be easily deployed
-using POWER-Up's interface and node templates. Cluster POWER-Up configures
-the switches in the cluster with support for multiple switch vendors.
+.. _setup-deployer:
 
-Overview
---------
+Setting up the Deployer Node
+----------------------------
 
-Cluster POWER-Up is designed to be easy to use. If you are implementing
-one of the supported architectures with supported hardware, it eliminates
-the need for custom scripts or programming. It does this via a text
-configuration file (config.yml) which drives the cluster configuration.
-The configuration file is a YAML text file which the user edits. Several
-example config files are included docs directory. The configuration
-process is driven from a "deployer" node which can be removed from the
-cluster when finished. The POWER-Up process is as follows;
+It is recommended that the deployer node have at least one available core of a
+XEON class processor, 16 GB of memory free and 64 GB available disk space. When
+using the POWER-Up software installation capabilities, it is recommended that 300 GB
+of disk space be available. For larger cluster deployments, additional cores,
+memory and disk space are recommended. A 4 core XEON class processor with 32 GB
+memory and 320 GB disk space is generally adequate for cluster deployments up
+to several racks.
 
-#. Rack and cable the hardware.
-#. Initialize hardware.
+The deployer node requires internet access for setup and installation of the POWER-UP
+software and setup of any repositories needed for software installation.
+This can be achieved through the interface used for connection to the management
+switch (assuming the management switch has a connection to the internet) or through
+another interface. Internet access is not required when running POWER-Up software
+installation functions, but is required when running cluster deployments.
 
-   - initialize switches with static IP address, userid and password.
-   - insure that all cluster compute nodes are set to obtain a DHCP
-     address on their BMC ports and they are configured to support
-     PXE boot on one of their network adapters.
 
-#. Install the Cluster POWER-Up software on the deployer node.
-#. Edit an existing config.yml file to drive the configuration.
-#. Run the POWER-Up software
+Operating Sytem and Package setup of the Deployer Node
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When finished, Cluster POWER-Up generates a YAML formatted inventory file
-with detailed information about your cluster nodes. This file can
-be read by operational management software and used to seed
-configuration files needed for installing a solution software stack.
+- Deployer OS Requirements:
+    - Ubuntu (Software installation is not yet supported under Ubuntu)
+        - Release 14.04LTS or 16.04LTS
+        - SSH login enabled
+        - sudo privileges
+    - RHEL (Software installation is supported with POWER-Up vs 2.1. Cluster deployment is not yet supported under RHEL)
+        - Release 7.2 or later
+        - Extra Packages for Enterprise Linux (EPEL) repository enabled
+          (https://fedoraproject.org/wiki/EPEL)
+        - SSH login enabled
+        - sudo privileges
 
-Hardware and Architecture Overview
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- Optionally, assign a static, public ip address to the BMC port to allow
+  external control of the deployer node.
 
-The POWER-Up software supports clusters of servers
-interconnected with Ethernet. The
-servers must support IPMI and PXE boot. Multiple racks can
-be configured with traditional two tier access-aggregation
-networking. POWER-Up configures both a management and
-data network. In simple / cost sensitive setups, the management
-and data networks can be configured on the same physical switch.
-Power-Up can configure VLANs and bonded networks with as many ports
-as the hardware supports. Redundant data switches (ie MLAG) are also
-supported. (Currently only implemented on Mellanox switches.)
+- login into the deployer and install the vim, vlan, bridge-utils and fping
+  packages:
 
-Networking
-~~~~~~~~~~
+    - Ubuntu::
 
-Cluster POWER-Up supports Cisco, Mellanox and Lenovo switches. Not all
-functionality is enabled on all switch types. Currently redundant
-networking (MLAG) is only implemented on Mellanox switches. Port channel
-support is only implemented on Cisco (NX-OS) and Mellanox switches.
-POWER-Up can configure any number of node interfaces on cluster nodes.
-To facilitate installation of higher level software, interfaces can be
-optionally renamed.
+        $ sudo apt-get update
+        $ sudo apt-get install vim vlan bridge-utils fping
 
-Interface templates are used to define network configurations
-in the config.yml file. These can be physical ports, bonded ports,
-Linux bridges or VLANS. Interface templates can be entered using
-Ubuntu or Red Hat network configuration syntax. Once defined, interface
-templates can be applied to any node template. Node interfaces can
-optionally be configured with static IP addresses. These can be assigned
-sequentially or from a list.
+    - RHEL::
 
-Compute Nodes
-~~~~~~~~~~~~~
+        $ sudo yum install vim vlan bridge-utils fping
 
-Cluster POWER-Up supports clusters of heterogeneous compute nodes. Users
-can define any number of node types by creating templates in a config file.
-Node templates can include any network templates defined in the network
-templates section. The combination of node templates and network templates
-allows great flexibility in building heterogeneous clusters with nodes
-dedicated to specific purposes.
+Network Configuration of the Deployer Node
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. _supported-hardware:
+**For Software Installation**
 
-Supported Hardware
-~~~~~~~~~~~~~~~~~~~
+Use of the POWER-Up software installer requires that an interface on the installer node
+be preconfigured with access to the cluster nodes. If the cluster was not deployed by
+POWER-Up, this needs to be done manually. If the cluster has been deployed by POWER-Up,
+the PXE network will be automatically configured and can be used for software installation.
 
-**Compute Nodes**
+Although a routed connection to the cluster can be used for software installs,
+It is preferable that the interface used have an IP address in the subnet of the
+cluster network to be used for installation.
 
-OpenPOWER Compute Nodes;
+**For Bare Metal Deployments**
 
--  S812LC
--  S821LC
--  S822LC (Minsky)
--  SuperMicro OpenPOWER servers
+For bare metal deployments the deployer port connected to the management
+switch must be defined in /etc/network/interfaces (Ubuntu) or the ifcfg-eth# file
+(RedHat). e.g.::
 
-x86 Compute Nodes;
+    auto eth0      # example device name
+    iface eth0 inet manual
 
--  Lenovo x3550
--  Lenovo x3650
+POWER-Up can set up a subnet and optionally a vlan for it's access to the switches in the
+cluster. It is recommended that the deployer be provided with a direct
+connection to the management switch to simplify the overall setup. If this is
+not possible, the end user must insure that tagged vlan packets can be
+communicated between the deployer and the switches in the cluster. The interface
+used for PXE and IPMI can have additional IP addresses on it, but they should not
+be in the PXE or IPMI subnet. Similarly, this interface can have existing tagged
+vlans configured on it, but they should not be the vlans to be used by the PXE and
+IPMI networks.
 
-Many other x86 nodes should work, but we have only tested with Lenovo and some Supermicro nodes.
-
-**Switches**
-
-For information on adding additional switch support using
-POWER-Up's switch class API, (see :ref:`developerguide`)
-
-Supported Switches;
-
--  Mellanox SX1410
--  Mellanox SX1710
--  Cisco 5K (FEXes supported)
--  Lenovo G8052, G7028, G7052 (bonding not currently supported)
-
-Notes;
-Other Mellanox switches may work but have not been tested
-Lenovo G8264 has not been tested
-Other Cisco NX-OS based switches may work but have not been tested
-
-Prerequisite hardware setup
-============================
+An example of the config file parameters used to configure initial access to the
+switches is given above with :ref:`fig-network-setup`. For a detailed
+description of these keys see
+:ref:`deployer 'mgmt' networks <deployer_networks_mgmt>`,
+:ref:`'switches: mgmt:' <switches_mgmt>` and
+:ref:`'switches: data:' <switches_data>` in the :ref:`config_file_spec`.
 
 Hardware initialization
 -----------------------
@@ -389,65 +355,4 @@ particular, note that it is not usually possible to acquire complete MAC address
 information once vPC (AKA MLAG or VLAG) has been configured on the data
 switches.
 
-Setting up the Deployer Node
-----------------------------
 
-It is recommended that the deployer node have at least one available core of a
-XEON class processor, 16 GB of memory free and 64 GB available disk space. For
-larger cluster deployments, additional cores, memory and disk space are
-recommended. A 4 core XEON class processor with 32 GB memory and 320 GB disk
-space is generally adequate for installations up to several racks.
-
-The deployer node requires internet access. This can be achieved through the
-interface used for connection to the management switch (assuming the management
-switch has a connection to the internet) or through another interface.
-
-**Operating Sytem and Package setup of the Deployer Node**
-
-- Deployer OS Requirements:
-    - Ubuntu
-        - Release 14.04LTS or 16.04LTS
-        - SSH login enabled
-        - sudo privileges
-    - RHEL
-        - Release 7.2 or later
-        - Extra Packages for Enterprise Linux (EPEL) repository enabled
-          (https://fedoraproject.org/wiki/EPEL)
-        - SSH login enabled
-        - sudo privileges
-
-- Optionally, assign a static, public ip address to the BMC port to allow
-  external control of the deployer node.
-
-- login into the deployer and install the vim, vlan, bridge-utils and fping
-  packages:
-
-    - Ubuntu::
-
-        $ sudo apt-get update
-        $ sudo apt-get install vim vlan bridge-utils fping
-
-    - RHEL::
-
-        $ sudo yum install vim vlan bridge-utils fping
-
-**Network Configuration of the Deployer Node**
-
-**Note**: The deployer port connected to the management switch must be defined
-in /etc/network/interfaces (Ubuntu) or the ifcfg-eth# file (RedHat). e.g.::
-
-    auto eth0      # example device name
-    iface eth0 inet manual
-
-POWER-Up sets up a vlan and subnet for it's access to the switches in the
-cluster. It is recommended that the deployer be provided with a direct
-connection to the management switch to simplify the overall setup. If this is
-not possible, the end user must insure that tagged vlan packets can be
-communicated between the deployer and the switches in the cluster.
-
-An example of the config file parameters used to configure initial access to the
-switches is given above with :ref:`fig-network-setup`. For a detailed
-description of these keys see
-:ref:`deployer 'mgmt' networks <deployer_networks_mgmt>`,
-:ref:`'switches: mgmt:' <switches_mgmt>` and
-:ref:`'switches: data:' <switches_data>` in the :ref:`config_file_spec`.
