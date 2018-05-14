@@ -67,7 +67,14 @@ _pup()
         return 0
     fi
 
-    opts="setup config validate deploy post-deploy --help"
+    opts="--scan-pxe-network --scan-ipmi-network"
+
+    if [[ ${cur} == * ]] && [[ ${prev} == utils ]]; then
+        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+        return 0
+    fi
+
+    opts="setup config validate deploy post-deploy utils --help"
 
     if [[ ${cur} == * ]] && [[ ${prev} == "$cmd" ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
