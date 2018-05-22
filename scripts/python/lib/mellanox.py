@@ -61,6 +61,7 @@ class Mellanox(SwitchCommon):
     ENABLE_REMOTE_CONFIG = 'cli enable "configure terminal" {}'
     FORCE = 'force'
     SET_MTU = '"mtu {}"'
+    NO_MTU = '"no mtu"'
     SHOW_VLANS = '"show vlan"'
     CREATE_VLAN = '"vlan {}"'
     DELETE_VLAN = '"no vlan {}"'
@@ -372,7 +373,9 @@ class Mellanox(SwitchCommon):
         if mtu == 0:
             self.send_cmd(
                 self.MLAG_PORT_CHANNEL.format(port) +
-                '"no mtu"' +
+                self.SEP +
+                self.NO_MTU +
+                self.SEP +
                 self.FORCE)
         else:
             self.send_cmd(
