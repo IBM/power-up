@@ -30,7 +30,7 @@ import code
 
 import lib.logger as logger
 from repos import PowerupRepo, PowerupRepoFromDir, PowerupRepoFromRepo, \
-    setup_source_file
+    PowerupRepoFromRpm, setup_source_file
 from software_hosts import get_ansible_inventory
 from lib.utilities import sub_proc_display, sub_proc_exec, heading1, \
     get_selection, get_yesno, get_dir, get_file_path, rlinput
@@ -76,51 +76,30 @@ class software(object):
             yaml.dump(self.sw_vars, f, default_flow_style=False)
 
     def setup(self):
-        r = get_yesno('Would you like to create a custom repository? ')
-        if r == 'y':
-            ch, item = get_selection('Directory.RPM file', 'dir.rpm', '.',
-                                     'Custom repository from a directory or RPM file? ')
-            repo_id = input('Enter a repo id (yum short name): ')
-            repo_name = input('Enter a repo name (Descriptive name): ')
-            if ch == 'rpm':
-                fpath = get_file_path('/home/**/*.rpm')
-                #print(fpath)
-                if fpath:
-                    if not os.path.exists(f'/srv/{repo_id}'):
-                        os.mkdir(f'/srv/{repo_id}')
-                sys.exit('Leaving make repo from rpm')
-            elif ch == 'dir':
-                repo = PowerupRepoFromDir(repo_id, repo_name)
-
-                if f'{repo_id}_src_dir' in self.sw_vars:
-                    src_dir = self.sw_vars[f'{repo_id}_src_dir']
-                else:
-                    src_dir = None
-                src_dir, dest_dir = repo.copy_dirs(src_dir)
-                if src_dir:
-                    self.sw_vars[f'{repo_id}_src_dir'] = src_dir
-
-                if src_dir:
-                    repo.create_meta()
-                    content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
-                    repo.write_yum_dot_repo_file(content)
-                    content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
-                    filename = repo_id + '-powerup.repo'
-                    self.sw_vars['yum_powerup_repo_files'][filename] = content
-
-                sys.exit(f'bye setup source dir: {dest_dir}')
-
-#        cwd = os.getcwd()
-#        print(f'CWD: {cwd}')
-#        fpath = get_file_path()
-#        print(f'Path {fpath}')
-#        sys.exit('Bye')
-#        cmd = 'ls -l | grep scripts'
-#        resp, err, rc = sub_proc_exec(cmd, shell=True)
-#        cmd = 'repoquery nginx --qf "%{name} %{ver} %{arch} %{repoid}"'
-#        resp, err, rc = sub_proc_exec(cmd)
-#        print(resp)
-#        sys.exit(f'test cpio')
+        # Basic check of the state of yum repos
+        print()
+        self.log.info('Performing basic check of yum repositories')
+        cmd = 'yum repolist --noplugins'
+        resp, err, rc = sub_proc_exec(cmd)
+        yum_err = re.search(r'\[Errno\s+\d+\]', err)
+        if rc:
+            self.log.error(f'Failure running "yum repolist" :{rc}')
+        elif yum_err:
+            self.log.error(err)
+            self.log.error(f'yum error: {yum_err.group(0)}')
+        if rc or yum_err:
+            self.log.error('There is a problem with yum or one or more of the yum '
+                           'repositories. \nCheck for valid ".repo" files in'
+                           '/etc/yum.repos.d')
+            sys.exit('Exiting')
+        if '!' in resp:
+            cmd = 'yum clean all'
+            self.log.info('Cleaning yum repository caches')
+            resp, err, rc = sub_proc_exec(cmd)
+            if rc != 0:
+                sys.log.error('An error occurred while cleaning the yum repositories\n'
+                              'POWER-Up is unable to continue.')
+                sys.exit('Exiting')
 
         # Setup EPEL
         repo_id = 'epel-ppc64le'
@@ -141,9 +120,9 @@ class software(object):
                 url = repo.get_repo_url(baseurl, alt_url)
                 if not url == baseurl:
                     self.sw_vars[f'{repo_id}_alt_url'] = url
-                    content = repo.get_yum_dotrepo_content(url, gpgkey)
+                    content = repo.get_yum_dotrepo_content(url, gpgkey=gpgkey)
                 else:
-                    content = repo.get_yum_dotrepo_content(url, gpgkey, metalink=True)
+                    content = repo.get_yum_dotrepo_content(url, gpgkey=gpgkey, metalink=True)
                 repo.write_yum_dot_repo_file(content)
 
             repo.sync()
@@ -159,13 +138,11 @@ class software(object):
                 filename = repo_id + '-powerup.repo'
                 self.sw_vars['yum_powerup_repo_files'][filename] = content
 
-        #sys.exit('done with epel - bye')
-
-        # Setup CUDA
-        baseurl = 'http://developer.download.nvidia.com/compute/cuda/repos/rhel7/ppc64le'
-        gpgkey = f'{baseurl}/7fa2af80.pub'
+        # Setup CUDA and cudnn
         repo_id = 'cuda'
         repo_name = 'CUDA Toolkit'
+        baseurl = 'http://developer.download.nvidia.com/compute/cuda/repos/rhel7/ppc64le'
+        gpgkey = f'{baseurl}/7fa2af80.pub'
         heading1(f'Set up {repo_name} repository')
         if f'{repo_id}_alt_url' in self.sw_vars:
             alt_url = self.sw_vars[f'{repo_id}_alt_url']
@@ -183,23 +160,7 @@ class software(object):
                 content = repo.get_yum_dotrepo_content(url, gpgkey)
                 repo.write_yum_dot_repo_file(content)
 
-            while True:
-                try:
-                    repo.sync()
-                    r = 'S'
-                except UserException as exc:
-                    r, item = get_selection('Retry cuda repository sync\n'
-                                            'Skip cuda repository sync\n'
-                                            'Exit POWER-Up software installer',
-                                            'R\nS\nE')
-                    if r == 'S':
-                        break
-                    elif r == 'E':
-                        self.log.info('Leaving POWER-Up at user request')
-                        sys.exit()
-
-                if r == 'S':
-                    break
+            repo.sync()
             if new:
                 repo.create_meta()
             else:
@@ -212,7 +173,21 @@ class software(object):
                 filename = repo_id + '-powerup.repo'
                 self.sw_vars['yum_powerup_repo_files'][filename] = content
 
-        #sys.exit('bye cuda')
+            # Get cudnn tar file
+            dst = 'cudnn'
+            cudnn_src_path = repo.get_src_path('cudnn-9.[1-9]-linux-ppc64le-v7.1.tgz')
+
+            if cudnn_src_path:
+                exists_cudnn = glob.glob(f'/srv/**/{os.path.basename(cudnn_src_path)}',
+                                         recursive=True)
+                if exists_cudnn:
+                    print(f'The cudnn src file already exists in the POWER-Up server')
+                if not exists_cudnn or get_yesno(f'Recopy the {dst} file? '):
+                    self.log.info(f'Copying {cudnn_src_path} to the POWER-Up software'
+                                  ' server directory')
+                    repo.copy_to_srv(cudnn_src_path, dst)
+            else:
+                self.log.warning('No cudnn source file found')
 
         # Get Anaconda
         ana_src = 'Anaconda2-[56].[1-9]*-Linux-ppc64le.sh'
@@ -221,68 +196,100 @@ class software(object):
         heading1('Set up Anaconda repository')
         setup_source_file(ana_src, ana_dir)
 
-        #sys.exit('Bye Anaconda')
-
         # Get PowerAI base
         heading1('Setting up the PowerAI base repository')
-        pai_src = 'mldl-repo-local-[56].[1-9]*.ppc64le.rpm'
-        pai_dir = 'powerai-rpm'
-        ver = ''
-        src_installed, src_path = setup_source_file(pai_src, pai_dir, 'PowerAI')
-        ver = re.search(r'\d+\.\d+\.\d+', src_path).group(0) if src_path else ''
-        self.log.debug(f'PowerAI source path: {src_path}')
-        cmd = f'rpm -ihv --test --ignorearch {src_path}'
-        resp1, err1, rc = sub_proc_exec(cmd)
-        cmd = f'diff /opt/DL/ /srv/repos/DL-{ver}/'
-        resp2, err2, rc = sub_proc_exec(cmd)
-        if 'is already installed' in err1 and 'Common subdirectories:' in resp2 \
-                and rc == 0:
-            repo_installed = True
-        else:
-            repo_installed = False
-
-        # Create the repo and copy it to /srv directory
-        if src_path:
-            if not ver:
-                self.log.error('Unable to find the version in {src_path}')
-                ver = rlinput('Enter a version to use (x.y.z): ', '5.1.0')
-            repo_id = f'DL-{ver}'
-            repo_name = f'PowerAI-{ver}'
-            repo = PowerupRepo(repo_id, repo_name)
-            repo_path = repo.get_repo_dir()
-            # First check if already installed
-            if repo_installed:
-                print(f'\nRepository for {src_path} already exists')
-                print('in the POWER-Up software server.\n')
-                r = get_yesno('Do you wish to recreate the repository')
-
-            if not repo_installed or r == 'yes':
-                cmd = f'rpm -ihv  --force --ignorearch {src_path}'
-                rc = sub_proc_display(cmd)
-                if rc != 0:
-                    self.log.info('Failed creating PowerAI repository')
-                    self.log.info(f'Failing cmd: {cmd}')
+        pai_src = 'mldl-repo-local-5.[1-9]*.ppc64le.rpm'
+        repo_id = 'power-ai'
+        repo_name = 'IBM PowerAI Base'
+        exists = glob.glob(f'/srv/repos/{repo_id}/**/repodata', recursive=True)
+        if exists:
+            print(f'The {repo_id} repository exists in the POWER-Up server already')
+            r = get_yesno(f'Recreate the {repo_id} repository? ')
+        if not exists or r:
+            repo = PowerupRepoFromRpm(repo_id, repo_name)
+            src_path = repo.get_src_path(pai_src)
+            print(src_path)
+            if src_path:
+                repo.copy_rpm()
+                repodata_dir = repo.extract_rpm()
+                if repodata_dir:
+                    content = repo.get_yum_dotrepo_content(repo_dir=repodata_dir,
+                                                           gpgcheck=0, local=True)
                 else:
-                    shutil.rmtree(repo_path, ignore_errors=True)
-                    try:
-                        shutil.copytree('/opt/DL', repo_path + '/' + repo_id)
-                    except shutil.Error as exc:
-                        print(f'Copy error: {exc}')
+                    content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
+                    repo.create_meta()
+                print(content)
+                repo.write_yum_dot_repo_file(content)
+                content = repo.get_yum_dotrepo_content(repo_dir=repodata_dir,
+                                                       gpgcheck=0, client=True)
+                print(content)
+                filename = repo_id + '-powerup.repo'
+                self.sw_vars['yum_powerup_repo_files'][filename] = content
+            else:
+                self.log.info('No source selected. Skipping PowerAI repository creation.')
+
+        # Create custom repositories
+        heading1('Create custom repositories')
+        if get_yesno('Would you like to create a custom repository? ', default='y'):
+            repo_id = input('Enter a repo id (yum short name): ')
+            repo_name = input('Enter a repo name (Descriptive name): ')
+
+            ch, item = get_selection('Create from files in a directory.'
+                                     'Create from an RPM file', 'dir.rpm', '.',
+                                     'Custom repository from a directory or RPM file? ')
+            if ch == 'rpm':
+
+                repo = PowerupRepoFromRpm(repo_id, repo_name)
+
+                if f'{repo_id}_src_rpm_dir' in self.sw_vars:
+                    src_path = self.sw_vars[f'{repo_id}_src_rpm_dir']
+                else:
+                    # default is to search recursively under all /home/ directories
+                    src_path = '/home/**/*.rpm'
+                rpm_path = repo.get_rpm_path(src_path)
+                print(rpm_path)
+                if rpm_path:
+                    self.sw_vars[f'{repo_id}_src_rpm_dir'] = rpm_path
+                    repo.copy_rpm()
+                    repodata_dir = repo.extract_rpm()
+                    if repodata_dir:
+                        content = repo.get_yum_dotrepo_content(repo_dir=repodata_dir,
+                                                               gpgcheck=0, local=True)
                     else:
                         content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
-                        repo.write_yum_dot_repo_file(content)
-                        self.log.info('Successfully created PowerAI repository')
-                        content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
-                        filename = repo_id + '-powerup.repo'
-                        self.sw_vars['yum_powerup_repo_files'][filename] = content
-        else:
-            if src_installed:
-                self.log.debug('PowerAI source file already in place and no '
-                               'update requested')
-            else:
-                self.log.error('PowerAI base was not installed.')
+                        repo.create_meta()
+                    print(content)
+                    repo.write_yum_dot_repo_file(content)
+                    content = repo.get_yum_dotrepo_content(repo_dir=repodata_dir,
+                                                           gpgcheck=0, client=True)
+                    print(content)
+                    filename = repo_id + '-powerup.repo'
+                    self.sw_vars['yum_powerup_repo_files'][filename] = content
+                else:
+                    self.log.info('No path chosen. Skipping create custom repository.')
 
-        #sys.exit('Bye from powerai')
+                sys.exit('setup repo from rpm')
+
+                sys.exit('Leaving make repo from rpm')
+
+            elif ch == 'dir':
+                repo = PowerupRepoFromDir(repo_id, repo_name)
+
+                if f'{repo_id}_src_dir' in self.sw_vars:
+                    src_dir = self.sw_vars[f'{repo_id}_src_dir']
+                else:
+                    src_dir = None
+                src_dir, dest_dir = repo.copy_dirs(src_dir)
+                if src_dir:
+                    self.sw_vars[f'{repo_id}_src_dir'] = src_dir
+                    repo.create_meta()
+                    content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
+                    repo.write_yum_dot_repo_file(content)
+                    content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
+                    filename = repo_id + '-powerup.repo'
+                    self.sw_vars['yum_powerup_repo_files'][filename] = content
+
+                sys.exit(f'bye setup source dir: {dest_dir}')
 
         # Setup firewall to allow http
         heading1('Setting up firewall')

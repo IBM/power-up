@@ -28,7 +28,7 @@ import readline
 from shutil import copy2, Error
 from subprocess import Popen, PIPE
 from tabulate import tabulate
-# import code
+import code
 import lib.logger as logger
 
 PATTERN_MAC = '[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
@@ -237,7 +237,7 @@ def rlinput(prompt, prefill=''):
         readline.set_startup_hook()
 
 
-def get_url(url='http://', prompt_name=''):
+def get_url(url='http://', prompt_name='', repo_chk=False):
     """Input a URL from user. The URL is checked for validity using curl
     and the user can continue modifying it indefinitely until a response
     is obtained or he can enter 'S' to skip (stop) entry.
@@ -248,7 +248,7 @@ def get_url(url='http://', prompt_name=''):
             return None
         url = url if url.endswith('/') else url + '/'
         try:
-            cmd = f'curl --max-time 2 -I {url}/'
+            cmd = f'curl --max-time 2 -I {url}'
             reply, err, rc = sub_proc_exec(cmd)
         except:
             pass
@@ -256,9 +256,19 @@ def get_url(url='http://', prompt_name=''):
             response = re.search(r'HTTP\/\d+.\d+\s+200\s+ok', reply, re.IGNORECASE)
             if response:
                 print(response.group(0))
-                r = get_yesno('Use the specified URL? ')
-                if r == 'yes':
-                    return url
+                if repo_chk:
+                    cmd = f'curl -G {url}'
+                    reply, err, rc = sub_proc_exec(cmd)
+                    repodata = re.search(r'href=["\']repodata\/["\']', reply)
+                    if repodata:
+                        print('Repository data found.')
+                        if get_yesno('Use the specified URL? '):
+                            return url
+                    else:
+                        print('Not a valid repository')
+                else:
+                    if get_yesno('Use the specified URL? '):
+                        return url
             else:
                 err = re.search('curl: .+', err)
                 if err:
@@ -268,12 +278,14 @@ def get_url(url='http://', prompt_name=''):
                     print(tmp.group(0))
 
 
-def get_yesno(prompt='', yesno='y/n'):
+def get_yesno(prompt='', yesno='y/n', default=''):
     r = ' '
     yn = yesno.split('/')
     while r not in yn:
-        r = input(f'{prompt}({yesno})? ')
-    return r
+        r = rlinput(f'{prompt}({yesno})? ', default)
+    if r == yn[0]:
+        return True
+    return False
 
 
 def get_dir(src_dir):
@@ -332,8 +344,7 @@ def get_dir(src_dir):
             print(dirs)
 
             print(f'\nThe entered path was: {top}')
-            r = get_yesno('Use the entered path? ')
-            if r == 'yes':
+            if get_yesno('Use the entered path? '):
                 return path
 
 
@@ -348,7 +359,7 @@ def get_selection(items, choices=None, sep='\n', prompt='Enter a selection: '):
     Inputs:
         choices (str or list or tuple): Choices
         choices_only (bool) : Set to false to allow descs as valid choices
-        descs (str or list or tuple): Description of choices
+        items (str or list or tuple): Description of choices or items to select
     returns:
        ch (str): One of the elements in choices
        item (str): mathing item from items
@@ -368,9 +379,8 @@ def get_selection(items, choices=None, sep='\n', prompt='Enter a selection: '):
     maxw = 1
     for ch in choices:
         maxw = max(maxw, len(ch))
-    print()
     for i in range(min(len(choices), len(items))):
-        print(f'{bold(choices[i]): <{maxw}}' + ' - ' + items[i])
+        print(bold(f'{choices[i]: <{maxw}}') + ' - ' + items[i])
     print()
     ch = ' '
     while not (ch in choices or ch in items):
@@ -387,32 +397,43 @@ def get_selection(items, choices=None, sep='\n', prompt='Enter a selection: '):
 
 
 def get_file_path(filename='/home'):
-    """Interactive search and selection of a file path
+    """Interactive search and selection of a file path.
+    Returns:
+        path to file or None
     """
     print(bold('\nFile search hints:'))
-    print('/home/user1/abc.*         will search for abc.* under home/user1/')
-    print('/home/user1/**/abc.*      will search for abc.* under /home/user1/')
-    print('                          or subdirectories of /home/user1/ recursively')
-    print('/home/user1/myfile[56].2  will search for myfile5.2 or myfile6.2')
-    print('                          under /home/user1/')
-    print('/home/user1/*/            will list directories under /home/user1')
+    print('/home/user1/abc.*         Search for abc.* under home/user1/')
+    print('/home/user1/**/abc.*      Search recursively for abc.* under /home/user1/')
+    print('/home/user1/myfile[56].2  Search for myfile5.2 or myfile6.2 under /home/user1/')
+    print('/home/user1/*/            List directories under /home/user1')
     print()
+    maxl = 40
     while True:
-        filename = rlinput(bold("Enter a file name to search for ('L' to leave): "),
-                           filename)
+        print("Enter a file name to search for ('L' to leave without making a selction): ")
+        filename = rlinput(bold("File: "), filename)
+        print()
         if filename == 'L' or filename == "'L'":
             return None
-        f = glob(filename, recursive=True)
-        if f and len(f) < 51:
-            f.append('Search again')
-            f.append('Leave without selecting')
-            ch, item = get_selection(f, prompt='Choose a file: ')
-            print(item)
+        files = glob(filename, recursive=True)
+        if files:
+            print(bold(f'Found {len(files)} matching'))
+            if len(files) > maxl:
+                print(f'\nSearch returned more than {maxl} items. Showing first {maxl}')
+                files = files[:40]
+            choices = [str(i + 1) for i in range(len(files))]
+            choices.append('S')
+            choices.append('L')
+            files.append('Search again')
+            files.append('Leave without selecting')
+            ch, item = get_selection(files, choices)
+            print()
             if item is not None and os.path.isfile(item):
+                print(f'\n{item}')
+                if get_yesno("Confirm selection (y/n): ", default='y'):
                     return item
+                else:
+                    item = 'Search again'
             elif item == 'Leave without selecting':
                 return None
             if item != 'Search again':
                 filename = item
-        elif f:
-            print('Search returned more than 50 items. Please refine your search')
