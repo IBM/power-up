@@ -59,7 +59,8 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
     if get_yesno(f'Copy the {name.capitalize()} source file to the POWER-Up server? '):
         ch, item = get_selection('Copy from URL\nSearch local Disk', 'U\nD', allow_none=True)
         if ch == 'U':
-            ch, item = get_selection('Public mirror.Alternate web site', 'P.A', '.', 'Select source: ')
+            ch, item = get_selection('Public mirror.Alternate web site', 'P.A',
+                                     'Select source: ', '.')
             if ch == 'P':
                 _url = url
             elif ch == 'A':
@@ -264,38 +265,6 @@ class PowerupRepoFromRpm(PowerupRepo):
             else:
                 return None
 
-#    def get_src_path(self, src_name):
-#        """Search for src_name and allow interactive selection if more than one
-#        match. Searching starts recursively in the /home directory and expands to
-#        entire file system if no match in /home.
-#        """
-#        while True:
-#            # start search under the /home directories
-#            cmd = (f'find /home -name {src_name}')
-#            resp, err, rc = sub_proc_exec(cmd)
-#            if rc != 0:
-#                self.log.error(f'Error searching for {src_name}')
-#                return None
-#            if not resp:
-#                # expand search to entire filesystem
-#                cmd = (f'find / -name {src_name}')
-#                resp, err, rc = sub_proc_exec(cmd)
-#                if rc != 0:
-#                    self.log.error(f'Error searching for {src_name}')
-#                    return None
-#                if not resp:
-#                    print(f'{name} source file {src_name} not found')
-#                    if not get_yesno('Search again', 'y/no', default='y'):
-#                        log.error(f'{name} source file {src_name} not found.\n {name} is not'
-#                                  ' setup.')
-#                        return None
-#                else:
-#                    ch, self.rpm_path = get_selection(resp, prompt='Select a source file: ')
-#                    return self.rpm_path
-#            else:
-#                ch, self.rpm_path = get_selection(resp, prompt='Select a source file: ')
-#                return self.rpm_path
-
     def copy_rpm(self, src_path):
         """copy the selected rpm file (self.rpm_path) to the /srv/{self.repo_id}
         directory.
@@ -330,25 +299,6 @@ class PowerupRepoFromRpm(PowerupRepo):
         else:
             return None
 
-#    def create_meta(self, repodata_dir=None, update=False):
-#        if not repodata_dir:
-#            #repodata_dir = os.path.join(self_repo_dir, self.repo_id)
-#            repodata_dir = self_repo_dir
-#        if not os.path.exists(f'{repodata_dir}/repodata'):
-#            self.log.info('Creating repository metadata and databases')
-#        else:
-#            self.log.info('Updating repository metadata and databases')
-#        print('This may take a few minutes.')
-#        if not update:
-#            cmd = f'createrepo -v {repodata_dir}'
-#        else:
-#            cmd = f'createrepo -v --update {repodata_dir}'
-#        resp, err, rc = sub_proc_exec(cmd)
-#        if rc != 0:
-#            self.log.error(f'Repo creation error: rc: {rc} stderr: {err}')
-#        else:
-#            self.log.info('Repo create process finished succesfully')
-
 
 class PowerupRepoFromRepo(PowerupRepo):
     """Sets up a yum repository for access by POWER-Up software clients.
@@ -381,8 +331,8 @@ class PowerupRepoFromRepo(PowerupRepo):
             repo_url: (str) URL or metalink for the external repo source
         """
 
-        ch, item = get_selection('Public mirror.Alternate web site', 'P.A', '.',
-                                 'Select source: ')
+        ch, item = get_selection('Public mirror.Alternate web site', 'P.A',
+                                 'Select source: ', '.')
         if ch == 'A':
             if not alt_url:
                 alt_url = f'http://host/repos/{self.repo_id}/'
@@ -522,14 +472,9 @@ if __name__ == '__main__':
 
     logger.create(args.log_lvl_print, args.log_lvl_file)
 
-#    nginx_repo = remote_nginx_repo()
-#    nginx_repo.yum_create_remote()
-#
     repo = local_epel_repo(args.repo_name)
     repo.yum_create_remote()
     repo.sync()
     repo.create()
     repo.yum_create_local()
     client_file = repo.get_yum_client_powerup()
-    print(client_file['filename'])
-    print(client_file['content'].format(host='192.168.1.2'))
