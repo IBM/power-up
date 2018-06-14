@@ -684,7 +684,9 @@ class Gen(object):
 
         if cmd == argparse_gen.Cmd.SOFTWARE.value:
             if not argparse_gen.is_arg_present(self.args.prep) and not \
-                    argparse_gen.is_arg_present(self.args.install):
+                    argparse_gen.is_arg_present(self.args.install) and not \
+                    argparse_gen.is_arg_present(self.args.about) and not \
+                    argparse_gen.is_arg_present(self.args.status_prep):
                 self.args.all = True
             if gen.GEN_SOFTWARE_PATH not in sys.path:
                 sys.path.append(gen.GEN_SOFTWARE_PATH)
@@ -713,6 +715,19 @@ class Gen(object):
                     print(exc.message)
                     print('The software class needs to implement a '
                           'method named "install"')
+            if self.args.about is True:
+                try:
+                    soft.about()
+                except AttributeError as exc:
+                    print(exc.message)
+                    print('No "about" information available')
+
+            if self.args.status_prep is True:
+                try:
+                    soft.status_prep()
+                except AttributeError as exc:
+                    print(exc.message)
+                    print('No "status" information available')
 
         if not cmd:
             print('Unrecognized POWER-Up command')
