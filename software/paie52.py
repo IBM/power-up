@@ -154,7 +154,7 @@ class software(object):
             exists = glob.glob(f'/srv/nccl2/**/{self.files["nccl2"]}', recursive=True)
             if exists:
                 self.state['CUDA nccl2 content'] = ('CUDA nccl2 is present in the '
-                                                     'POWER-Up server')
+                                                    'POWER-Up server')
 
         # Spectrum conductor status
         if which == 'all' or which == 'spectrum-conductor':
@@ -684,6 +684,19 @@ class software(object):
             self.log.error('An error occurred while making the yum cache\n'
                            f'rc: {rc} err: {err}')
 
+    def init_clients(self):
+        ansible_inventory = get_ansible_inventory()
+        cmd = ('{} -i {} '
+               '{}/init_clients.yml'
+               .format(get_ansible_playbook_path(), ansible_inventory,
+                       get_playbooks_path()))
+        resp, err, rc = sub_proc_exec(cmd)
+        # cmd = ('ssh -t -i ~/.ssh/gen root@10.0.20.22 '
+        #        '/opt/DL/license/bin/accept-powerai-license.sh')
+        # resp = sub_proc_display(cmd)
+        # print(resp)
+        print('All done')
+
     def install(self):
         ansible_inventory = get_ansible_inventory()
         cmd = ('{} -i {} '
@@ -691,12 +704,7 @@ class software(object):
                .format(get_ansible_playbook_path(), ansible_inventory,
                        get_playbooks_path()))
         resp, err, rc = sub_proc_exec(cmd)
-        print(resp)
-        cmd = ('ssh -t -i ~/.ssh/gen root@10.0.20.22 '
-               '/opt/DL/license/bin/accept-powerai-license.sh')
-        resp = sub_proc_display(cmd)
-        print(resp)
-        print('All done')
+        print('Done')
 
 
 if __name__ == '__main__':
