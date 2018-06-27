@@ -1,0 +1,33 @@
+---
+- description: Update yum cache
+  tasks: yum_update_cache.yml
+
+- description: Install additional software packages
+  tasks: yum_install_additional_software.yml
+
+- description: Update kernel
+  tasks: update_kernel.yml
+
+- description: Disable Memory Auto-Onlining
+  tasks: disable_udev_mem_auto_onlining.yml
+
+- description: Install CUDA toolkit
+  tasks: install_cuda.yml
+
+- description: Install CUDA Deep Neural Network library
+  tasks: install_cudnn.yml
+
+- description: Install NCCL Library
+  tasks: install_nccl.yml
+
+- description: Install Anaconda installer
+  tasks: install_anaconda.yml
+
+- description: Run License Script
+  tasks: powerai_license_accept.yml
+
+- description: Install Deep Learning frameworks
+  tasks: install_frameworks.yml
+
+- description: Apply recommended performance settings
+  tasks: performance_tuning.yml
