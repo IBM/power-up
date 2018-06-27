@@ -40,6 +40,7 @@ from lib.db import DatabaseConfig
 from lib.exception import UserException, UserCriticalException
 from lib.switch_exception import SwitchException
 from ipmi_set_power import ipmi_set_power
+from ipmi_set_bootdev import ipmi_set_bootdev
 
 
 class Gen(object):
@@ -370,6 +371,9 @@ class Gen(object):
 
         power_wait = gen.get_power_wait()
         ipmi_set_power('off', self.config_file_path, wait=power_wait)
+        # set boot dev to bios, to avoid situations where some node types can skip
+        # past pxe boot or attempt to boot from disk if pxe does not respond in time
+        ipmi_set_bootdev('setup', False, self.config_file_path)
         ipmi_set_power('on', self.config_file_path, wait=power_wait)
 
         dhcp_lease_file = '/var/lib/misc/dnsmasq.leases'
