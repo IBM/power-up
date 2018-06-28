@@ -52,7 +52,8 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
             only a single match is found it is used without choice and returned.
     """
     log = logger.getlogger()
-    exists = glob.glob(f'/srv/{name}/**/{src_glob}', recursive=True)
+    name_src = name.lower().replace(' ', '-').replace('-content', '')
+    exists = glob.glob(f'/srv/{name_src}/**/{src_glob}', recursive=True)
     if exists:
         log.info(f'The {name.capitalize()} source file exists already in the POWER-Up server '
                  'directory')
@@ -72,14 +73,14 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
                     regex = src_glob.replace('*', '.+')
                     if re.search(regex, url):
                         good_url = True
-                        if not os.path.exists(f'/srv/{name}'):
-                            os.mkdir(f'/srv/{name}')
-                        os.chdir(f'/srv/{name}')
+                        if not os.path.exists(f'/srv/{name_src}'):
+                            os.mkdir(f'/srv/{name_src}')
+                        os.chdir(f'/srv/{name_src}')
                         cmd = f'curl -O {_url}'
                         rc = sub_proc_display(cmd)
                         if rc != 0:
-                            log.error(f'Failed downloading {name} source to /srv/{name}/ '
-                                      f'directory. \n{rc}')
+                            log.error(f'Failed downloading {name} source to'
+                                      f' /srv/{name_src}/ directory. \n{rc}')
                         else:
                             return _url, True
                     else:
@@ -146,6 +147,7 @@ class PowerupRepo(object):
         self.arch = arch
         self.rhel_ver = str(rhel_ver)
         self.repo_dir = f'/srv/repos/{self.repo_id}/rhel{self.rhel_ver}/{self.repo_id}'
+        self.anarepo_dir = f'/srv/repos/{self.repo_id}'
         self.log = logger.getlogger()
 
     def get_repo_dir(self):
@@ -316,7 +318,8 @@ class PowerupRepoFromRpm(PowerupRepo):
 class PowerupRepoFromRepo(PowerupRepo):
     """Sets up a yum repository for access by POWER-Up software clients.
     The repo is first sync'ed locally from the internet or a user specified
-    URL which should reside on another host.
+    URL which could reside on another host or from a local directory. (ie
+    a file based URL pointing to a mounted disk. eg file:///mnt/my-mounted-usb)
     """
     def __init__(self, repo_id, repo_name, arch='ppc64le', rhel_ver='7'):
         super(PowerupRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
@@ -331,7 +334,7 @@ class PowerupRepoFromRepo(PowerupRepo):
             print(f'\nDo you want to sync the local {self.repo_name}\nrepository'
                   ' at this time?\n')
             print('This can take a few minutes.\n')
-            items = 'Yes,no,Sync repository and Force recreation of yum ".repo" files'
+            items = 'Yes,no,Sync repository and Force recreation of metadata files'
             ch, item = get_selection(items, 'Y,n,F', sep=',')
         return ch
 
@@ -367,6 +370,54 @@ class PowerupRepoFromRepo(PowerupRepo):
             raise UserException
         else:
             self.log.info(f'{self.repo_name} sync finished successfully')
+
+    def sync_ana(self, url, repo='free'):
+        """Syncs an Anaconda repository using wget or copy?. The corresponding
+        'noarch' repo is also synced.
+        """
+        if 'http:' in url or 'https:' in url:
+            dest_dir = f'/srv/repos/{self.repo_id}' + url[url.find('/pkgs/'):]
+            self.log.info(f'Syncing {self.repo_name}')
+            self.log.info('This can take many minutes or hours for large repositories\n')
+
+            # remove directory path components up to '/pkgs'
+            cd_cnt = url[3 + url.find('://'):url.find('/pkgs')].count('/')
+            rejlist = ('continuum-docs-*,cudatoolkit-*,'
+                       'cudnn-*,tensorflow-*,caffe-*')
+            cmd = (f"wget -nH --cut-dirs={cd_cnt} --reject '{rejlist}' "
+                   f"-P /srv/repos/{self.repo_id} -m {url}")
+            rc = sub_proc_display(cmd, shell=True)
+            if rc != 0:
+                self.log.error(f'Error downloading {url}.  rc: {rc}')
+        elif 'file:///' in url:
+            src_dir = url[7:]
+            if '/pkgs/' in url:
+                dest_dir = self.anarepo_dir + url[url.find('/pkgs/'):]
+            elif self.anarepo_dir in url:
+                dest_dir = url[url.find(self.anarepo_dir):]
+            else:
+                dest_dir = self.anarepo_dir + url
+            if not os.path.isdir(dest_dir):
+                os.makedirs(dest_dir)
+            cmd = f'rsync -uaPv {src_dir} {dest_dir}'
+            rc = sub_proc_display(cmd)
+            if rc != 0:
+                self.log.error('Sync of {self.repo_id} failed. rc: {rc}')
+            else:
+                self.log.info(f'{self.repo_name} sync finished successfully')
+
+        with open(dest_dir + '/index.html', 'r') as f:
+            d = f.read()
+            rejlist = rejlist.replace('*', '').split(',')
+            for item in rejlist:
+                ss = f' *<tr>\\n\\s+<td><a\\s+href="{item}.+\\.tar\\.bz2">.*?</td>(\\n.*<td.*/td>){{3}}\\n\\s*</tr>\\n'
+                d = re.sub(ss, '', d)
+        filecnt = d.count('</tr>') - 1
+        d = re.sub(r'Files:\s+\d+', f'Files: {filecnt}', d)
+        with open(dest_dir + '/index.html', 'w') as f:
+            f.write(d)
+
+        return dest_dir
 
 
 class PowerupRepoFromDir(PowerupRepo):

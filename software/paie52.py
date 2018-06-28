@@ -61,6 +61,8 @@ class software(object):
             if not isinstance(self.sw_vars, dict):
                 self.sw_vars = {}
                 self.sw_vars['init-time'] = time.ctime()
+        if 'ana_powerup_repo_files' not in self.sw_vars:
+            self.sw_vars['ana_powerup_repo_files'] = {}
         if 'yum_powerup_repo_files' not in self.sw_vars:
             self.sw_vars['yum_powerup_repo_files'] = {}
         self.epel_repo_name = 'epel-ppc64le'
@@ -77,6 +79,7 @@ class software(object):
                       'CUDA dnn content': '-',
                       'CUDA nccl2 content': '-',
                       'Anaconda content': '-',
+                      'Anaconda Repository': '-',
                       'Spectrum conductor content': '-',
                       'Spectrum DLI content': '-',
                       'Nginx Web Server': '-',
@@ -85,11 +88,11 @@ class software(object):
                         'CUDA Toolkit Repository': 'cuda',
                         'PowerAI Base Repository': 'power-ai',
                         'Dependent Packages Repository': 'dependencies'}
-        self.files = {'anaconda': 'Anaconda2-[56].[1-9]*-Linux-ppc64le.sh',
-                      'cudnn': 'cudnn-9.[1-9]-linux-ppc64le-v7.1.tgz',
-                      'nccl2': 'nccl_2.2.1[2-9]-1+cuda9.[2-9]_ppc64le.tgz',
-                      'spectrum-conductor': 'cws-2.[2-9].[0-9].[0-9]_ppc64le.bin',
-                      'spectrum-dli': 'dli-1.[1-9].[0-9].[0-9]_ppc64le.bin'}
+        self.files = {'Anaconda content': 'Anaconda2-[56].[1-9]*-Linux-ppc64le.sh',
+                      'CUDA dnn content': 'cudnn-9.[1-9]-linux-ppc64le-v7.1.tgz',
+                      'CUDA nccl2 content': 'nccl_2.2.1[2-9]-1+cuda9.[2-9]_ppc64le.tgz',
+                      'Spectrum conductor content': 'cws-2.[2-9].[0-9].[0-9]_ppc64le.bin',
+                      'Spectrum DLI content': 'dli-1.[1-9].[0-9].[0-9]_ppc64le.bin'}
 
         self.log.debug(f'software variables: {self.sw_vars}')
 
@@ -123,101 +126,117 @@ class software(object):
         self.status_prep(which)
 
     def status_prep(self, which='all'):
-        # Firewall status
-        if which == 'all' or which == 'Firewall':
-            cmd = 'firewall-cmd --list-all'
-            resp, err, rc = sub_proc_exec(cmd)
-            _status = re.search(r'services:\s+.+http', resp)
-            if _status:
-                self.state['Firewall'] = 'Firewall is running and configured for http'
-        # Nginx web server status
-        if which == 'all' or which == 'Nginx Web Server':
-            cmd = 'curl -I 127.0.0.1'
-            resp, err, rc = sub_proc_exec(cmd)
-            if 'HTTP/1.1 200 OK' in resp:
-                self.state['Nginx Web Server'] = 'Nginx is configured and running'
+        for item in self.state:
+            self.state[item] = '-'
+            # Firewall status
+            if item == 'Firewall':
+                cmd = 'firewall-cmd --list-all'
+                resp, err, rc = sub_proc_exec(cmd)
+                if re.search(r'services:\s+.+http', resp):
+                    self.state[item] = 'Firewall is running and configured for http'
 
-        # Anaconda status
-        if which == 'all' or which == 'anaconda':
-            exists = glob.glob(f'/srv/anaconda/**/{self.files["anaconda"]}',
-                               recursive=True)
-            if exists:
-                self.state['Anaconda content'] = ('Anaconda is present in the '
-                                                  'POWER-Up server')
-        # cudnn status
-        if which == 'all' or which == 'cudnn':
-            exists = glob.glob(f'/srv/cudnn/**/{self.files["cudnn"]}', recursive=True)
-            if exists:
-                self.state['CUDA dnn content'] = ('CUDA DNN is present in the '
-                                                  'POWER-Up server')
-        # cuda nccl2 status
-        if which == 'all' or which == 'nccl2':
-            exists = glob.glob(f'/srv/nccl2/**/{self.files["nccl2"]}', recursive=True)
-            if exists:
-                self.state['CUDA nccl2 content'] = ('CUDA nccl2 is present in the '
-                                                    'POWER-Up server')
+            # Nginx web server status
+            if item == 'Nginx Web Server':
+                cmd = 'curl -I 127.0.0.1'
+                resp, err, rc = sub_proc_exec(cmd)
+                if 'HTTP/1.1 200 OK' in resp:
+                    self.state[item] = 'Nginx is configured and running'
 
-        # Spectrum conductor status
-        if which == 'all' or which == 'spectrum-conductor':
-            exists = glob.glob(f'/srv/spectrum-conductor/**/'
-                               f'{self.files["spectrum-conductor"]}', recursive=True)
-            if exists:
-                self.state['Spectrum conductor content'] = \
-                    'Spectrum Conductor is present in the POWER-Up server'
-
-        # Spectrum DLI status
-        if which == 'all' or which == 'spectrum-dli':
-            exists = glob.glob(f'/srv/spectrum-dli/**/{self.files["spectrum-dli"]}',
-                               recursive=True)
-            if exists:
-                self.state['Spectrum DLI content'] = ('Spectrum DLI is present in the '
+            # Anaconda content status
+            if item == 'Anaconda content':
+                exists = glob.glob(f'/srv/anaconda/**/{self.files[item]}',
+                                   recursive=True)
+                if exists:
+                    self.state['Anaconda content'] = ('Anaconda is present in the '
                                                       'POWER-Up server')
-        # PowerAI status
-        s = 'PowerAI Base Repository'
-        if which == 'all' or which == s:
-            exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[s]) +
-                                        '/**/repodata', recursive=True)
-            if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[s]}-local.repo') \
-                    and exists_repodata:
-                self.state[s] = s + ' is setup'
 
-        # CUDA status
-        s = 'CUDA Toolkit Repository'
-        if which == 'all' or which == s:
-            exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[s]) +
-                                        '/**/repodata', recursive=True)
-            if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[s]}-local.repo') \
-                    and exists_repodata:
-                self.state[s] = s + ' is setup'
+            # Anaconda Repo status
+            if item == 'Anaconda Repository':
+                repodata_noarch = glob.glob('/srv/repos/anaconda/pkgs/free'
+                                            '/noarch/repodata.json', recursive=True)
+                repodata = glob.glob('/srv/repos/anaconda/pkgs/free'
+                                     '/linux-ppc64le/repodata.json', recursive=True)
+                if repodata and repodata_noarch:
+                    self.state[item] = f'{item} is setup'
 
-        # EPEL status
-        s = 'EPEL Repository'
-        if which == 'all' or which == s:
-            exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[s]) +
-                                        '/**/repodata', recursive=True)
-            if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[s]}-local.repo') \
-                    and exists_repodata:
-                self.state[s] = s + ' is setup'
+            # cudnn status
+            if item == 'CUDA dnn content':
+                exists = glob.glob(f'/srv/cudnn/**/{self.files[item]}', recursive=True)
+                if exists:
+                    self.state['CUDA dnn content'] = ('CUDA DNN is present in the '
+                                                      'POWER-Up server')
 
-        # Dependent Packages status
-        s = 'Dependent Packages Repository'
-        if which == 'all' or which == s:
-            exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[s]) +
-                                        '/**/repodata', recursive=True)
-            if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[s]}-local.repo') \
-                    and exists_repodata:
-                self.state[s] = s + ' is setup'
+            # cuda nccl2 status
+            if item == 'CUDA nccl2 content':
+                exists = glob.glob(f'/srv/nccl2/**/{self.files[item]}', recursive=True)
+                if exists:
+                    self.state[item] = ('CUDA nccl2 is present in the '
+                                        'POWER-Up server')
 
+            # Spectrum conductor status
+            if item == 'Spectrum conductor content':
+                exists = glob.glob(f'/srv/spectrum-conductor/**/'
+                                   f'{self.files[item]}', recursive=True)
+                if exists:
+                    self.state[item] = \
+                        'Spectrum Conductor is present in the POWER-Up server'
+
+            # Spectrum DLI status
+            if item == 'Spectrum DLI content':
+                exists = glob.glob(f'/srv/spectrum-dli/**/{self.files[item]}',
+                                   recursive=True)
+                if exists:
+                    self.state[item] = ('Spectrum DLI is present in the '
+                                        'POWER-Up server')
+            # PowerAI status
+            if item == 'PowerAI Base Repository':
+                exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[item]) +
+                                            '/**/repodata', recursive=True)
+                if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[item]}-local.repo') \
+                        and exists_repodata:
+                    self.state[item] = f'{item} is setup'
+
+            # CUDA status
+            if item == 'CUDA Toolkit Repository':
+                exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[item]) +
+                                            '/**/repodata', recursive=True)
+                if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[item]}-local.repo') \
+                        and exists_repodata:
+                    self.state[item] = f'{item} is setup'
+
+            # EPEL status
+            if item == 'EPEL Repository':
+                exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[item]) +
+                                            '/**/repodata', recursive=True)
+                if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[item]}-local.repo') \
+                        and exists_repodata:
+                    self.state[item] = f'{item} is setup'
+
+            # Dependent Packages status
+            s = 'Dependent Packages Repository'
+            if item == 'Dependent Packages Repository':
+                exists_repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[item]) +
+                                            '/**/repodata', recursive=True)
+                if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[item]}-local.repo') \
+                        and exists_repodata:
+                    self.state[item] = f'{item} is setup'
+
+        exists = True
         if which == 'all':
             heading1('Preparation Summary')
             for item in self.state:
                 print(f'  {item:<30} : ' + self.state[item])
+                exists = exists and self.state[item] != '-'
 
             gtg = 'Preparation complete'
             for item in self.state.values():
                 if item == '-':
                     gtg = f'{Color.red}Preparation incomplete{Color.endc}'
             print(f'\n{bold(gtg)}\n')
+
+        else:
+            exists = self.state[which] != '-'
+        return exists
 
     def setup(self):
         # Basic check of the state of yum repos
@@ -342,11 +361,11 @@ class software(object):
         repo_id = 'power-ai'
         repo_name = 'IBM PowerAI Base'
 
-        self.status_prep(which='PowerAI Base Repository')
-        if self.state['PowerAI Base Repository'] != '-':
+        exists = self.status_prep(which='PowerAI Base Repository')
+        if exists:
             self.log.info(f'The {repo_id} repository exists already in the POWER-Up server')
-            r = get_yesno(f'Recreate the {repo_id} repository? ')
-        if self.state['PowerAI Base Repository'] == '-' or r:
+
+        if not exists or get_yesno(f'Recreate the {repo_id} repository '):
             repo = PowerupRepoFromRpm(repo_id, repo_name)
             src_path = get_src_path(pai_src)
             if src_path:
@@ -367,8 +386,144 @@ class software(object):
             else:
                 self.log.info('No source selected. Skipping PowerAI repository creation.')
 
+        # Get Spectrum Conductor with Spark
+        name = 'Spectrum conductor content'
+        heading1(f'Set up {name.title()} \n')
+        spc_src = self.files[name]
+        exists = self.status_prep(name)
+
+        if exists:
+            self.log.info('Spectrum conductor content exists already in the POWER-Up server')
+
+        if not exists or get_yesno(f'Copy a new {name.title()} file '):
+            src_path = PowerupFileFromDisk(name, spc_src)
+
+        # Get Spectrum DLI
+        name = 'Spectrum DLI content'
+        heading1(f'Set up {name.title()} \n')
+        spdli_src = self.files[name]
+        exists = self.status_prep(name)
+
+        if exists:
+            self.log.info('Spectrum DLI content exists already in the POWER-Up server')
+
+        if not exists or get_yesno(f'Copy a new {name.title()} file '):
+            src_path = PowerupFileFromDisk(name, spdli_src)
+
+        # Setup repository for dependent packages. Dependent packages can come from
+        # any YUM repository enabled on the POWER-Up Installer node.
+        dep_list = ('bzip2 opencv kernel kernel-tools kernel-tools-libs '
+                    'kernel-bootwrapper kernel-devel kernel-headers gcc gcc-c++ '
+                    'libXdmcp elfutils-libelf-devel java-1.8.0-openjdk libmpc '
+                    'libatomic glibc-devel glibc-headers mpfr kernel-headers '
+                    'zlib-devel boost-system libgfortran boost-python boost-thread '
+                    'boost-filesystem java-1.8.0-openjdk-devel scipy PyYAML '
+                    'pyparsing python-pillow python-matplotlib pciutils')
+        file_more = GEN_SOFTWARE_PATH + 'dependent-packages.list'
+        if os.path.isfile(file_more):
+            try:
+                with open(file_more, 'r') as f:
+                    more = f.read()
+            except:
+                self.log.error('Error reading {file_more}')
+                more = ''
+            else:
+                more.replace(',', ' ')
+                more.replace('\n', ' ')
+        else:
+            more = ''
+        heading1('Setup repository for dependent packages\n')
+        exists = self.status_prep(which='Dependent Packages Repository')
+        if exists:
+            self.log.info('The Dependent Packages Repository exists already'
+                          ' in the POWER-Up server.')
+            resp = get_yesno('Do you wish to recreate the dependent '
+                             'packages repository ')
+        if not exists or resp:
+            repo_id = 'dependencies'
+            repo_name = 'Dependencies'
+            repo = PowerupRepo(repo_id, repo_name)
+            repo_dir = repo.get_repo_dir()
+            self._add_dependent_packages(repo_dir, dep_list)
+            self._add_dependent_packages(repo_dir, more)
+            repo.create_meta()
+            content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
+            repo.write_yum_dot_repo_file(content)
+            content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
+            filename = repo_id + '-powerup.repo'
+            self.sw_vars['yum_powerup_repo_files'][filename] = content
+
+        # Get cudnn tar file
+        name = 'CUDA dnn content'
+        heading1(f'Set up {name.title()} \n')
+        cudnn_src = self.files[name]
+        exists = self.status_prep(name)
+
+        if exists:
+            self.log.info('CUDA dnn content exists already in the POWER-Up server')
+
+        if not exists or get_yesno(f'Copy a new {name.title()} file '):
+            src_path = PowerupFileFromDisk(name, cudnn_src)
+
+        # Get cuda nccl2 tar file
+        name = 'CUDA nccl2 content'
+        heading1(f'Set up {name.title()} \n')
+        nccl2_src = self.files[name]
+        exists = self.status_prep(name)
+
+        if exists:
+            self.log.info('CUDA nccl2 content exists already in the POWER-Up server')
+
+        if not exists or get_yesno(f'Copy a new {name.title()} file '):
+            src_path = PowerupFileFromDisk(name, nccl2_src)
+
+        # Setup CUDA
+        repo_id = 'cuda'
+        repo_name = 'CUDA Toolkit'
+        baseurl = 'http://developer.download.nvidia.com/compute/cuda/repos/rhel7/ppc64le'
+        gpgkey = f'{baseurl}/7fa2af80.pub'
+        heading1(f'Set up {repo_name} repository\n')
+        if f'{repo_id}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{repo_id}_alt_url']
+        else:
+            alt_url = None
+
+        exists = self.status_prep(which='CUDA Toolkit Repository')
+        if exists:
+            self.log.info('The CUDA Toolkit Repository exists already'
+                          ' in the POWER-Up server')
+
+        repo = PowerupRepoFromRepo(repo_id, repo_name)
+
+        ch = repo.get_action(not exists)
+        if ch in 'YF':
+            url = repo.get_repo_url(baseurl, alt_url)
+            if not url == baseurl:
+                self.sw_vars[f'{repo_id}_alt_url'] = url
+                content = repo.get_yum_dotrepo_content(url, gpgcheck=0)
+            else:
+                content = repo.get_yum_dotrepo_content(url, gpgkey=gpgkey)
+            repo.write_yum_dot_repo_file(content)
+
+            try:
+                repo.sync()
+            except UserException as exc:
+                self.log.error(f'Repo sync error: {exc}')
+
+            if not exists:
+                repo.create_meta()
+            else:
+                repo.create_meta(update=True)
+
+            if not exists or ch == 'F':
+                content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
+                repo.write_yum_dot_repo_file(content)
+                content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
+                filename = repo_id + '-powerup.repo'
+                self.sw_vars['yum_powerup_repo_files'][filename] = content
+
         # Get Anaconda
-        ana_name = 'anaconda'
+        ana_name = 'Anaconda content'
         ana_src = self.files[ana_name]
         ana_url = 'https://repo.continuum.io/archive/Anaconda2-5.1.0-Linux-ppc64le.sh'
         if f'{ana_name}_alt_url' in self.sw_vars:
@@ -384,146 +539,42 @@ class software(object):
         if src is not None and src != ana_src and 'http' in src:
             self.sw_vars[f'{ana_name}_alt_url'] = src
 
-        # Get Spectrum Conductor with Spark
-        name = 'spectrum-conductor'
-        heading1(f'Set up {name.title()} \n')
-        spc_src = self.files[name]
-        self.status_prep(name)
-        exists = False if self.state['Spectrum conductor content'] == '-' else True
-
-        if exists:
-            self.log.info('Spectrum conductor content exists already in the POWER-Up server')
-
-        if not exists or (exists and get_yesno(f'Copy a new {name.title()} file? ')):
-            src_path = PowerupFileFromDisk(name, spc_src)
-
-        # Get Spectrum DLI
-        name = 'spectrum-dli'
-        heading1(f'Set up {name.title()} \n')
-        spdli_src = self.files[name]
-        self.status_prep(name)
-        exists = False if self.state['Spectrum DLI content'] == '-' else True
-
-        if exists:
-            self.log.info('Spectrum DLI content exists already in the POWER-Up server')
-
-        if not exists or (exists and get_yesno(f'Copy a new {name.title()} file? ')):
-            src_path = PowerupFileFromDisk(name, spdli_src)
-
-        # Setup repository for dependent packages
-        dep_list = ('bzip2 opencv kernel kernel-tools kernel-tools-libs '
-                    'kernel-bootwrapper kernel-devel kernel-headers gcc gcc-c++ '
-                    'libXdmcp elfutils-libelf-devel java-1.8.0-openjdk libmpc '
-                    'libatomic glibc-devel glibc-headers mpfr kernel-headers '
-                    'zlib-devel boost-system libgfortran boost-python boost-thread '
-                    'boost-filesystem java-1.8.0-openjdk-devel')
-        file_more = GEN_SOFTWARE_PATH + 'dependent-packages.list'
-        if os.path.isfile(file_more):
-            try:
-                with open(file_more, 'r') as f:
-                    more = f.read()
-            except:
-                self.log.error('Error reading {file_more}')
-                more = ''
-            else:
-                more.replace(',', ' ')
-                more.replace('\n', ' ')
-        else:
-            more = ''
-        heading1('Setup repository for dependent packages\n')
-        self.status_prep(which='Dependent Packages Repository')
-        new = self.state['Dependent Packages Repository'] == '-'
-        if not new:
-            self.log.info('The Dependent Packages Repository exists already'
-                          ' in the POWER-Up server.')
-            resp = get_yesno('Do you wish to recreate the dependent '
-                             'packages repository?')
-        if new or resp:
-            repo_id = 'dependencies'
-            repo_name = 'Dependencies'
-            repo = PowerupRepo(repo_id, repo_name)
-            repo_dir = repo.get_repo_dir()
-            self._add_dependent_packages(repo_dir, dep_list)
-            self._add_dependent_packages(repo_dir, more)
-            repo.create_meta()
-            content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
-            repo.write_yum_dot_repo_file(content)
-            content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
-            filename = repo_id + '-powerup.repo'
-            self.sw_vars['yum_powerup_repo_files'][filename] = content
-
-        # Get cudnn tar file
-        name = 'cudnn'
-        heading1(f'Set up {name.title()} \n')
-        cudnn_src = self.files[name]
-        self.status_prep(name)
-        exists = False if self.state['CUDA dnn content'] == '-' else True
-
-        if exists:
-            self.log.info('CUDA dnn content exists already in the POWER-Up server')
-
-        if not exists or (exists and get_yesno(f'Copy a new {name.title()} file? ')):
-            src_path = PowerupFileFromDisk(name, cudnn_src)
-
-        # Get cuda nccl2 tar file
-        name = 'nccl2'
-        heading1(f'Set up {name.title()} \n')
-        nccl2_src = self.files[name]
-        self.status_prep(name)
-        exists = False if self.state['CUDA nccl2 content'] == '-' else True
-
-        if exists:
-            self.log.info('CUDA nccl2 content exists already in the POWER-Up server')
-
-        if not exists or (exists and get_yesno(f'Copy a new {name.title()} file? ')):
-            src_path = PowerupFileFromDisk(name, nccl2_src)
-
-        # Setup CUDA
-        repo_id = 'cuda'
-        repo_name = 'CUDA Toolkit'
-        baseurl = 'http://developer.download.nvidia.com/compute/cuda/repos/rhel7/ppc64le'
-        gpgkey = f'{baseurl}/7fa2af80.pub'
-        heading1(f'Set up {repo_name} repository\n')
+        # Setup Anaconda Repo.  (not a YUM repo)
+        repo_id = 'anaconda'
+        repo_name = 'Anaconda Repository'
+        baseurl = 'https://repo.continuum.io/pkgs/free/linux-ppc64le'
+        heading1(f'Set up {repo_name}\n')
         if f'{repo_id}_alt_url' in self.sw_vars:
             alt_url = self.sw_vars[f'{repo_id}_alt_url']
         else:
             alt_url = None
 
-        self.status_prep(which='CUDA Toolkit Repository')
-        new = self.state['CUDA Toolkit Repository'] == '-'
-        if not new:
-            self.log.info('The CUDA Toolkit Repository exists already'
-                          ' in the POWER-Up server')
-
+        exists = self.status_prep(which='Anaconda Repository')
+        if exists:
+            self.log.info('The Anaconda Repository exists already'
+                          ' in the POWER-Up server\n')
         repo = PowerupRepoFromRepo(repo_id, repo_name)
 
-        ch = repo.get_action(new)
+        ch = repo.get_action(not exists)
         if ch in 'YF':
+            # if not exists or ch == 'F':
             url = repo.get_repo_url(baseurl, alt_url)
             if not url == baseurl:
                 self.sw_vars[f'{repo_id}_alt_url'] = url
-                content = repo.get_yum_dotrepo_content(url, gpgcheck=0)
-            else:
-                content = repo.get_yum_dotrepo_content(url, gpgkey=gpgkey)
-            repo.write_yum_dot_repo_file(content)
+            dest_dir = repo.sync_ana(url)
+            dest_dir = dest_dir[4 + dest_dir.find('/srv'):5 + dest_dir.find('free')]
+            # form .condarc content for given channel. Note that conda adds
+            # the corresponding 'noarch' channel automatically.
+            content = ('channels:\n'
+                       '  - http://{{ host_ip.stdout }}/'
+                       f'{dest_dir}\nshow_channel_urls: True')
+            self.sw_vars['ana_powerup_repo_files']['.condarc'] = content
+            print(content)
+            noarch_url = os.path.split(url.rstrip('/'))[0] + '/noarch/'
+            repo.sync_ana(noarch_url)
 
-            try:
-                repo.sync()
-            except UserException as exc:
-                self.log.error(f'Repo sync error: {exc}')
-            if new:
-                repo.create_meta()
-            else:
-                repo.create_meta(update=True)
 
-            if new or ch == 'F':
-                content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
-                repo.write_yum_dot_repo_file(content)
-                content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
-                filename = repo_id + '-powerup.repo'
-                self.sw_vars['yum_powerup_repo_files'][filename] = content
-
-        # Setup EPEL
+        # Setup EPEL Repo
         repo_id = 'epel-ppc64le'
         repo_name = 'Extra Packages for Enterprise Linux 7 (EPEL) - ppc64le'
         baseurl = 'https://mirrors.fedoraproject.org/metalink?repo=epel-7&arch=ppc64le'
@@ -534,17 +585,16 @@ class software(object):
         else:
             alt_url = None
 
-        self.status_prep(which='EPEL Repository')
-        new = self.state['EPEL Repository'] == '-'
-        if not new:
+        exists = self.status_prep(which='EPEL Repository')
+        if exists:
             self.log.info('The EPEL Repository exists already'
                           ' in the POWER-Up server')
 
         repo = PowerupRepoFromRepo(repo_id, repo_name)
 
-        ch = repo.get_action(new)
+        ch = repo.get_action(not exists)
         if ch in 'YF':
-            if new or ch == 'F':
+            if not exists or ch == 'F':
                 url = repo.get_repo_url(baseurl, alt_url)
                 if not url == baseurl:
                     self.sw_vars[f'{repo_id}_alt_url'] = url
@@ -554,12 +604,12 @@ class software(object):
                 repo.write_yum_dot_repo_file(content)
 
             repo.sync()
-            if new:
+            if not exists:
                 repo.create_meta()
             else:
                 repo.create_meta(update=True)
 
-            if new or ch == 'F':
+            if not exists or ch == 'F':
                 content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
                 repo.write_yum_dot_repo_file(content)
                 content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
@@ -568,7 +618,7 @@ class software(object):
 
         # Create custom repositories
         heading1('Create custom repositories')
-        if get_yesno('Would you like to create a custom repository? '):
+        if get_yesno('Would you like to create a custom repository '):
             repo_id = input('Enter a repo id (yum short name): ')
             repo_name = input('Enter a repo name (Descriptive name): ')
 

@@ -167,11 +167,13 @@ def sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE, shell=False):
     return stdout.decode('utf-8'), stderr.decode('utf-8'), proc.returncode
 
 
-def sub_proc_display(cmd, stdout=None, stderr=None):
+def sub_proc_display(cmd, stdout=None, stderr=None, shell=False):
     """Popen subprocess created without PIPES to allow subprocess printing
     to the parent screen. This is a blocking function.
     """
-    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    if not shell:
+        cmd = cmd.split()
+    proc = Popen(cmd, stdout=stdout, stderr=stderr, shell=shell)
     proc.wait()
     rc = proc.returncode
     return rc
@@ -264,12 +266,13 @@ def get_url(url='http://', type='directory', prompt_name='', repo_chk=False):
                         cmd = f'curl -G {url}'
                         reply, err, rc = sub_proc_exec(cmd)
                         if rc == 0:
-                            repodata = re.search(r'href=["\']repodata\/["\']', reply)
+                            repodata = re.search(r'href=["\']repodata(\/|.json)+["\']',
+                                                 reply)
                         else:
                             repodata = ''
                         if repodata:
-                            print('Repository data found.')
-                            if get_yesno('Use the specified URL? '):
+                            print('\nRepository data found.')
+                            if get_yesno('Use the specified URL '):
                                 break
                         else:
                             print('Not a valid repository')
@@ -278,7 +281,7 @@ def get_url(url='http://', type='directory', prompt_name='', repo_chk=False):
                         response = re.search(r'Content-Length:\s+[1-9]\d+', reply)
                         if response:
                             print(response.group(0))
-                            if get_yesno('Use the specified URL? '):
+                            if get_yesno('Use the specified URL '):
                                 break
                         else:
                             print('Content has no length')
@@ -295,15 +298,15 @@ def get_url(url='http://', type='directory', prompt_name='', repo_chk=False):
                 response = re.search(r'Content-Length:\s+\d+', reply)
                 if response:
                     try:
-                        cmd = f'curl --max-time 2 -I {url}/repodata'
+                        cmd = f'curl --max-time 2 -I {url}/repodata{{,.json}}'
                         reply, err, rc = sub_proc_exec(cmd)
                     except:
                         pass
                     else:
                         response = re.search(r'Content-Length:\s+\d+', reply)
                         if response:
-                            print('Repository data found.')
-                            if get_yesno('Use the specified URL? '):
+                            print('\nRepository data found.')
+                            if get_yesno('Use the specified URL '):
                                 break
                         else:
                             print('Not a valid repository')
@@ -382,7 +385,7 @@ def get_dir(src_dir):
             print(dirs)
 
             print(f'\nThe entered path was: {top}')
-            if get_yesno('Use the entered path? '):
+            if get_yesno('Use the entered path '):
                 return path
 
 
@@ -514,7 +517,7 @@ def get_file_path(filename='/home'):
             print()
             if item is not None and os.path.isfile(item):
                 print(f'\n{item}')
-                if get_yesno("Confirm selection (y/n): ", default='y'):
+                if get_yesno("Confirm selection: ", default='y'):
                     return item
                 else:
                     item = 'Search again'
