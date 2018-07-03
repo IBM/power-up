@@ -1,102 +1,154 @@
+.. _running_paie:
 
-Appendix - J Transferring Deployement Container to New Host
-===========================================================
-**Stil in Development**
+Appendix - J Running the PowerAI Enterprise Software Install Module
+===================================================================
 
-TODO: general description
+Overview
+--------
+The POWER-Up software can run on OpenPOWER or x_86 architecture.
 
-Save Container Files
---------------------
+The PowerAI Enterprise Software Install Module provides for rapid installation of the PowerAI Enterprise software to a cluster of POWER8 or POWER9 servers.
+The install module creates a web based software installation server on one of the cluster nodes or another node with access to the cluster.
+The software server is populated with repositories and files needed for installation of PowerAI Enterprise.
+Once the software server is setup, installation scripts orchestrate the software installation to one or more client nodes.
+The POWER-Up software installer does not currently support installation of PowerAI Enterprise onto the node running the POWER-Up software installer.
+If it is necessary to install PowerAI Enterprise onto the node running the POWER-Up software, this can be done manually or can be accomplished by running the POWER-Up software on an additional node in the cluster.
+Hint: A second POWER-Up server can be quickly prepared by replicating the repositories from the first POWER-Up server.
 
-#. Note container name from LXC status::
+Set up of the POWER-Up Software Installer Node
+----------------------------------------------
 
-    user@origin-host:~$ sudo lxc-ls -f
+POWER-Up Node  Prerequisites;
 
-#. Archive LXC files::
+#. The POWER-Up software installer currently runs under RHEL 7.2 or above.
 
-    user@origin-host:cluster-genesis/scripts $ ./container_save.sh [container_name]
+#. The user account used to run the POWER-Up software needs sudo privileges.
 
-#. Save config.yml, inventory.yml, and known_hosts files::
+#. Enable access to the Extra Packages for Enterprise Linux (EPEL) repository. (https://fedoraproject.org/wiki/EPEL#Quickstart)
 
-    origin-host:<cluster-genesis>/config.yml
-    origin-host:/var/oprc/inventory.yml
-    origin-host:<cluster-genesis>/playbooks/known_hosts
+#. Enable the optional and extras repositories.
 
-Prepare New Host
-----------------
+    On POWER8::
 
-#. Install git
+    $ subscription-manager repos --enable rhel-7-optional-rpms --enable rhel-7-extras-rpms
 
-    - Ubuntu::
+    On POWER9::
 
-        user@new-host:~$ sudo apt-get install git
+    $ subscription-manager repos --enable=rhel-7-for-power-9-optional-rpms --enable=–enable=rhel-7-for-power-9-extras-rpms
 
-    - RHEL::
+#. Insure that there is at least 40 GB of available disk space in the partition holding the /srv directory::
 
-        user@new-host:~$ sudo yum install git
+    $ df -h /srv
 
-#. From your home directory, clone Cluster Genesis::
+From your home directory install the POWER-Up software and initialize the environment.
+For additional information, see :ref:`installing`::
 
-    user@new-host:~$ git clone https://github.com/open-power-ref-design-toolkit/cluster-genesis
+    $ sudo yum install git
 
-#. Install the remaining software packages used by Cluster Genesis and
-   setup the environment::
+    $ git clone https://github.com/open-power-ref-design-toolkit/power-up -b software-install-b1
 
-    user@new-host:~$ cd cluster-genesis
-    user@new-host:~/cluster-genesis$ ./scripts/install.sh
+    $ cd power-up
 
-    (this will take a few minutes to complete)::
+    $ ./scripts/install.sh
 
-    user@new-host:~/cluster-genesis$ source scripts/setup-env
+    $ source scripts/setup-env
 
-    **NOTE:** anytime you leave and restart your shell session, you need to
-    re-execute the set-env script. Alternately, (recommended) add the following
-    to your .bashrc file; *PATH=~/cluster-genesis/pup-venv/bin:$PATH*
+Installation of PowerAI Enterprise
+----------------------------------
 
-    ie::
+Installation of the PowerAI Enterprise software involves the following steps;
 
-    user@new-host:~$ echo "PATH=~/cluster-genesis/pup-venv/bin:\$PATH" >> ~/.bashrc
+#. Preparation of the client nodes
 
-#. Copy config.yml, inventory.yml, and known_hosts files from origin to new
-   host::
+#. Preparation of the software server
 
-    new-host:<cluster-genesis>/config.yml
-    new-host:/var/oprc/inventory.yml
-    new-host:<cluster-genesis>/playbooks/known_hosts
+#. Initialization of the cluster nodes
 
-#. If needed, modify config.yml and inventory.yml 'port-mgmt-network'. This
-   value represents the port number that the deployer is connected to the
-   management switch.
+#. Installation of software on the cluster nodes
 
-#. Append cluster-genesis host keys to user's known_hosts::
 
-    user@new-host:~/cluster-genesis$ cat playbooks/known_hosts >> ~/.ssh/known_hosts
+Preparation of the client nodes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    **NOTE:** If user@new-host:~/.ssh/known_hosts already includes keys for
-    any of these host IP address this action will result in SSH refusing to
-    connect to the host (with host key checking enabled).
+Insure that the set up steps on IBM Knowledge Center up through and including 'Mount a shared file system' have been
+completed.
 
-#. Make the ~/cluster-genesis/playbooks directory the current working directory::
+https://www.ibm.com/support/knowledgecenter/SSFHA8_1.1.0/enterprise/powerai_setup.html
 
-    user@new-host:~/cluster-genesis$ cd ~/cluster-genesis/playbooks/
 
-#. Setup host networking::
+**Status of the Software Server**
 
-    user@new-host:~/cluster-genesis/playbooks$ ansible-playbook -i hosts lxc-create.yml -K --extra-vars "networks_only=True"
+At any time, you can check the status of the POWER-Up software server by running::
 
-#. Configure management switch::
+    $ pup software --status paie52
 
-    user@new-host:~/cluster-genesis/playbooks$ ansible-playbook -i hosts container/set_mgmt_switch_config.yml
+Preparation of the POWER-Up Software Server
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Before beginning installation of PowerAI Enterprise, the files listed below need to be copied onto the software server node.
+The files can be copied anywhere, but the POWER-Up software can locate them quicker if the files are under one of the /home/ directories.
 
-Restore container from archive
-------------------------------
+-  PowerAI Enterprise binary file. (powerai-enterprise-1.1.0_ppc64le.bin)
+-  Cuda cudnn (cudnn-9.2-linux-ppc64le-v7.1.tgz)
+-  Cuda nccl v2 (nccl_2.2.12-1+cuda9.2_ppc64le.tgz)
 
-#. Copy LXC file archive from origin to new host
+In addition, the POWER-Up software server needs access to the following repositories during the preparation phase;
 
-#. Run 'container_restore.sh' script to install and start container::
+-  Red Hat 'common', 'optional' and 'extras'
+-  Extra Packages for Enterprise Linux (EPEL)
+-  Cuda Toolkit
+-  Anaconda
 
-    user@new-host:cluster-genesis/scripts $ ./container_restore.sh container_archive [new_container_name]
+These can be accessed using the public internet (URL's are provided) or via an alternate web site such as an intranet mirror repository or from a mounted USB key.
 
-#. Use LXC status to verify container is running::
+Before beginning, extract the contents of the powerai-enterprise-1.1.0_ppc64le.bin file and accept the license by running::
 
-    user@new-host:~$ sudo lxc-ls -f
+    $ sudo bash ./powerai-enterprise-1.1.0_ppc64le.bin
+
+NOTE: Extraction and license acceptance must be run on an OpenPOWER node. If you are running the POWER-Up installer software on an x_86 node, you must first extract the files on an OpenPOWER node and then copy all of the extracted contents to the POWER-Up installer node.
+
+Preparation is run with the following POWER-Up command::
+
+    $ pup software --prep paie52
+
+Preparation is interactive. Respond to the prompts as appropriate for your environment. Note that the EPEL, Cuda, dependencies and Anaconda repositories can be replicated from the public web sites or from alternate sites accessible on your intranet environment or from local disk (ie from a mounted USB drive). Most other files come from the local file system except for the Anaconda package which can be downloaded from the public internet during the preparation step.
+
+**Dependent software packages**
+The PowerAI Enterprise software is dependent on additional open source software that is not shipped with PowerAI Enterprise.
+These dependent packages are downloaded to the POWER-Up software server from enabled yum repositories during the preparation phase and are subsequently available to the client nodes during the install phase.
+Additional software packages can be installed in the 'dependencies' repo on the POWER-Up software server by listing them in the power-up/software/dependent-packages.list file.
+Entries in this file can be delimited by spaces or commas and can appear on multiple lines.
+Note that packages listed in the dependent-packages.list file are not automatically installed on client nodes unless needed by the PowerAI software.
+They can be installed on a client node explicitly using yum on the client node (ie yum install pkg-name). Alternatively, they can be installed on all client nodes at once using Ansible (run from within the power-up/software/ directory)::
+
+    $ ansible all -i software_hosts -m yum -a "name=pkg-name"
+
+or on a subset of nodes (eg the master nodes) ::
+
+    $ ansible master -i software_hosts -m yum -a "name=pkg-name"
+
+
+Initialization of the Client Nodes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To initialize the client nodes and enable access to the POWER-Up software server::
+
+    $ pup software --init-clients paie52
+
+Installation
+~~~~~~~~~~~~
+To install the PowerAI base software Frameworks and prerequisites::
+
+    $ pup software --install paie52
+
+After completion of the installation of the PowerAI frameworks, continue installation of PowerAI Enterprise at the step labeled 'Configure the system for IBM Spectrum Conductor Deep Learning Impact' at https://www.ibm.com/support/knowledgecenter/SSFHA8_1.1.0/enterprise/powerai_install.html
+
+**Note:** After installation of the PowerAI base components, Conductor with Spark and the DLI binary files can be copied to all client nodes at once, by executing the following Ansible commands on the installer node::
+
+    $ ansible all -i software_hosts -m get_url -a 'owner=user group=user checksum=md5:f3d4e52ce23e7fbe6909ddc2e8a85166 url=http://installer-hostname/spectrum-conductor/cws-2.2.1.0_ppc64le.bin dest=/home/pai-user/'
+
+    $ ansible all -i software_hosts -m get_url -a 'owner=user group=user checksum=md5:5529a3c74cea687e896e1d226570d799 url=http://installer-hostname/spectrum-dli/dli-1.1.0.0_ppc64le.bin dest=/home/pai-user/'
+
+Alternatively, the files can be 'pulled' to individual nodes using curl::
+
+    $ curl -O http://installer-hostname/spectrum-conductor/cws-2.2.1.0_ppc64le.bin /home/pai-user
+
+    $ curl -O http://installer-hostname/spectrum-dli/dli-1.1.0.0_ppc64le.bin /home/pai-user
