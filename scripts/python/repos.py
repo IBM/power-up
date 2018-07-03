@@ -52,7 +52,7 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
             only a single match is found it is used without choice and returned.
     """
     log = logger.getlogger()
-    name_src = name.lower().replace(' ', '-').replace('-content', '')
+    name_src = get_name_dir(name)
     exists = glob.glob(f'/srv/{name_src}/**/{src_glob}', recursive=True)
     if exists:
         log.info(f'The {name.capitalize()} source file exists already in the POWER-Up server '
@@ -93,12 +93,12 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
         elif ch == 'D':
             src_path = get_src_path(src_glob)
             if src_path:
-                if not os.path.exists(f'/srv/{name}'):
-                    os.mkdir(f'/srv/{name}')
+                if not os.path.exists(f'/srv/{name_src}'):
+                    os.mkdir(f'/srv/{name_src}')
                 try:
-                    copy2(f'{src_path}', f'/srv/{name}/')
+                    copy2(f'{src_path}', f'/srv/{name_src}/')
                 except Error as err:
-                    log.debug(f'Failed copying {name} source file to /srv/{name}/ '
+                    log.debug(f'Failed copying {name} source file to /srv/{name_src}/ '
                               f'directory. \n{err}')
                     return False, None
                 else:
@@ -106,7 +106,8 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
                              'into the POWER-Up software server.')
                     return src_path, True
         else:
-            log.info(f'No {name.capitalize()} source file copied to POWER-Up server directory')
+            log.info(f'No {name.capitalize()} source file copied to POWER-Up '
+                     'server directory')
             if exists:
                 return None, True
             else:
@@ -119,16 +120,26 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
             return None, False
 
 
-def PowerupFileFromDisk(name, file_glob):
+def get_name_dir(name):
+    """Construct a reasonable directory name from a descriptive name. Replace
+    spaces with dashes, convert to lower case and remove 'content' and 'Repository'
+    if present.
+    """
+    return name.lower().replace(' ', '-').replace('-content', '')\
+        .replace('-repository', '')
+
+
+def powerup_file_from_disk(name, file_glob):
         log = logger.getlogger()
+        name_src = get_name_dir(name)
         src_path = get_src_path(file_glob)
         if src_path:
-            if not os.path.exists(f'/srv/{name}'):
-                os.mkdir(f'/srv/{name}')
+            if not os.path.exists(f'/srv/{name_src}'):
+                os.mkdir(f'/srv/{name_src}')
             try:
-                copy2(f'{src_path}', f'/srv/{name}/')
+                copy2(f'{src_path}', f'/srv/{name_src}/')
             except Error as err:
-                log.debug(f'Failed copying {name} source file to /srv/{name}/ '
+                log.debug(f'Failed copying {name} source file to /srv/{name_src}/ '
                           f'directory. \n{err}')
             else:
                 log.info(f'Successfully installed {name} source file '
@@ -410,7 +421,8 @@ class PowerupRepoFromRepo(PowerupRepo):
             d = f.read()
             rejlist = rejlist.replace('*', '').split(',')
             for item in rejlist:
-                ss = f' *<tr>\\n\\s+<td><a\\s+href="{item}.+\\.tar\\.bz2">.*?</td>(\\n.*<td.*/td>){{3}}\\n\\s*</tr>\\n'
+                ss = (f' *<tr>\\n\\s+<td><a\\s+href="{item}.+\\.tar\\.bz2">.*?</td>'
+                      '(\\n.*<td.*/td>){{3}}\\n\\s*</tr>\\n')
                 d = re.sub(ss, '', d)
         filecnt = d.count('</tr>') - 1
         d = re.sub(r'Files:\s+\d+', f'Files: {filecnt}', d)
