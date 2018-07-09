@@ -6,5 +6,10 @@
   with_items:
     - wget
     - bzip2
-    - powerai-license
+    - curl
+    - bind-utils
+    - iproute
+    - acl
+    - net-tools
+    - dejavu-serif-fonts
   become: yes
