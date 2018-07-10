@@ -66,6 +66,8 @@ class software(object):
             self.sw_vars['ana_powerup_repo_files'] = {}
         if 'yum_powerup_repo_files' not in self.sw_vars:
             self.sw_vars['yum_powerup_repo_files'] = {}
+        if 'content_files' not in self.sw_vars:
+            self.sw_vars['content_files'] = {}
         self.epel_repo_name = 'epel-ppc64le'
         self.sw_vars['epel_repo_name'] = self.epel_repo_name
         self.rhel_ver = '7'
@@ -117,8 +119,8 @@ class software(object):
                 '       usage: pup software --init-clients paie52\n'
                 '\n  3 - Installation. Install software on the client nodes\n'
                 '       usage: pup software --install paie52\n\n'
-                'Before beiginning, the following files should be present\n'
-                'onto this node;\n'
+                'Before beginning, the following files should be present\n'
+                'on this node;\n'
                 '- mldl-repo-local-5.2.0-201806060629.714fa9e.ppc64le.rpm\n'
                 '- cudnn-9.2-linux-ppc64le-v7.1.tgz\n'
                 '- nccl_2.2.12-1+cuda9.2_ppc64le.tgz\n'
@@ -368,6 +370,7 @@ class software(object):
             self.log.warning('Failed reloading nginx configuration')
 
         # Get PowerAI base
+        name = 'Power AI content'
         heading1('Setting up the PowerAI base repository\n')
         pai_src = 'mldl-repo-local-5.[1-9]*.ppc64le.rpm'
         repo_id = 'power-ai'
@@ -381,7 +384,8 @@ class software(object):
             repo = PowerupRepoFromRpm(repo_id, repo_name)
             src_path = get_src_path(pai_src)
             if src_path:
-                repo.copy_rpm(src_path)
+                dest_path = repo.copy_rpm(src_path)
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
                 repodata_dir = repo.extract_rpm()
                 if repodata_dir:
                     content = repo.get_yum_dotrepo_content(repo_dir=repodata_dir,
@@ -408,7 +412,9 @@ class software(object):
             self.log.info('Spectrum conductor content exists already in the POWER-Up server')
 
         if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path = powerup_file_from_disk(name, spc_src)
+            src_path, dest_path = powerup_file_from_disk(name, spc_src)
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
 
         # Get Spectrum DLI
         name = 'Spectrum DLI content'
@@ -420,7 +426,9 @@ class software(object):
             self.log.info('Spectrum DLI content exists already in the POWER-Up server')
 
         if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path = powerup_file_from_disk(name, spdli_src)
+            src_path, dest_path = powerup_file_from_disk(name, spdli_src)
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
 
         # Setup repository for dependent packages. Dependent packages can come from
         # any YUM repository enabled on the POWER-Up Installer node.
@@ -477,7 +485,9 @@ class software(object):
             self.log.info('CUDA dnn content exists already in the POWER-Up server')
 
         if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path = powerup_file_from_disk(name, cudnn_src)
+            src_path, dest_path = powerup_file_from_disk(name, cudnn_src)
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
 
         # Get cuda nccl2 tar file
         name = 'CUDA nccl2 content'
@@ -489,7 +499,9 @@ class software(object):
             self.log.info('CUDA nccl2 content exists already in the POWER-Up server')
 
         if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path = powerup_file_from_disk(name, nccl2_src)
+            src_path, dest_path = powerup_file_from_disk(name, nccl2_src)
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
 
         # Setup CUDA
         repo_id = 'cuda'
@@ -548,10 +560,14 @@ class software(object):
         self.status_prep(ana_name)
 
         heading1('Set up Anaconda \n')
-        src, state = setup_source_file(ana_name, ana_src, ana_url, alt_url=alt_url)
+        src_path, dest_path, state = setup_source_file(ana_name, ana_src, ana_url,
+                                                       alt_url=alt_url)
 
-        if src is not None and src != ana_src and 'http' in src:
-            self.sw_vars[f'{ana_name}_alt_url'] = src
+        if dest_path:
+            self.sw_vars['content_files'][get_name_dir(ana_name)] = dest_path
+
+        if src_path is not None and src_path != ana_src and 'http' in src_path:
+            self.sw_vars[f'{ana_name}_alt_url'] = src_path
 
         # Setup Anaconda Repo.  (not a YUM repo)
         repo_id = 'anaconda'
@@ -827,7 +843,7 @@ def _run_ansible_tasks(tasks_path, ansible_inventory, extra_args=''):
             print('\nClient password required for privilege escalation')
         resp, err, rc = sub_proc_exec(cmd, shell=True)
         log.debug(f"cmd: {cmd}\nresp: {resp}\nerr: {err}\nrc: {rc}")
-        print("") # line break
+        print("")  # line break
         if rc != 0:
             log.warning("Ansible tasks failed!")
             if resp != '':

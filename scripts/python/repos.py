@@ -50,13 +50,19 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
             OR if the attempt to copy a new file to the dest directory failed.
         src_path (str) : The path for the file found / chosen by the user. If
             only a single match is found it is used without choice and returned.
+        dest_path (str)
     """
+    state = False
+    src_path = None
+    dest_path = None
     log = logger.getlogger()
     name_src = get_name_dir(name)
     exists = glob.glob(f'/srv/{name_src}/**/{src_glob}', recursive=True)
     if exists:
         log.info(f'The {name.capitalize()} source file exists already in the POWER-Up server '
                  'directory')
+        dest_path = exists[0]
+        state = True
     if get_yesno(f'Copy the {name.capitalize()} source file to the POWER-Up server? '):
         ch, item = get_selection('Copy from URL\nSearch local Disk', 'U\nD', allow_none=True)
         if ch == 'U':
@@ -73,51 +79,44 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
                     regex = src_glob.replace('*', '.+')
                     if re.search(regex, url):
                         good_url = True
-                        if not os.path.exists(f'/srv/{name_src}'):
-                            os.mkdir(f'/srv/{name_src}')
-                        os.chdir(f'/srv/{name_src}')
+                        dest_dir = f'/srv/{name_src}'
+                        if not os.path.exists(dest_dir):
+                            os.mkdir(dest_dir)
+                        os.chdir(dest_dir)
                         cmd = f'curl -O {_url}'
                         rc = sub_proc_display(cmd)
                         if rc != 0:
                             log.error(f'Failed downloading {name} source to'
                                       f' /srv/{name_src}/ directory. \n{rc}')
                         else:
-                            return _url, True
+                            src_path = _url
+                            dest_path = os.path.join(dest_dir, os.path.basename(_url))
+                            state = True
                     else:
                         log.error(f'Invalid url. {regex} not found in url.')
-                else:
-                    return None, False
-            else:
-                return _url, True
-
         elif ch == 'D':
             src_path = get_src_path(src_glob)
             if src_path:
-                if not os.path.exists(f'/srv/{name_src}'):
-                    os.mkdir(f'/srv/{name_src}')
+                dest_dir = f'/srv/{name_src}'
+                if not os.path.exists(dest_dir):
+                    os.mkdir(dest_dir)
                 try:
-                    copy2(f'{src_path}', f'/srv/{name_src}/')
+                    copy2(src_path, dest_dir)
                 except Error as err:
                     log.debug(f'Failed copying {name} source file to /srv/{name_src}/ '
                               f'directory. \n{err}')
-                    return False, None
                 else:
                     log.info(f'Successfully installed {name} source file '
                              'into the POWER-Up software server.')
-                    return src_path, True
+                    dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+                    state = True
         else:
             log.info(f'No {name.capitalize()} source file copied to POWER-Up '
                      'server directory')
-            if exists:
-                return None, True
-            else:
-                return None, False
     else:
         log.info(f'No {name.capitalize()} source file copied to POWER-Up server directory')
-        if exists:
-            return None, True
-        else:
-            return None, False
+
+    return src_path, dest_path, state
 
 
 def get_name_dir(name):
@@ -132,20 +131,22 @@ def get_name_dir(name):
 def powerup_file_from_disk(name, file_glob):
         log = logger.getlogger()
         name_src = get_name_dir(name)
+        dest_path = None
         src_path = get_src_path(file_glob)
         if src_path:
             if not os.path.exists(f'/srv/{name_src}'):
                 os.mkdir(f'/srv/{name_src}')
             try:
-                copy2(f'{src_path}', f'/srv/{name_src}/')
+                copy2(src_path, f'/srv/{name_src}/')
             except Error as err:
                 log.debug(f'Failed copying {name} source file to /srv/{name_src}/ '
                           f'directory. \n{err}')
             else:
                 log.info(f'Successfully installed {name} source file '
                          'into the POWER-Up software server.')
-                return src_path
-        return None
+                dest_path = os.path.join(f'/srv/{name_src}/',
+                                         os.path.basename(src_path))
+        return src_path, dest_path
 
 
 class PowerupRepo(object):
@@ -301,6 +302,9 @@ class PowerupRepoFromRpm(PowerupRepo):
         if not os.path.exists(dst_dir):
             os.mkdir(dst_dir)
         copy2(self.rpm_path, dst_dir)
+        dest_path = os.path.join(dst_dir, os.path.basename(src_path))
+        print(dest_path)
+        return dest_path
 
     def extract_rpm(self):
         """Extracts files from the selected rpm file to a repository directory
