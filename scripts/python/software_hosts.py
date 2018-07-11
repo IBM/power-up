@@ -20,11 +20,19 @@ from __future__ import nested_scopes, generators, division, absolute_import, \
 
 import click
 import os.path
+from os import listdir, mkdir, chown, chmod, getlogin, getuid
+import filecmp
+import json
+import pwd
+import grp
+from shutil import copyfile
+from pathlib import Path
 import re
 import netaddr
 import socket
 from subprocess import CalledProcessError
 import sys
+from getpass import getpass
 
 from inventory import generate_dynamic_inventory
 from lib.exception import UserException
@@ -32,7 +40,7 @@ import lib.logger as logger
 from lib.genesis import get_python_path, CFG_FILE, \
     get_dynamic_inventory_path, get_playbooks_path, get_ansible_path
 from lib.utilities import bash_cmd, sub_proc_exec, heading1, get_selection, \
-    bold
+    bold, get_yesno, sub_proc_display, remove_line, append_line, rlinput
 
 
 def _get_dynamic_inventory():
@@ -170,34 +178,39 @@ def _create_new_software_inventory(software_hosts_file_path):
 # For detailed information visit:
 #   http://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html
 #
-# Global SSH logic credentials can be specified with [all:vars]
+# Only host definitions are required. SSH keys can be automatically
+# configured by pup or manually defined in this file.
+
+# POWER-Up uses ssh keys to access the client nodes. If there is an
+# existing ssh key pair available, you may enter it under the [all:vars]
+# section (eg; ansible_ssh_private_key_file=/root/.ssh/your-private-key).
+# If one is not available, POWER-Up will generate one for you. POWER-Up
+# also needs an active user id for the client nodes. The POWER-Up
+# software will prompt for the user id, or you may enter it under the
+# [all:vars] section below (eg; ansible_ssh_user=egoadmin).
+#
+# Global variables can be defined via the [all:vars] group
 #   e.g.:
 #   [all:vars]
-#   ansible_ssh_private_key_file=~/.ssh/gen
-#   ansible_user=root
-#   ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+#   ansible_ssh_user=egoadmin
 #
 # Group names are defined within brackets
 # Hosts are defined with an FQDN or IP address
 #   e.g.:
 #   [master]
 #   host1.domain.com  # master host1
-#   192.168.1.21      # master host2
+#   host2.domain.com  # master host2
 #
 #   [worker]
 #   host3.domain.com  # worker host1
-#   192.168.1.22      # worker host2
-#
-# Localhost can be specified as:
-#   localhost ansible_connection=local
-
-[all:vars]
+#   host4.domain.com  # worker host2
 
 [master]
   # define first master host on this line before the "#"
 
 [worker]
   # define first worker host on this line before the "#"
+
 """)
     hosts = None
     while hosts is None:
@@ -207,7 +220,24 @@ def _create_new_software_inventory(software_hosts_file_path):
                 new_hosts_file.write(hosts)
         elif not click.confirm('File not written! Try again?'):
             return False
+
+    _set_software_hosts_owner_mode(software_hosts_file_path)
+
     return True
+
+
+def _set_software_hosts_owner_mode(software_hosts_file_path):
+    """Set software_hosts file owner to "login" user
+
+    Args:
+        software_hosts_file_path (str): Path to software inventory file
+    """
+    user_name = getlogin()
+    if getuid() == 0 and user_name != 'root':
+        user_uid = pwd.getpwnam(user_name).pw_uid
+        user_gid = grp.getgrnam(user_name).gr_gid
+        os.chown(software_hosts_file_path, user_uid, user_gid)
+        os.chmod(software_hosts_file_path, 0o644)
 
 
 def _validate_inventory_count(software_hosts_file_path):
@@ -310,6 +340,327 @@ def _validate_ansible_ping(software_hosts_file_path):
     return True
 
 
+def configure_ssh_keys(software_hosts_file_path):
+    """Configure SSH keys for Ansible software hosts
+
+    Scan for SSH key pairs in home directory, and if called using
+    'sudo' also in "login" user's home directory. Allow user to create
+    a new SSH key pair if 'default_ssh_key_name' doesn't already exist.
+    If multiple choices are available user will be prompted to choose.
+    Selected key pair is copied into "login" user's home '.ssh'
+    directory if necessary. Selected key pair is then copied to all
+    hosts listed in 'software_hosts' file via 'ssh-copy-id', and
+    finally assigned to the 'ansible_ssh_private_key_file' var in
+    the 'software_hosts' '[all:vars]' section.
+
+    Args:
+        software_hosts_file_path (str): Path to software inventory file
+    """
+    log = logger.getlogger()
+    default_ssh_key_name = "powerup"
+
+    ssh_key_options = get_existing_ssh_key_pairs()
+
+    if os.path.join(Path.home(), ".ssh",
+                    default_ssh_key_name) not in ssh_key_options:
+        ssh_key_options.insert(0, 'Create New "powerup" Key Pair')
+
+    if len(ssh_key_options) == 1:
+        item = ssh_key_options[0]
+    elif len(ssh_key_options) > 1:
+        print(bold("\nSelect an SSH key to use:"))
+        choice, item = get_selection(ssh_key_options)
+
+    if item == 'Create New "powerup" Key Pair':
+        ssh_key = create_ssh_key_pair(default_ssh_key_name)
+    else:
+        ssh_key = item
+
+    copy_ssh_key_pair_to_user_dir(ssh_key)
+
+    add_software_hosts_global_var(
+        software_hosts_file_path,
+        "ansible_ssh_common_args='-o StrictHostKeyChecking=no'")
+
+    hostvars = get_ansible_hostvars(software_hosts_file_path)
+    global_user = None
+    global_pass = None
+    for host in _validate_inventory_count(software_hosts_file_path):
+        if global_user is None and 'ansible_user' not in hostvars[host]:
+            print(bold('\nOne or more hosts does not have \'ansible_user\' '
+                       'defined in inventory'))
+            global_user = rlinput('Please input a global client SSH login '
+                                  'username: ')
+            add_software_hosts_global_var(software_hosts_file_path,
+                                          f'ansible_user={global_user}')
+        if global_pass is None and 'ansible_ssh_pass' not in hostvars[host]:
+            print(bold('\nOne or more hosts does not have '
+                       '\'ansible_ssh_pass\' defined in inventory'))
+            global_pass = getpass('Please input a global client SSH login '
+                                  'password: ')
+        if global_user is not None and global_pass is not None:
+            break
+
+    run = True
+    while run:
+        heading1("Copying SSH Public Keys to Hosts\n")
+        rc = copy_ssh_key_pair_to_hosts(ssh_key, software_hosts_file_path,
+                                        global_pass)
+        if not rc:
+            log.warning("One or more SSH key copy failed!")
+            choice, item = get_selection(['Retry', 'Continue', 'Exit'])
+            if choice == "1":
+                pass
+            elif choice == "2":
+                run = False
+            elif choice == "3":
+                log.debug('User chooses to exit.')
+                sys.exit('Exiting')
+        else:
+            log.info("SSH key successfully copied to all hosts")
+            run = False
+
+    add_software_hosts_global_var(software_hosts_file_path,
+                                  f'ansible_ssh_private_key_file={ssh_key}')
+
+
+def add_software_hosts_global_var(software_hosts_file_path, entry):
+    """Copy an SSH public key into software hosts authorized_keys files
+
+    Add entry to software_hosts '[all:vars]' section. Any existing
+    entries with the same key name (string before '=') will be
+    overwritten.
+
+    Args:
+        software_hosts_file_path (str): Path to software inventory file
+        entry (str) : Entry to write in software_hosts '[all:vars]'
+    """
+    remove_line(software_hosts_file_path, '^ansible_ssh_private_key_file=.*')
+
+    append_line(software_hosts_file_path, '[all:vars]')
+
+    with open(software_hosts_file_path, 'r') as software_hosts_read:
+        software_hosts = software_hosts_read.readlines()
+
+    in_all_vars = False
+    prev_line = "BOF"
+    with open(software_hosts_file_path, 'w') as software_hosts_write:
+        for line in software_hosts:
+            if line.startswith("[all:vars]"):
+                if prev_line != "\n":
+                    line = "\n" + line
+                line = line + f'{entry}\n'
+                in_all_vars = True
+            elif in_all_vars and line.startswith('['):
+                in_all_vars = False
+            elif in_all_vars and line.startswith(entry.split('=')[0]):
+                continue
+            software_hosts_write.write(line)
+            prev_line = line
+    _set_software_hosts_owner_mode(software_hosts_file_path)
+
+
+def get_existing_ssh_key_pairs():
+    """Get a list of existing SSH private/public key paths from
+    '~/.ssh/'. If called with 'sudo' then get list from both
+    '/root/.ssh/' and '~/.ssh'.
+
+    Returns:
+        list of str: List of private ssh key paths
+    """
+    ssh_key_pairs = []
+
+    ssh_dir = os.path.join(Path.home(), ".ssh")
+    if os.path.isdir(ssh_dir):
+        for item in listdir(ssh_dir):
+            item = os.path.join(ssh_dir, item)
+            if os.path.isfile(item + '.pub'):
+                ssh_key_pairs.append(item)
+
+    user_name, user_home_dir = get_user_and_home()
+    if user_home_dir != str(Path.home()):
+        user_ssh_dir = os.path.join(user_home_dir, ".ssh")
+        if os.path.isdir(user_ssh_dir):
+            for item in listdir(user_ssh_dir):
+                item = os.path.join(user_ssh_dir, item)
+                if os.path.isfile(item + '.pub'):
+                    ssh_key_pairs.append(item)
+
+    return ssh_key_pairs
+
+
+def create_ssh_key_pair(name):
+    """Create an SSH private/public key pair in ~/.ssh/
+
+    If an SSH key pair exists with "name" then the private key path is
+    returned *without* creating anything new.
+
+    Args:
+        name (str): Filename of private key file
+
+    Returns:
+        str: Private ssh key path
+
+    Raises:
+        UserException: If ssh-keygen command fails
+    """
+    log = logger.getlogger()
+    ssh_dir = os.path.join(Path.home(), ".ssh")
+    private_key_path = os.path.join(ssh_dir, name)
+    if not os.path.isdir(ssh_dir):
+        os.mkdir(ssh_dir, mode=0o700)
+    if os.path.isfile(private_key_path):
+        log.info(f'SSH key \'{private_key_path}\' already exists, continuing')
+    else:
+        print(bold(f'Creating SSH key \'{private_key_path}\''))
+        cmd = ('ssh-keygen -t rsa -b 4096 '
+               '-C "Generated by Power-Up Software Installer" '
+               f'-f {private_key_path} -N ""')
+        resp, err, rc = sub_proc_exec(cmd, shell=True)
+        if str(rc) != "0":
+            msg = 'ssh-keygen failed:\n{}'.format(resp)
+            log.debug(msg)
+            raise UserException(msg)
+    return private_key_path
+
+
+def copy_ssh_key_pair_to_user_dir(private_key_path):
+    """Copy an SSH private/public key pair into the user's ~/.ssh dir
+
+    This function is useful when a key pair is created as root user
+    (e.g. using 'sudo') but should also be available to the user for
+    direct 'ssh' calls.
+
+    If the private key is already in the user's ~/.ssh directory
+    nothing is done.
+
+    Args:
+        private_key_path (str) : Filename of private key file
+    """
+    log = logger.getlogger()
+    public_key_path = private_key_path + '.pub'
+
+    user_name, user_home_dir = get_user_and_home()
+    user_ssh_dir = os.path.join(user_home_dir, ".ssh")
+
+    if user_ssh_dir not in private_key_path:
+        user_private_key_path = os.path.join(
+            user_ssh_dir, os.path.basename(private_key_path))
+        user_public_key_path = user_private_key_path + '.pub'
+        user_uid = pwd.getpwnam(user_name).pw_uid
+        user_gid = grp.getgrnam(user_name).gr_gid
+
+        if not os.path.isdir(user_ssh_dir):
+            os.mkdir(user_ssh_dir, mode=0o700)
+            os.chown(user_ssh_dir, user_uid, user_gid)
+
+        # Never overwrite an existing private key file!
+        already_copied = False
+        while os.path.isfile(user_private_key_path):
+            # If key pair already exists no need to do anything
+            if (filecmp.cmp(private_key_path, user_private_key_path) and
+                    filecmp.cmp(public_key_path, user_public_key_path)):
+                already_copied = True
+                break
+            else:
+                user_private_key_path += "_powerup"
+                user_public_key_path = user_private_key_path + '.pub'
+
+        if already_copied:
+            print(f'\'{private_key_path}\' already copied to '
+                  f'\'{user_private_key_path}\'')
+        else:
+            print(bold(f'Copying \'{private_key_path}\' to '
+                       f'\'{user_private_key_path}\' for unprivileged use'))
+            copyfile(private_key_path, user_private_key_path)
+            copyfile(public_key_path, user_public_key_path)
+
+            os.chown(user_private_key_path, user_uid, user_gid)
+            os.chmod(user_private_key_path, 0o600)
+
+            os.chown(user_public_key_path, user_uid, user_gid)
+            os.chmod(user_public_key_path, 0o644)
+
+
+def copy_ssh_key_pair_to_hosts(private_key_path, software_hosts_file_path,
+                               global_pass=None):
+    """Copy an SSH public key into software hosts authorized_keys files
+
+    TODO: detailed description
+
+    Args:
+        private_key_path (str) : Filename of private key file
+        software_hosts_file_path (str): Path to software inventory file
+        global_pass (str, optional): Global client default SSH password
+
+    Returns:
+        bool: True iff rc of all commands are "0"
+    """
+    log = logger.getlogger()
+    hosts_list = _validate_inventory_count(software_hosts_file_path)
+    all_zero_returns = True
+
+    hostvars = get_ansible_hostvars(software_hosts_file_path)
+
+    for host in hosts_list:
+        print(bold(f'Copy SSH Public Key to {host}'))
+        cmd = f'ssh-copy-id -i {private_key_path} '
+        if "ansible_port" in hostvars[host]:
+            cmd += f'-p {hostvars[host]["ansible_port"]} '
+        if "ansible_ssh_common_args" in hostvars[host]:
+            cmd += f'{hostvars[host]["ansible_ssh_common_args"]} '
+        cmd += f'{hostvars[host]["ansible_user"]}@{host}'
+
+        if 'ansible_ssh_pass' not in hostvars[host]:
+            cmd = f'SSHPASS=\'{global_pass}\' sshpass -e ' + cmd
+
+        rc = sub_proc_display(cmd, shell=True)
+        if rc != 0:
+            all_zero_returns = False
+
+    return all_zero_returns
+
+
+def get_ansible_hostvars(software_hosts_file_path):
+    """Get Ansible generated 'hostvars' dictionary
+
+    Args:
+        software_hosts_file_path (str): Path to software inventory file
+
+    Returns:
+        dict: Ansible 'hostvars' dictionary
+    """
+    cmd = (f'ansible-inventory --inventory {software_hosts_file_path} --list')
+    resp, err, rc = sub_proc_exec(cmd, shell=True)
+    hostvars = json.loads(resp)['_meta']['hostvars']
+    return hostvars
+
+
+def get_user_and_home():
+    """Get user name and home directory path
+
+    Returns the user account calling the script, *not* 'root' even
+    when called with 'sudo'.
+
+    Returns:
+        user_name, user_home_dir (tuple): User name and home dir path
+
+    Raises:
+        UserException: If 'getent' command fails
+    """
+    user_name = getlogin()
+
+    cmd = f'getent passwd {user_name}'
+    resp, err, rc = sub_proc_exec(cmd, shell=True)
+    if str(rc) != "0":
+        msg = 'getent failed:\n{}'.format(err)
+        log.debug(msg)
+        raise UserException(msg)
+    user_home_dir = resp.split(':')[5].rstrip()
+
+    return (user_name, user_home_dir)
+
+
 def validate_software_inventory(software_hosts_file_path):
     """Validate Ansible software inventory
 
@@ -380,7 +731,8 @@ def get_ansible_inventory():
             # If no software inventory file exists create one using template
             else:
                 print("Software inventory file not found.")
-                if click.confirm('Do you want to create a new inventory from a template?'):
+                if click.confirm('Do you want to create a new inventory from '
+                                 'a template?'):
                     _create_new_software_inventory(software_hosts_file_path)
                 elif click.confirm('Do you want to exit the program?'):
                     sys.exit(1)
@@ -404,30 +756,36 @@ def get_ansible_inventory():
                     continue
 
             # Menu items can modified to show validation results
-            menu_items = ['Continue with current inventory',
-                          'Edit inventory file',
-                          'Exit program']
+            continue_msg = 'Continue with current inventory'
+            edit_msg = 'Edit inventory file'
+            exit_msg = 'Exit program'
+            ssh_config_msg = 'Configure Client Nodes for SSH Key Access'
+            menu_items = []
 
             # Validate software inventory
             print("Validating software inventory...")
             if validate_software_inventory(software_hosts_file_path):
                 print(bold("Validation passed!"))
             else:
-                print(bold("Validation FAILED!"))
-                menu_items[0] = ("Continue with inventory as-is - "
-                                 "WARNING: Validated failed")
+                print(bold("Unable to complete validation"))
+                continue_msg = ("Continue with inventory as-is - "
+                                "WARNING: Validated incomplete")
+                menu_items.append(ssh_config_msg)
 
             # Prompt user
+            menu_items += [continue_msg, edit_msg, exit_msg]
             choice, item = get_selection(menu_items)
             print(f'Choice: {choice} Item: {item}')
-            if choice == "1":
+            if item == ssh_config_msg:
+                configure_ssh_keys(software_hosts_file_path)
+            elif item == continue_msg:
                 print("Using '{}' as inventory"
                       .format(software_hosts_file_path))
                 inventory_choice = software_hosts_file_path
                 break
-            elif choice == "2":
+            elif item == edit_msg:
                 click.edit(filename=software_hosts_file_path)
-            elif choice == "3":
+            elif item == exit_msg:
                 sys.exit(1)
 
     if inventory_choice is None:
