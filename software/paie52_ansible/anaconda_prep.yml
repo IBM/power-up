@@ -1,4 +1,8 @@
 ---
+- name: Get filename from software-vars.yml
+  set_fact:
+    file: "{{ content_files['anaconda'].split('/', 2)[-1] }}"
+
 - name: Get route to client
   command: "{{ hostvars['localhost']['python_executable_local'] }} \
   {{ hostvars['localhost']['scripts_path_local'] }}/python/ip_route_get_to.py \
@@ -12,5 +16,5 @@
     group: "{{ ansible_user_id }}"
     mode: 0744
     checksum: md5:e894dcc547a1c7d67deb04f6bba7223a
-    url: "http://{{ host_ip.stdout }}/anaconda/Anaconda2-5.1.0-Linux-ppc64le.sh"
+    url: "http://{{ host_ip.stdout }}/{{ file }}"
     dest: "{{ ansible_env.HOME }}"
