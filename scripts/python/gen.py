@@ -146,7 +146,6 @@ class Gen(object):
             print("Fail:", exc, file=sys.stderr)
             sys.exit(1)
         try:
-            print('create it')
             cont.create()
         except UserException as exc:
             print('Fail:', exc, file=sys.stderr)
@@ -538,7 +537,7 @@ class Gen(object):
         """Launch actions"""
 
         cmd = None
-        self.cont_config_file_path += self.args.config_file_name
+        self.cont_config_file_path += os.path.basename(self.args.config_file_name)
 
         path = self.args.config_file_name
         if os.path.dirname(self.args.config_file_name) == '':
