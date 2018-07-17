@@ -31,5 +31,6 @@ pip install \
     'pyaml==17.12.1' \
     'paramiko==2.4.1' \
     'tabulate==0.8.2' \
-    'gitpython==2.1.9'
+    'gitpython==2.1.9' \
+    'filelock==3.0.4'
 deactivate

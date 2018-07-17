@@ -17,12 +17,15 @@
 from __future__ import nested_scopes, generators, division, absolute_import, \
     with_statement, print_function, unicode_literals
 
-import os.path
+import os
+import stat
 import subprocess
 import re
 import netaddr
 from orderedattrdict import AttrDict
 from enum import Enum
+from filelock import Timeout, FileLock
+from socket import gethostbyname
 
 import lib.logger as logger
 from lib.ssh import SSH
@@ -95,18 +98,40 @@ class SwitchCommon(object):
             f.close()
             return
 
-        if self.ENABLE_REMOTE_CONFIG:
-            cmd = self.ENABLE_REMOTE_CONFIG.format(cmd)
-            self.log.debug(cmd)
-        ssh = SSH()
-        __, data, _ = ssh.exec_cmd(
-            self.host,
-            self.userid,
-            self.password,
-            cmd,
-            ssh_log=True,
-            look_for_keys=False)
-        return data
+        host_ip = gethostbyname(self.host)
+        lockfile = os.path.join('/var/lock', host_ip + '.lock')
+        if not os.path.isfile(lockfile):
+            os.mknod(lockfile)
+            os.chmod(lockfile, stat.S_IRWXO | stat.S_IRWXG | stat.S_IRWXU)
+        lock = FileLock(lockfile)
+        cnt = 0
+        while cnt < 5 and not lock.is_locked:
+            if cnt > 0:
+                self.log.info('Waiting to acquire lock for switch {}'.
+                              format(self.host))
+            cnt += 1
+            try:
+                lock.acquire(timeout=5)  # 5 sec
+            except Timeout:
+                pass
+        if lock.is_locked:
+            if self.ENABLE_REMOTE_CONFIG:
+                cmd = self.ENABLE_REMOTE_CONFIG.format(cmd)
+                self.log.debug(cmd)
+            ssh = SSH()
+            __, data, _ = ssh.exec_cmd(
+                self.host,
+                self.userid,
+                self.password,
+                cmd,
+                ssh_log=True,
+                look_for_keys=False)
+            lock.release()
+            return data
+        else:
+            self.log.error('Unable to acquire lock for switch {}'.format(self.host))
+            raise SwitchException('Unable to acquire lock for switch {}'.
+                                  format(self.host))
 
     def get_enums(self):
         return self.PortMode, self.AllowOp
