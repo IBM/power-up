@@ -241,7 +241,7 @@ def main(_class, host):
         print('\nTest deleting vlan')
         cfg['vlan'] = int(rlinput('Enter vlan: ', str(cfg['vlan'])))
         try:
-            sw.delete_vlan(vlan)
+            sw.delete_vlan(cfg['vlan'])
             print('Deleted vlan {}'.format(cfg['vlan']))
         except SwitchException as exc:
             print(exc)
@@ -268,13 +268,14 @@ def main(_class, host):
             prompt = 'Enter native vlan / PVID (blank for None): '
         else:
             prompt = 'Enter access vlan (blank for default): '
-        vlan = rlinput(prompt, str(cfg['vlan']))
-        if vlan == '':
-            vlan = None
+        cfg['vlan'] = rlinput(prompt, str(cfg['vlan']))
+        if cfg['vlan'] == '':
+            cfg['vlan'] = None
         else:
-            cfg['vlan'] = int(vlan)
+            cfg['vlan'] = int(cfg['vlan'])
         try:
-            sw.set_switchport_mode(port, port_mode[cfg['switchport_mode']], vlan)
+            sw.set_switchport_mode(cfg['port'], port_mode[cfg['switchport_mode']],
+                                   cfg['vlan'])
             print('Set switchport mode to ' + cfg['switchport_mode'])
         except SwitchException as exc:
             print(exc)
