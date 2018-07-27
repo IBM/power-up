@@ -165,6 +165,41 @@ class PowerupRepo(object):
     def get_repo_dir(self):
         return self.repo_dir
 
+    def get_action(self, new):
+        if new:
+            print(f'\nDo you want to create a local {self.repo_name}\n repository'
+                  ' at this time?\n')
+            print('This can take a significant amount of time')
+            ch = 'Y' if get_yesno(prompt='Create Repo? ', yesno='Y/n') else 'n'
+        else:
+            print(f'\nDo you want to sync the local {self.repo_name}\nrepository'
+                  ' at this time?\n')
+            print('This can take a few minutes.\n')
+            items = 'Yes,no,Sync repository and Force recreation of metadata files'
+            ch, item = get_selection(items, 'Y,n,F', sep=',')
+        return ch
+
+    def get_repo_url(self, url, alt_url=None):
+        """Allows the user to choose the default url or enter an alternate
+        Inputs:
+            repo_url: (str) URL or metalink for the external repo source
+        """
+
+        ch, item = get_selection('Public mirror.Alternate web site', 'P.A',
+                                 'Select source: ', '.')
+        if ch == 'A':
+            if not alt_url:
+                alt_url = f'http://host/repos/{self.repo_id}/'
+            tmp = get_url(alt_url, prompt_name=self.repo_name, repo_chk=True)
+            if tmp is None:
+                return None
+            else:
+                if tmp[-1] != '/':
+                    tmp = tmp + '/'
+                alt_url = tmp
+        url = alt_url if ch == 'A' else url
+        return url
+
     def copy_to_srv(self, src_path, dst):
         dst_dir = f'/srv/{dst}'
         if not os.path.exists(dst_dir):
@@ -330,49 +365,14 @@ class PowerupRepoFromRpm(PowerupRepo):
             return None
 
 
-class PowerupRepoFromRepo(PowerupRepo):
+class PowerupYumRepoFromRepo(PowerupRepo):
     """Sets up a yum repository for access by POWER-Up software clients.
     The repo is first sync'ed locally from the internet or a user specified
     URL which could reside on another host or from a local directory. (ie
     a file based URL pointing to a mounted disk. eg file:///mnt/my-mounted-usb)
     """
     def __init__(self, repo_id, repo_name, arch='ppc64le', rhel_ver='7'):
-        super(PowerupRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
-
-    def get_action(self, new):
-        if new:
-            print(f'\nDo you want to create a local {self.repo_name}\n repository'
-                  ' at this time?\n')
-            print('This can take a significant amount of time')
-            ch = 'Y' if get_yesno(prompt='Create Repo? ', yesno='Y/n') else 'n'
-        else:
-            print(f'\nDo you want to sync the local {self.repo_name}\nrepository'
-                  ' at this time?\n')
-            print('This can take a few minutes.\n')
-            items = 'Yes,no,Sync repository and Force recreation of metadata files'
-            ch, item = get_selection(items, 'Y,n,F', sep=',')
-        return ch
-
-    def get_repo_url(self, url, alt_url=None):
-        """Allows the user to choose the default url or enter an alternate
-        Inputs:
-            repo_url: (str) URL or metalink for the external repo source
-        """
-
-        ch, item = get_selection('Public mirror.Alternate web site', 'P.A',
-                                 'Select source: ', '.')
-        if ch == 'A':
-            if not alt_url:
-                alt_url = f'http://host/repos/{self.repo_id}/'
-            tmp = get_url(alt_url, prompt_name=self.repo_name, repo_chk=True)
-            if tmp is None:
-                return None
-            else:
-                if tmp[-1] != '/':
-                    tmp = tmp + '/'
-                alt_url = tmp
-        url = alt_url if ch == 'A' else url
-        return url
+        super(PowerupYumRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
 
     def sync(self):
         self.log.info(f'Syncing {self.repo_name}')
@@ -386,7 +386,24 @@ class PowerupRepoFromRepo(PowerupRepo):
         else:
             self.log.info(f'{self.repo_name} sync finished successfully')
 
-    def sync_ana(self, url, repo='free'):
+
+class PowerupAnaRepoFromRepo(PowerupRepo):
+    """Sets up an Anaconda repository for access by POWER-Up software clients.
+    The repo is first sync'ed locally from the internet or a user specified
+    URL which could reside on another host or from a local directory. (ie
+    a file based URL pointing to a mounted disk. eg file:///mnt/my-mounted-usb)
+    To download the entire repository, leave the accept list (acclist) and rejlist
+    empty. Note that the accept list and reject list are mutually exclusive.
+    inputs:
+        acclist (str): Accept list. List of files to download. If specified,
+            only the listed files will be downloaded.
+        rejlist (str): Reject list. List of files to reject. If specified,
+            the entire repository except the files in the rejlist will be downloaded.
+    """
+    def __init__(self, repo_id, repo_name, arch='ppc64le', rhel_ver='7'):
+        super(PowerupAnaRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
+
+    def sync_ana(self, url, rejlist='', acclist=''):
         """Syncs an Anaconda repository using wget or copy?. The corresponding
         'noarch' repo is also synced.
         """
@@ -397,10 +414,21 @@ class PowerupRepoFromRepo(PowerupRepo):
 
             # remove directory path components up to '/pkgs'
             cd_cnt = url[3 + url.find('://'):url.find('/pkgs')].count('/')
-            rejlist = ('continuum-docs-*,cudatoolkit-*,'
-                       'cudnn-*,tensorflow-*,caffe-*')
-            cmd = (f"wget -nH --cut-dirs={cd_cnt} --reject '{rejlist}' "
-                   f"-P /srv/repos/{self.repo_id} -m {url}")
+
+            if acclist:
+                ctrl = '--accept'
+                _list = acclist
+                if 'index.html' not in _list:
+                    _list += ',index.html'
+                if 'repodata.json' not in _list:
+                    _list += ',repodata.json'
+                if 'repodata.json.bz2' not in _list:
+                    _list += ',repodata.json.bz2'
+            else:
+                ctrl = '--reject'
+                _list = rejlist
+            cmd = (f"wget -m -nH --cut-dirs={cd_cnt} {ctrl} '{_list}' "
+                   f"-P /srv/repos/{self.repo_id} {url}")
             rc = sub_proc_display(cmd, shell=True)
             if rc != 0:
                 self.log.error(f'Error downloading {url}.  rc: {rc}')
@@ -421,19 +449,43 @@ class PowerupRepoFromRepo(PowerupRepo):
             else:
                 self.log.info(f'{self.repo_name} sync finished successfully')
 
-        with open(dest_dir + '/index.html', 'r') as f:
-            d = f.read()
-            rejlist = rejlist.replace('*', '').split(',')
-            for item in rejlist:
-                ss = (f' *<tr>\\n\\s+<td><a\\s+href="{item}.+\\.tar\\.bz2">.*?</td>'
-                      '(\\n.*<td.*/td>){{3}}\\n\\s*</tr>\\n')
-                d = re.sub(ss, '', d)
-        filecnt = d.count('</tr>') - 1
-        d = re.sub(r'Files:\s+\d+', f'Files: {filecnt}', d)
-        with open(dest_dir + '/index.html', 'w') as f:
-            f.write(d)
-
+        filelist = os.listdir(dest_dir)
+        filecnt = 0
+        dest = dest_dir + 'index.html'
+        src = dest_dir + 'index-src.html'
+        os.rename(dest, src)
+        with open(src, 'r') as s, open(dest, 'w') as d:
+            while True:
+                line = s.readline()
+                if not line:
+                    break
+                if '<tr>' not in line:
+                    line = re.sub(r'Files:\s+\d+', f'Files: {filecnt-2}', line)
+                    d.write(line)
+                else:
+                    # start of html table row
+                    row, filename = self._get_table_row(s)
+                    if filename in filelist:
+                        line += row
+                        filecnt += 1
+                        d.write(line)
         return dest_dir
+
+    def _get_table_row(self, file_handle):
+        """read lines from file handle until end of table row </tr> found
+        return:
+            row: (str) with the balance of the table row.
+            filename: (str) with the name of the file referenced.
+        """
+        row = ''
+        filename = ''
+        while '</tr>' not in row:
+            line = file_handle.readline()
+            name = re.search(r'href="(.+)"', line)
+            row += line
+            if name:
+                filename = name.group(1)
+        return row, filename
 
 
 class PowerupRepoFromDir(PowerupRepo):
