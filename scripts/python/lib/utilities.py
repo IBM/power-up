@@ -28,7 +28,6 @@ import readline
 from shutil import copy2, Error
 from subprocess import Popen, PIPE
 from tabulate import tabulate
-import code
 import lib.logger as logger
 
 PATTERN_MAC = '[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
@@ -239,7 +238,7 @@ def rlinput(prompt, prefill=''):
         readline.set_startup_hook()
 
 
-def get_url(url='http://', type='directory', prompt_name='', repo_chk=False):
+def get_url(url='http://', fileglob='', prompt_name='', repo_chk=''):
     """Input a URL from user. Valid URLs are http:, https:, and file:.
     The URL is checked for validity using curl and the user can continue
     modifying it indefinitely until a response is obtained or he can enter
@@ -260,31 +259,54 @@ def get_url(url='http://', type='directory', prompt_name='', repo_chk=False):
         else:
             if 'http:' in url or 'https:' in url:
                 response = re.search(r'HTTP\/\d+.\d+\s+200\s+ok', reply, re.IGNORECASE)
-                if response:
+                if response and not fileglob:
                     print(response.group(0))
-                    if repo_chk:
-                        cmd = f'curl -G {url}'
-                        reply, err, rc = sub_proc_exec(cmd)
-                        if rc == 0:
-                            repodata = re.search(r'href=["\']repodata(\/|.json)+["\']',
-                                                 reply)
-                        else:
-                            repodata = ''
+                    cmd = f'curl -G {url}'
+                    reply, err, rc = sub_proc_exec(cmd)
+                    if rc == 0:
+                        if repo_chk == 'yum':
+                            ss = r'href=["\']repodata\/+["\']'
+                        elif repo_chk == 'ana':
+                            ss = r'href=["\']repodata.json["\']'
+                        elif repo_chk == 'pypi':
+                            ss = r'href=["\']simple\/["\']'
+                        elif repo_chk == '':
+                            ss = r'Content-Length:\s+[1-9]\d+'
+
+                        repodata = re.search(ss, reply)
                         if repodata:
-                            print('\nRepository data found.')
+                            if repo_chk == '':
+                                print(response.group(0))
+                            else:
+                                print('\nRepository data found.')
                             if get_yesno('Use the specified URL '):
                                 break
                         else:
-                            print('Not a valid repository')
+                            print('No repodata found')
                     else:
-                        # check if url points at a file or directory
-                        response = re.search(r'Content-Length:\s+[1-9]\d+', reply)
-                        if response:
-                            print(response.group(0))
-                            if get_yesno('Use the specified URL '):
+                        print(f'Error reading url.  {resp}')
+                elif response:
+                    cmd = f'wget -r -l 10 -nd -np --spider --accept={fileglob} {url}'
+                    reply, err, rc = sub_proc_exec(cmd)
+                    err = err.replace('%2B', '+')
+                    if rc == 0:
+                        regx = fileglob.replace('.', '\.')
+                        regx = regx.replace('+', '\+')
+                        regx = regx.replace(']*', '][0-9]{0,3}')
+                        regx = regx.replace('*', '.+')
+                        _found = re.findall(regx, err)
+                        # remove dups
+                        found = []
+                        for item in _found:
+                            if item not in found:
+                                found.append(item)
+                        if found:
+                            ch, sel = get_selection(found, allow_none=True)
+                            if ch != 'N':
+                                url = re.search('http.+' + regx, err).group(0)
                                 break
                         else:
-                            print('Content has no length')
+                            print('No file match found.')
                 else:
                     print('Invalid url')
                     err = re.search('curl: .+', err)
@@ -297,35 +319,30 @@ def get_url(url='http://', type='directory', prompt_name='', repo_chk=False):
             elif 'file:///' in url:
                 response = re.search(r'Content-Length:\s+\d+', reply)
                 if response:
-                    if repo_chk:
-                        try:
-                            cmd = f'curl --max-time 2 -I {url}/repodata{{,.json}}'
-                            reply, err, rc = sub_proc_exec(cmd)
-                        except:
-                            pass
-                        else:
-                            response = re.search(r'Content-Length:\s+\d+', reply)
-                            if response:
-                                print('\nRepository data found.')
-                                if get_yesno('Use the specified URL '):
-                                    break
-                            else:
-                                print('Not a valid repository')
+                    if repo_chk == 'yum':
+                        ss = '/repodata'
+                    elif repo_chk == 'ana':
+                        ss = '/repodata.json'
+                    elif repo_chk == 'pypi':
+                        ss = '/simple'
+                    elif repo_chk == '':
+                        ss = ''
+                    try:
+                        cmd = f'curl --max-time 2 -I {url}{ss}'
+                        reply, err, rc = sub_proc_exec(cmd)
+                    except:
+                        pass
                     else:
-                        try:
-                            cmd = f'curl --max-time 2 -I {url}'
-                            reply, err, rc = sub_proc_exec(cmd)
-                        except:
-                            pass
-                        else:
-                            response = re.search(r'Content-Length:\s+\d+', reply)
-                            if response:
+                        response = re.search(r'Content-Length:\s+\d+', reply)
+                        if response:
+                            if repo_chk == '':
                                 print('\nFile or directory found.')
-                                if get_yesno('Use the specified URL '):
-                                    break
                             else:
-                                print('No content found')
-
+                                print('\nRepository data found.')
+                            if get_yesno('Use the specified URL '):
+                                break
+                        else:
+                            print('No data found.')
             elif 'file:' in url:
                 print('Proper file url format: "file:///path/to/file')
                 response = ''

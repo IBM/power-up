@@ -23,7 +23,6 @@ import glob
 import os
 import re
 from shutil import copy2, copytree, rmtree, Error
-import code
 
 import lib.logger as logger
 from lib.utilities import sub_proc_display, sub_proc_exec, heading1, rlinput, \
@@ -31,17 +30,21 @@ from lib.utilities import sub_proc_display, sub_proc_exec, heading1, rlinput, \
 from lib.exception import UserException
 
 
-def setup_source_file(name, src_glob, url='http://', alt_url='http://',
-                      dest=None):
+def setup_source_file(name, src_glob, url='', alt_url='http://',
+                      dest_dir=None):
     """Interactive selection of a source file and copy it to the /srv/<dest>
     directory. The source file can include file globs and can come from a URL
     or the local disk. Local disk searching starts in the
     /home directory and then expands to the entire file system if no matches
-    found in any home directory.
+    found in any home directory. URLs must point to the directory with the file.
     Inputs:
         src_glob (str): Source file name to look for. Can include file globs
         dest (str) : destination directory. Will be created if necessary under
             /srv/
+        url (str): url for the public web site where the file can be obtained.
+            leave empty to prevent prompting for a public url option.
+        alt_url (str): Alternate url where the file can be found. Usually this
+            is an intranet web site.
         name (str): Name for the source. Used for prompts and dest dir (/srv/{name}).
     Returns:
         state (bool) : state is True if a file matching the src_name exists
@@ -59,62 +62,52 @@ def setup_source_file(name, src_glob, url='http://', alt_url='http://',
     name_src = get_name_dir(name)
     exists = glob.glob(f'/srv/{name_src}/**/{src_glob}', recursive=True)
     if exists:
-        log.info(f'The {name.capitalize()} source file exists already in the POWER-Up server '
-                 'directory')
         dest_path = exists[0]
         state = True
-    if get_yesno(f'Copy the {name.capitalize()} source file to the POWER-Up server? '):
-        ch, item = get_selection('Copy from URL\nSearch local Disk', 'U\nD', allow_none=True)
-        if ch == 'U':
+    ch, item = get_selection('Copy from URL\nSearch local Disk', 'U\nD', allow_none=True)
+    if ch == 'U':
+        if url:
             ch, item = get_selection('Public mirror.Alternate web site', 'P.A',
                                      'Select source: ', '.')
-            if ch == 'P':
-                _url = url
-            elif ch == 'A':
-                _url = alt_url if alt_url else 'http://'
-            good_url = False
-            while not good_url and _url is not None:
-                _url = get_url(_url, type='file')
-                if _url:
-                    regex = src_glob.replace('*', '.+')
-                    if re.search(regex, url):
-                        good_url = True
-                        dest_dir = f'/srv/{name_src}'
-                        if not os.path.exists(dest_dir):
-                            os.mkdir(dest_dir)
-                        os.chdir(dest_dir)
-                        cmd = f'curl -O {_url}'
-                        rc = sub_proc_display(cmd)
-                        if rc != 0:
-                            log.error(f'Failed downloading {name} source to'
-                                      f' /srv/{name_src}/ directory. \n{rc}')
-                        else:
-                            src_path = _url
-                            dest_path = os.path.join(dest_dir, os.path.basename(_url))
-                            state = True
-                    else:
-                        log.error(f'Invalid url. {regex} not found in url.')
-        elif ch == 'D':
-            src_path = get_src_path(src_glob)
-            if src_path:
+        if ch == 'P':
+            _url = url
+        else:
+            _url = alt_url if alt_url else 'http://'
+        rc = -9
+        while _url is not None and rc != 0:
+            _url = get_url(_url, fileglob=src_glob)
+            if _url:
                 dest_dir = f'/srv/{name_src}'
                 if not os.path.exists(dest_dir):
                     os.mkdir(dest_dir)
-                try:
-                    copy2(src_path, dest_dir)
-                except Error as err:
-                    log.debug(f'Failed copying {name} source file to /srv/{name_src}/ '
-                              f'directory. \n{err}')
+                cmd = f'wget -r -l 1 -nH -np --cut-dirs=1 -P {dest_dir} {_url}'
+                rc = sub_proc_display(cmd)
+                if rc != 0:
+                    log.error(f'Failed downloading {name} source to'
+                              f' /srv/{name_src}/ directory. \n{rc}')
                 else:
-                    log.info(f'Successfully installed {name} source file '
-                             'into the POWER-Up software server.')
-                    dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+                    src_path = _url
+                    dest_path = os.path.join(dest_dir, os.path.basename(_url))
                     state = True
-        else:
-            log.info(f'No {name.capitalize()} source file copied to POWER-Up '
-                     'server directory')
+    elif ch == 'D':
+        src_path = get_src_path(src_glob)
+        if src_path:
+            dest_dir = f'/srv/{name_src}'
+            if not os.path.exists(dest_dir):
+                os.mkdir(dest_dir)
+            try:
+                copy2(src_path, dest_dir)
+            except Error as err:
+                log.debug(f'Failed copying {name} source file to /srv/{name_src}/ '
+                          f'directory. \n{err}')
+            else:
+                log.info(f'Successfully installed {name} source file '
+                         'into the POWER-Up software server.')
+                dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+                state = True
     else:
-        log.info(f'No {name.capitalize()} source file copied to POWER-Up server directory')
+        log.info(f'No {name.capitalize()} source file copied to POWER-Up '
+                 'server directory')
 
     return src_path, dest_path, state
 
@@ -157,6 +150,7 @@ class PowerupRepo(object):
         self.repo_id = repo_id
         self.repo_name = repo_name
         self.arch = arch
+        self.repo_type = 'yum'
         self.rhel_ver = str(rhel_ver)
         self.repo_base_dir = '/srv'
         self.repo_dir = f'/srv/repos/{self.repo_id}/rhel{self.rhel_ver}/{self.repo_id}'
@@ -184,18 +178,19 @@ class PowerupRepo(object):
             ch = 'Y' if get_yesno(prompt='Create Repo? ', yesno='Y/n') else 'n'
         return ch
 
-    def get_repo_url(self, url, alt_url=None):
+    def get_repo_url(self, url, alt_url=None, name=''):
         """Allows the user to choose the default url or enter an alternate
         Inputs:
             repo_url: (str) URL or metalink for the external repo source
         """
-
+        if name:
+            print(f'\nChoice for source of {name} repository:')
         ch, item = get_selection('Public mirror.Alternate web site', 'P.A',
                                  'Select source: ', '.')
         if ch == 'A':
             if not alt_url:
                 alt_url = f'http://host/repos/{self.repo_id}/'
-            tmp = get_url(alt_url, prompt_name=self.repo_name, repo_chk=True)
+            tmp = get_url(alt_url, prompt_name=self.repo_name, repo_chk=self.repo_type)
             if tmp is None:
                 return None
             else:
@@ -356,22 +351,22 @@ class PowerupRepoFromRpm(PowerupRepo):
         print(dest_path)
         return dest_path
 
-    def extract_rpm(self):
+    def extract_rpm(self, src_path):
         """Extracts files from the selected rpm file to a repository directory
         under /srv/repoid/rhel7/repoid. If a repodata directory is included in
         the extracted data, then the path to repodata directory is returned
         Inputs: Uses self.repo_dir and self.repo_id
         Outputs:
-            repodata_dir : absolute path to repodata directory
+            repodata_dir : absolute path to repodata directory if one exists
         """
         extract_dir = self.repo_dir
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir)
         os.chdir(extract_dir)
-        cmd = f'rpm2cpio {self.rpm_path} | sudo cpio -div'
+        cmd = f'rpm2cpio {src_path} | sudo cpio -div'
         resp, err, rc = sub_proc_exec(cmd, shell=True)
         if rc != 0:
-            self.log.error(f'Failed extracting {self.rpm_path}')
+            self.log.error(f'Failed extracting {src_path}')
 
         repodata_dir = glob.glob(f'{extract_dir}/**/repodata', recursive=True)
         if repodata_dir:
@@ -417,6 +412,7 @@ class PowerupAnaRepoFromRepo(PowerupRepo):
     """
     def __init__(self, repo_id, repo_name, arch='ppc64le', rhel_ver='7'):
         super(PowerupAnaRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
+        self.repo_type = 'ana'
 
     def sync_ana(self, url, rejlist='', acclist=''):
         """Syncs an Anaconda repository using wget or copy?. The corresponding
@@ -511,8 +507,9 @@ class PowerupPypiRepoFromRepo(PowerupRepo):
     """
     def __init__(self, repo_id, repo_name, arch='ppc64le', rhel_ver='7'):
         super(PowerupPypiRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
+        self.repo_type = 'pypi'
 
-    def sync(self, pkg_list):
+    def sync(self, pkg_list, alt_url=None):
         """
         inputs:
             pkg_list (str): list of packages separated by space(s). Packages can
@@ -520,27 +517,58 @@ class PowerupPypiRepoFromRepo(PowerupRepo):
         """
         if not os.path.isdir(self.pypirepo_dir):
             os.mkdir(self.pypirepo_dir)
-        pkg_list = pkg_list.split()
-        cnt = 1
-        for pkg in pkg_list:
-            print(f'Pkg {cnt} of {len(pkg_list)} - Downloading {pkg}')
-            cnt += 1
-            cmd = f'pip download -d {self.pypirepo_dir} {pkg}'
-            resp, err, rc = sub_proc_exec(cmd)
+        pkg_cnt = len(pkg_list.split())
+        print(f'Downloading {pkg_cnt} python packages plus dependencies:\n{pkg_list}\n')
+
+        if alt_url:
+            host = re.search(r'http://([^/]+)', alt_url).group(1)
+            cmd = ('source ' + os.path.expanduser('~/anaconda2/bin/activate') +
+                   f'pkgdl &&  pip download --index-url={alt_url} -d '
+                   f'{self.pypirepo_dir} {pkg} --trusted-host {host}')
+            resp, err, rc = sub_proc_exec(cmd, shell=True)
             if rc != 0:
                 self.log.error('Error occured while downloading python package: '
                                f'{pkg}. \nResp: {resp} \nRet code: {rc} \nerr: {err}')
-        cmd = f'dir2pi {self.pypirepo_dir}'
-        resp, err, rc = sub_proc_exec(cmd)
-        if rc != 0:
-            self.log.error('An error occured while creating python package index: \n'
-                           f'dir2pi utility results: \nResp: {resp} \nRet code: '
-                           f'{rc} \nerr: {err}')
+        else:
+            cmd = ('source ' + os.path.expanduser('~/anaconda2/bin/activate') +
+                   f' pkgdl && pip download -d {self.pypirepo_dir} {pkg_list}')
+            resp, err, rc = sub_proc_exec(cmd, shell=True)
+            if rc != 0:
+                self.log.error('Error occured while downloading python package: '
+                               f'{pkg}. \nResp: {resp} \nRet code: {rc} \nerr: {err}')
+        if not os.path.isdir(self.pypirepo_dir + '/simple'):
+            os.mkdir(self.pypirepo_dir + '/simple')
+        dir_list = os.listdir(self.pypirepo_dir)
+        cnt = 0
 
-    def sync_url(self, url):
-        """Copies an existing url into the POWER-Up server base directory. The
-        source directory must contain a 'simple' directory.
-        """
+        for item in dir_list:
+            if item[0] != '.' and os.path.isfile(self.pypirepo_dir + '/' + item):
+                res = re.search(r'([-_+\w\.]+)(?=-(\d+\.\d+){1,3}).+', item)
+                if res:
+                    cnt += 1
+                    name = res.group(1)
+                    name = name.replace('.', '-')
+                    name = name.replace('_', '-')
+                    name = name.lower()
+                    if not os.path.isdir(self.pypirepo_dir + f'/simple/{name}'):
+                        os.mkdir(self.pypirepo_dir + f'/simple/{name}')
+                    if not os.path.islink(self.pypirepo_dir + f'/simple/{name}/{item}'):
+                        os.symlink(self.pypirepo_dir + f'/{item}',
+                                   self.pypirepo_dir + f'/simple/{name}/{item}')
+                else:
+                    self.log.error(f'mismatch: {item}. There was a problem entering '
+                                   f'{item}\ninto the python package index')
+        self.log.info(f'A total of {cnt} packages exist or were added to the python '
+                      'package repository')
+# dir2pi changes underscores to dashes in the links it creates which caused some
+# packages to fail to install. In particular python_heatclient and other python
+# openstack packages
+#        cmd = f'dir2pi -N {self.pypirepo_dir}'
+#        resp, err, rc = sub_proc_exec(cmd)
+#        if rc != 0:
+#            self.log.error('An error occured while creating python package index: \n'
+#                           f'dir2pi utility results: \nResp: {resp} \nRet code: '
+#                           f'{rc} \nerr: {err}')
 
 
 class PowerupRepoFromDir(PowerupRepo):

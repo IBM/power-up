@@ -27,7 +27,6 @@ import sys
 from shutil import copy2, Error
 import time
 import yaml
-import code
 import json
 from getpass import getpass
 
@@ -77,7 +76,9 @@ class software(object):
         self.sw_vars['rhel_ver'] = self.rhel_ver
         self.arch = 'ppc64le'
         self.sw_vars['arch'] = self.arch
-        self.repo_dir = '/srv/repos/{repo_id}/rhel' + self.rhel_ver + '/{repo_id}'
+        self.root_dir = '/srv/'
+        self.repo_dir = self.root_dir + 'repos/{repo_id}/rhel' + self.rhel_ver + \
+            '/{repo_id}'
         self.state = {'EPEL Repository': '-',
                       'CUDA Toolkit Repository': '-',
                       'PowerAI Base Repository': '-',
@@ -97,11 +98,16 @@ class software(object):
                         'PowerAI Base Repository': 'power-ai',
                         'Dependent Packages Repository': 'dependencies',
                         'Python Package Repository': 'pypi'}
-        self.files = {'Anaconda content': 'Anaconda2-[56].[1-9]*-Linux-ppc64le.sh',
-                      'CUDA dnn content': 'cudnn-9.[1-9]-linux-ppc64le-v7.1.tgz',
+        # When searching for files in other web servers, the fileglobs are converted to
+        # regular expressions. An asterisk (*) after a bracket is converted to a
+        # regular extression of [0-9]{0,3} Other asterisks are converted to regular
+        # expression of .+
+        self.files = {'Anaconda content': 'Anaconda2-[56].[1-9]*.[0-9]*-Linux-ppc64le.sh',
+                      'CUDA dnn content': 'cudnn-9.[1-9]*-linux-ppc64le-v7.1.tgz',
                       'CUDA nccl2 content': 'nccl_2.2.1[2-9]-1+cuda9.[2-9]_ppc64le.tgz',
-                      'Spectrum conductor content': 'cws-2.[2-9].[0-9].[0-9]_ppc64le.bin',
-                      'Spectrum DLI content': 'dli-1.[1-9].[0-9].[0-9]_ppc64le.bin'}
+                      'PowerAI content': 'mldl-repo-local-[5-9]*.[1-9]*.[0-9]**.ppc64le.rpm',
+                      'Spectrum conductor content': 'cws-[2-9]*.[2-9]*.[0-9]*.[0-9]*_ppc64le.bin',
+                      'Spectrum DLI content': 'dli-[1-9]*.[1-9]*.[0-9]*.[0-9]*_ppc64le.bin'}
         if 'ansible_inventory' not in self.sw_vars:
             self.sw_vars['ansible_inventory'] = None
         if 'ansible_become_pass' not in self.sw_vars:
@@ -225,10 +231,12 @@ class software(object):
                                         'POWER-Up server')
             # PowerAI status
             if item == 'PowerAI Base Repository':
+                content = glob.glob(os.path.join(self.root_dir, self.repo_id[item],
+                                    self.files['PowerAI content']))
                 repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[item]) +
                                      '/**/repodata', recursive=True)
                 if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[item]}-local.repo') \
-                        and repodata:
+                        and repodata and content:
                     self.state[item] = f'{item} is setup'
 
             # CUDA status
@@ -397,23 +405,35 @@ class software(object):
             self.log.warning('Failed reloading nginx configuration')
 
         # Get PowerAI base
-        name = 'Power AI content'
+        name = 'PowerAI content'
         heading1('Setting up the PowerAI base repository\n')
-        pai_src = 'mldl-repo-local-5.[1-9]*.ppc64le.rpm'
+        pai_src = self.files['PowerAI content']
+        pai_url = ''
         repo_id = 'power-ai'
         repo_name = 'IBM PowerAI Base'
 
+        if f'{name}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{name}_alt_url']
+        else:
+            alt_url = 'http://'
+
         exists = self.status_prep(which='PowerAI Base Repository')
         if exists:
-            self.log.info(f'The {repo_id} repository exists already in the POWER-Up server')
+            self.log.info(f'The {name} and {repo_id} repository exists already '
+                          'in the POWER-Up server.')
 
-        if not exists or get_yesno(f'Recreate the {repo_id} repository '):
+        if not exists or get_yesno(f'Recopy {name} and Recreate the {repo_id} '
+                                   'repository '):
             repo = PowerupRepoFromRpm(repo_id, repo_name)
-            src_path = get_src_path(pai_src)
+            src_path, dest_path, state = setup_source_file(repo_id, pai_src, pai_url,
+                                                           alt_url=alt_url)
+
             if src_path:
-                dest_path = repo.copy_rpm(src_path)
-                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
-                repodata_dir = repo.extract_rpm()
+                print(f'Creating {repo_id} repository.')
+                if 'http' in src_path:
+                    self.sw_vars[f'{name}_alt_url'] = os.path.dirname(src_path) + '/'
+                self.sw_vars['content_files'][get_name_dir(repo_id)] = dest_path
+                repodata_dir = repo.extract_rpm(dest_path)
                 if repodata_dir:
                     content = repo.get_yum_dotrepo_content(repo_dir=repodata_dir,
                                                            gpgcheck=0, local=True)
@@ -434,12 +454,21 @@ class software(object):
         heading1(f'Set up {name.title()} \n')
         spc_src = self.files[name]
         exists = self.status_prep(name)
+        spc_url = ''
+
+        if f'{name}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{name}_alt_url']
+        else:
+            alt_url = 'http://'
 
         if exists:
             self.log.info('Spectrum conductor content exists already in the POWER-Up server')
 
         if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path, dest_path = powerup_file_from_disk(name, spc_src)
+            src_path, dest_path, state = setup_source_file(name, spc_src, pai_url,
+                                                           alt_url=alt_url)
+            if 'http' in src_path:
+                self.sw_vars[f'{name}_alt_url'] = os.path.dirname(src_path) + '/'
             if dest_path:
                 self.sw_vars['content_files'][get_name_dir(name)] = dest_path
 
@@ -448,12 +477,21 @@ class software(object):
         heading1(f'Set up {name.title()} \n')
         spdli_src = self.files[name]
         exists = self.status_prep(name)
+        spdli_url = ''
+
+        if f'{name}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{name}_alt_url']
+        else:
+            alt_url = 'http://'
 
         if exists:
             self.log.info('Spectrum DLI content exists already in the POWER-Up server')
 
         if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path, dest_path = powerup_file_from_disk(name, spdli_src)
+            src_path, dest_path, state = setup_source_file(name, spdli_src, spdli_url,
+                                                           alt_url=alt_url)
+            if 'http' in src_path:
+                self.sw_vars[f'{name}_alt_url'] = os.path.dirname(src_path) + '/'
             if dest_path:
                 self.sw_vars['content_files'][get_name_dir(name)] = dest_path
 
@@ -467,7 +505,7 @@ class software(object):
                     'zlib-devel boost-system libgfortran boost-python boost-thread '
                     'boost-filesystem java-1.8.0-openjdk-devel scipy PyYAML '
                     'pyparsing python-pillow python-matplotlib pciutils libgcc '
-                    'libgomp libstdc++ libstdc++-devel cpp gcc-c++ ')
+                    'libgomp libstdc++ libstdc++-devel cpp gcc-c++ gcc-gfortran')
         file_more = GEN_SOFTWARE_PATH + 'dependent-packages.list'
         if os.path.isfile(file_more):
             try:
@@ -502,104 +540,6 @@ class software(object):
             filename = repo_id + '-powerup.repo'
             self.sw_vars['yum_powerup_repo_files'][filename] = content
 
-        # Setup Python package repository. (pypi)
-        repo_id = 'pypi'
-        repo_name = 'Python Package'
-        heading1(f'Set up {repo_name} repository\n')
-        if f'{repo_id}_alt_url' in self.sw_vars:
-            alt_url = self.sw_vars[f'{repo_id}_alt_url']
-        else:
-            alt_url = None
-
-        exists = self.status_prep(which='Python Package Repository')
-        if exists:
-            self.log.info('The Python Package Repository exists already'
-                          ' in the POWER-Up server')
-
-        repo = PowerupPypiRepoFromRepo(repo_id, repo_name)
-        ch = repo.get_action(exists, exists_prompt_yn=True)
-        pkg_list = ('easydict==1.6 python-gflags==2.0 alembic==0.8.2 Keras==2.0.5 '
-                    'elasticsearch==5.2.0 Flask-Script==2.0.5 Flask-HTTPAuth==3.2.2 '
-                    'mongoengine==0.11.0 pathlib==1.0.1 python-heatclient==1.2.0 '
-                    'python-keystoneclient==3.1.0')
-
-        if not exists or ch == 'Y':
-            # url = repo.get_repo_url(baseurl, alt_url)
-            repo.sync(pkg_list)
-
-        # Get cudnn tar file
-        name = 'CUDA dnn content'
-        heading1(f'Set up {name.title()} \n')
-        cudnn_src = self.files[name]
-        exists = self.status_prep(name)
-
-        if exists:
-            self.log.info('CUDA dnn content exists already in the POWER-Up server')
-
-        if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path, dest_path = powerup_file_from_disk(name, cudnn_src)
-            if dest_path:
-                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
-
-        # Get cuda nccl2 tar file
-        name = 'CUDA nccl2 content'
-        heading1(f'Set up {name.title()} \n')
-        nccl2_src = self.files[name]
-        exists = self.status_prep(name)
-
-        if exists:
-            self.log.info('CUDA nccl2 content exists already in the POWER-Up server')
-
-        if not exists or get_yesno(f'Copy a new {name.title()} file '):
-            src_path, dest_path = powerup_file_from_disk(name, nccl2_src)
-            if dest_path:
-                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
-
-        # Setup CUDA
-        repo_id = 'cuda'
-        repo_name = 'CUDA Toolkit'
-        baseurl = 'http://developer.download.nvidia.com/compute/cuda/repos/rhel7/ppc64le'
-        gpgkey = f'{baseurl}/7fa2af80.pub'
-        heading1(f'Set up {repo_name} repository\n')
-        if f'{repo_id}_alt_url' in self.sw_vars:
-            alt_url = self.sw_vars[f'{repo_id}_alt_url']
-        else:
-            alt_url = None
-
-        exists = self.status_prep(which='CUDA Toolkit Repository')
-        if exists:
-            self.log.info('The CUDA Toolkit Repository exists already'
-                          ' in the POWER-Up server')
-
-        repo = PowerupYumRepoFromRepo(repo_id, repo_name)
-
-        ch = repo.get_action(exists)
-        if ch in 'YF':
-            url = repo.get_repo_url(baseurl, alt_url)
-            if not url == baseurl:
-                self.sw_vars[f'{repo_id}_alt_url'] = url
-                content = repo.get_yum_dotrepo_content(url, gpgcheck=0)
-            else:
-                content = repo.get_yum_dotrepo_content(url, gpgkey=gpgkey)
-            repo.write_yum_dot_repo_file(content)
-
-            try:
-                repo.sync()
-            except UserException as exc:
-                self.log.error(f'Repo sync error: {exc}')
-
-            if not exists:
-                repo.create_meta()
-            else:
-                repo.create_meta(update=True)
-
-            if not exists or ch == 'F':
-                content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
-                repo.write_yum_dot_repo_file(content)
-                content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
-                filename = repo_id + '-powerup.repo'
-                self.sw_vars['yum_powerup_repo_files'][filename] = content
-
         # Get Anaconda
         ana_name = 'Anaconda content'
         ana_src = self.files[ana_name]
@@ -609,17 +549,22 @@ class software(object):
         else:
             alt_url = 'http://'
 
-        self.status_prep(ana_name)
+        exists = self.status_prep(which=ana_name)
 
-        heading1('Set up Anaconda \n')
-        src_path, dest_path, state = setup_source_file(ana_name, ana_src, ana_url,
-                                                       alt_url=alt_url)
+        heading1('Set up Anaconda and Anaconda repositories\n')
 
-        if dest_path:
-            self.sw_vars['content_files'][get_name_dir(ana_name)] = dest_path
+        if exists:
+            self.log.info(f'The {ana_name} exists already '
+                          'in the POWER-Up server.')
 
-        if src_path is not None and src_path != ana_src and 'http' in src_path:
-            self.sw_vars[f'{ana_name}_alt_url'] = src_path
+        if not exists or get_yesno(f'Recopy {ana_name} '):
+
+            src_path, dest_path, state = setup_source_file(ana_name, ana_src, ana_url,
+                                                           alt_url=alt_url)
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(ana_name)] = dest_path
+            if src_path is not None and src_path != ana_src and 'http' in src_path:
+                self.sw_vars[f'{ana_name}_alt_url'] = os.path.dirname(src_path) + '/'
 
         # Setup Anaconda Free Repo.  (not a YUM repo)
         repo_id = 'anaconda'
@@ -686,11 +631,24 @@ class software(object):
             if not url == baseurl:
                 self.sw_vars[f'{vars_key}-alt-url'] = url
 
-            acclist = ('scipy-*,six-1.11.0*,libgfortran-ng-7.2.0*,blas-1.0*,'
-                       'libgcc-ng-7.2.0*,libstdcxx-ng-7.2.0*,libopenblas-0.2.20*,'
-                       'libgfortran-ng-7.2.0*')
+            al = ('libgcc-ng-*,libstdcxx-ng-*,python-2.7.1*,ncurses-*,'
+                  'openssl-1.*,ca-certificates-*,tk-*,sqlite-3.*,'
+                  'wheel-*,readline-*,zlib-*,setuptools-*,libffi-*,'
+                  'pip-1*,certifi-*,libedit-*')
+            al += ('backports.shutil_get_terminal_size*,blas*,cairo*,chardet*,'
+                   'cycler*,cython*,decorator*,enum34*,fontconfig*,freetype*,'
+                   'functools32*,get_terminal_size*,h5py*,hdf5*,icu*,ipython*,'
+                   'ipython_genutils*,jpeg*,leveldb*,libgfortran-ng*,libiconv*,'
+                   'libopenblas*,libpng*,libtiff*,libxml2*,matplotlib*,networkx*,'
+                   'nose*,numpy*,olefile*,pandas*,pathlib2*,pexpect*,pickleshare*,'
+                   'pillow*,pixman*,prompt_toolkit*,ptyprocess*,pycairo*,pygments*,'
+                   'pyparsing*,python-dateutil*,python-leveldb*,python-lmdb*,pytz*,'
+                   'pywavelets*,pyyaml*,redis*,redis-py*,requests*,scandir*,'
+                   'scikit-image*,scipy*,simplegeneric*,six*,snappy*,subprocess32*,'
+                   'traitlets*,wcwidth*,xz*,yaml*')
 
-            dest_dir = repo.sync_ana(url, acclist=acclist)
+            dest_dir = repo.sync_ana(url, acclist=al)
+            # dest_dir = repo.sync_ana(url)
             dest_dir = dest_dir[4 + dest_dir.find('/srv'):5 + dest_dir.find('main')]
             # form .condarc channel entry. Note that conda adds
             # the corresponding 'noarch' channel automatically.
@@ -699,6 +657,153 @@ class software(object):
                 self.sw_vars['ana_powerup_repo_channels'].append(channel)
             noarch_url = os.path.split(url.rstrip('/'))[0] + '/noarch/'
             repo.sync_ana(noarch_url)
+
+        # Setup Python package repository. (pypi)
+        repo_id = 'pypi'
+        repo_name = 'Python Package'
+        baseurl = 'https://pypi.org'
+        heading1(f'Set up {repo_name} repository\n')
+        if f'{repo_id}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{repo_id}_alt_url']
+        else:
+            alt_url = None
+
+        exists = self.status_prep(which='Python Package Repository')
+        if exists:
+            self.log.info('The Python Package Repository exists already'
+                          ' in the POWER-Up server')
+
+        repo = PowerupPypiRepoFromRepo(repo_id, repo_name)
+        ch = repo.get_action(exists, exists_prompt_yn=True)
+        pkg_list = ('easydict==1.6 python-gflags==2.0 alembic==0.8.2 Keras==2.0.5 '
+                    'elasticsearch==5.2.0 Flask-Script==2.0.5 Flask-HTTPAuth==3.2.2 '
+                    'mongoengine==0.11.0 pathlib==1.0.1 python-heatclient==1.2.0 '
+                    'python-keystoneclient==3.1.0 cmd2==0.8.8 unicodecsv>=0.8.0 '
+                    'protobuf>=3.5.0.post1')
+        # Conda prereqs for downloading the Python packages. These are installed
+        # in the pkgdl venv on the installer node so that pypi packages can be downloaded
+        pkg_list_conda = ('cython==0.25.2 h5py==2.7.0 ipython==5.3.0 '
+                          'python-leveldb==0.194 python-lmdb==0.92 matplotlib==2.0.2 '
+                          'networkx==1.11 nose==1.3.7 pandas==0.20.3 pillow==4.1.1 '
+                          'python-dateutil==2.6.1 pyyaml==3.12 requests==2.13.0 '
+                          'scipy==1.1.0 six==1.11.0 scikit-image==0.13.0 '
+                          'redis-py==2.10.5 chardet==3.0.4')
+
+        if not exists or ch == 'Y':
+            if self._setup_anaconda_venv():
+                cmd = ('source ' + os.path.expanduser('~/anaconda2/bin/activate') +
+                       f' pkgdl && conda list')
+                conda_list, err, rc = sub_proc_exec(cmd, shell=True)
+                for pkg in pkg_list_conda.split():
+                    name = pkg[:pkg.find('==')]
+                    ver = pkg[pkg.find('==') + 2:]
+                    installed = re.search(f'^{name}\s+{ver}', conda_list, re.MULTILINE)
+                    if not installed:
+                        print(f'Conda installing: {pkg}')
+                        cmd = ('source ' + os.path.expanduser('~/anaconda2/bin/activate') +
+                               f' pkgdl && conda install -y {pkg}')
+                        resp, err, rc = sub_proc_exec(cmd, shell=True)
+                        if rc != 0:
+                            self.log.error('Error occured while installing conda package: '
+                                           f'{pkg}. \nResp: {resp} \nRet code: {rc} '
+                                           f'\nerr: {err}')
+                url = repo.get_repo_url(baseurl, alt_url, name=repo_name)
+                if url == baseurl:
+                    repo.sync(pkg_list)
+                else:
+                    self.sw_vars[f'{repo_id}_alt_url'] = url
+                    repo.sync(pkg_list, url + 'simple')
+            else:
+                self.log.error('Failed to setup the Anaconda environment')
+                code.interact(banner='pypi', local=dict(globals(), **locals()))
+
+        # Get cudnn tar file
+        name = 'CUDA dnn content'
+        heading1(f'Set up {name.title()} \n')
+        cudnn_src = self.files[name]
+        cudnn_url = ''
+
+        if f'{name}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{name}_alt_url']
+        else:
+            alt_url = None
+
+        exists = self.status_prep(name)
+
+        if exists:
+            self.log.info('CUDA dnn content exists already in the POWER-Up server')
+
+        if not exists or get_yesno(f'Copy a new {name.title()} file '):
+            src_path, dest_path, state = setup_source_file(name, cudnn_src, cudnn_url,
+                                                           alt_url=alt_url)
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
+            if 'http' in src_path:
+                self.sw_vars[f'{name}_alt_url'] = os.path.dirname(src_path) + '/'
+
+        # Get cuda nccl2 tar file
+        name = 'CUDA nccl2 content'
+        heading1(f'Set up {name.title()} \n')
+        nccl2_src = self.files[name]
+        nccl2_url = ''
+        exists = self.status_prep(name)
+
+        if exists:
+            self.log.info('CUDA nccl2 content exists already in the POWER-Up server')
+
+        if not exists or get_yesno(f'Copy a new {name.title()} file '):
+            src_path, dest_path, state = setup_source_file(name, nccl2_src, nccl2_url,
+                                                           alt_url=alt_url)
+
+            if dest_path:
+                self.sw_vars['content_files'][get_name_dir(name)] = dest_path
+            if 'http' in src_path:
+                self.sw_vars[f'{name}_alt_url'] = os.path.dirname(src_path) + '/'
+
+        # Setup CUDA
+        repo_id = 'cuda'
+        repo_name = 'CUDA Toolkit'
+        baseurl = 'http://developer.download.nvidia.com/compute/cuda/repos/rhel7/ppc64le'
+        gpgkey = f'{baseurl}/7fa2af80.pub'
+        heading1(f'Set up {repo_name} repository\n')
+        if f'{repo_id}_alt_url' in self.sw_vars:
+            alt_url = self.sw_vars[f'{repo_id}_alt_url']
+        else:
+            alt_url = None
+
+        exists = self.status_prep(which='CUDA Toolkit Repository')
+        if exists:
+            self.log.info('The CUDA Toolkit Repository exists already'
+                          ' in the POWER-Up server')
+
+        repo = PowerupYumRepoFromRepo(repo_id, repo_name)
+
+        ch = repo.get_action(exists)
+        if ch in 'YF':
+            url = repo.get_repo_url(baseurl, alt_url)
+            if not url == baseurl:
+                self.sw_vars[f'{repo_id}_alt_url'] = url
+                content = repo.get_yum_dotrepo_content(url, gpgcheck=0)
+            else:
+                content = repo.get_yum_dotrepo_content(url, gpgkey=gpgkey)
+            repo.write_yum_dot_repo_file(content)
+
+            try:
+                repo.sync()
+            except UserException as exc:
+                self.log.error(f'Repo sync error: {exc}')
+
+            if not exists:
+                repo.create_meta()
+            else:
+                repo.create_meta(update=True)
+
+            if not exists or ch == 'F':
+                content = repo.get_yum_dotrepo_content(gpgcheck=0, local=True)
+                repo.write_yum_dot_repo_file(content)
+                content = repo.get_yum_dotrepo_content(gpgcheck=0, client=True)
+                filename = repo_id + '-powerup.repo'
+                self.sw_vars['yum_powerup_repo_files'][filename] = content
 
         # Setup EPEL Repo
         repo_id = 'epel-ppc64le'
@@ -836,6 +941,40 @@ class software(object):
             self.log.info('Repository setup complete')
         # Display status
         self.status_prep()
+
+    def _setup_anaconda_venv(self):
+
+        ret = False
+        if not os.path.isdir(os.path.expanduser('~/anaconda2/envs/pkgdl')):
+            if self.status_prep('Anaconda content'):
+                if not os.path.isdir(os.path.expanduser('~/anaconda2')):
+                    print('Anaconda needs to be installed on the installer node.')
+                    print('Please accept the license and respond "no" when asked')
+                    print('if you want to update the $PATH environment variable')
+                    print('in your .bashrc file.\n')
+                    input('Press enter to continue')
+                    cmd = f"bash {self.sw_vars['content_files']['anaconda']}"
+                    rc = sub_proc_display(cmd, shell=True)
+                    if rc != 0:
+                        self.log.error(f'Error installing Anaconda. {rc}')
+                if not os.path.isdir(os.path.expanduser('~/anaconda2/envs/pkgdl')):
+                    cmd = os.path.join(os.path.expanduser("~/anaconda2/bin"), 'conda')
+                    cmd += ' create --name pkgdl --yes pip python=2.7'
+                    rc = sub_proc_display(cmd)
+                    if rc != 0:
+                        self.log.error('Error creating package download virtual '
+                                       f'environment. resp: {resp}, err: {err}')
+                    else:
+                        ret = True
+                else:
+                    ret = True
+            else:
+                self.log.info('Ananconda must be installed on the POWER-Up '
+                              'installer node before setting up the Python '
+                              'package index repository')
+        else:
+            ret = True
+        return ret
 
     def _add_dependent_packages(self, repo_dir, dep_list):
         cmd = (f'yumdownloader --resolve --archlist={self.arch} --destdir '
