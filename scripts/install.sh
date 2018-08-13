@@ -36,11 +36,11 @@ if [[ $ID == "ubuntu" ]]; then
     fi
 
 elif [[ $ID == "rhel" ]]; then
-    sudo yum -y install python2-pip python36-devel libffi-devel openssl-devel \
-        lxc lxc-devel lxc-extra lxc-templates libvirt ipmitool \
+    sudo yum -y install python2-pip python-devel python36-devel libffi-devel \
+        lxc lxc-devel lxc-extra lxc-templates libvirt ipmitool\
         debootstrap gcc vim vlan bridge-utils cpp flex bison unzip cmake \
         fping gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue \
-        ncurses-devel bash-completion yum-utils createrepo sshpass
+        ncurses-devel bash-completion yum-utils createrepo sshpass openssl-devel
     sudo systemctl start lxc.service
     sudo systemctl start libvirtd
 
