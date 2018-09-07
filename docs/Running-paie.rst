@@ -10,7 +10,8 @@ The PowerAI Enterprise software installation can be automated using the POWER-Up
 The PowerAI Enterprise Software Install Module provides for rapid installation of the PowerAI Enterprise software to a cluster of POWER8 or POWER9 servers.
 The install module creates a web based software installation server on one of the cluster nodes or another node with access to the cluster.
 The software server is populated with repositories and files needed for installation of PowerAI Enterprise.
-Once the software server is setup, installation scripts orchestrate the software installation to one or more client nodes.
+Once the software server is setup, installation scripts orchestrate the software installation to one or more client nodes. Note that the software installer node requires access to several open source repositories during the 'preparation' phase. During the preparation phase, packages which PowerAI Enterprise is dependent on are staged on the POWER-Up installer node. After completion of the preparation phase, the installation requires no further access to the open source repositories.
+
 The POWER-Up software installer does not currently support installation of PowerAI Enterprise onto the node running the POWER-Up software installer.
 If it is necessary to install PowerAI Enterprise onto the node running the POWER-Up software, this can be done manually or can be accomplished by running the POWER-Up software on an additional node in the cluster.
 Hint: A second POWER-Up server can be quickly prepared by replicating the repositories from the first POWER-Up server.
@@ -24,11 +25,9 @@ Answered questions regarding PowerAI can be viewed at https://developer.ibm.com/
 Set up of the POWER-Up Software Installer Node
 ----------------------------------------------
 
-Before beginning automated installation, you should have completed the 'Setup for automated installer steps' at https://www.ibm.com/support/knowledgecenter/SSFHA8_1.1.0/enterprise/powerai_auto_install.html
-
 POWER-Up Node  Prerequisites;
 
-#. The POWER-Up software installer currently runs under RHEL 7.2 or above.
+#. The POWER-Up software installer currently runs under RHEL 7.4 or above.
 
 #. The user account used to run the POWER-Up software needs sudo privileges.
 
@@ -44,7 +43,7 @@ POWER-Up Node  Prerequisites;
 
     $ sudo subscription-manager repos --enable=rhel-7-for-power-9-rpms --enable=rhel-7-for-power-9-optional-rpms --enable=–enable=rhel-7-for-power-9-extras-rpms
 
-#. Insure that there is at least 40 GB of available disk space in the partition holding the /srv directory::
+#. Insure that there is at least 45 GB of available disk space in the partition holding the /srv directory::
 
     $ df -h /srv
 
@@ -78,19 +77,22 @@ Installation of the PowerAI Enterprise software involves the following steps;
 Preparation of the client nodes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before proceeding, you will need to gather the following information;
+Before beginning automated installation, you should have completed the 'Setup for automated installer steps' at <TBD>
+
+Before proceeding with preparation of the POWER-Up server, you will need to gather the following information;
 
 -  hostname for each client node
--  Userid and password or private ssh key pair for accessing the client nodes. Note that for running an automated installation, the same user id and password must exist on all client nodes and must be configured with sudo access.
+-  Userid and password or private ssh key for accessing the client nodes. Note that for running an automated installation, the same user id and password must exist on all client nodes and must be configured with sudo access.
 
 Preparation of the POWER-Up Software Server
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Before beginning installation of PowerAI Enterprise, the files listed below need to be copied onto the software server node.
 The files can be copied anywhere, but the POWER-Up software can locate them quicker if the files are under one of the /home/ directories.
+Note that the PAIE installer will stop searching for installation files if required files are found under the /home directory or a sub directory of /home.
 
--  PowerAI Enterprise binary file. (powerai-enterprise-1.1.0_ppc64le.bin)
--  Cuda cudnn (cudnn-9.2-linux-ppc64le-v7.1.tgz)
--  Cuda nccl v2 (nccl_2.2.12-1+cuda9.2_ppc64le.tgz)
+-  PowerAI Enterprise binary file. (powerai-enterprise-\*_ppc64le.bin)
+-  Cuda cudnn (cudnn-9.2-linux-ppc64le-v7.*.tgz)
+-  Cuda nccl v2 (nccl_*-1+cuda9.2_ppc64le.tgz)
 
 In addition, the POWER-Up software server needs access to the following repositories during the preparation phase;
 
@@ -99,34 +101,34 @@ In addition, the POWER-Up software server needs access to the following reposito
 -  Cuda Toolkit
 -  Anaconda
 
-These can be accessed using the public internet (URL's are provided) or via an alternate web site such as an intranet mirror repository or from a mounted USB key.
+These can be accessed using the public internet (URL's are provided) or via an alternate web site such as an intranet mirror repository, another POWER-Up server or from a mounted USB key. Because the software installer can run on x_86 architecture, a laptop can be used as an installer node, allowing preparation at a location with internet access and installation at a location without internet access.
 
-Before beginning, extract the contents of the powerai-enterprise-1.1.0_ppc64le.bin file and accept the license by running the following on the installer node::
+Before beginning, extract the contents of the powerai-enterprise-\*_ppc64le.bin file and accept the license by running the following on the installer node::
 
-    $ sudo bash ./powerai-enterprise-1.1.0_ppc64le.bin
+    $ sudo bash ./powerai-enterprise-*_ppc64le.bin
 
 **NOTES:**
 
 -  Extraction and license acceptance of PowerAI Enterprise must be performed on an OpenPOWER node. If you are running the POWER-Up installer software on an x_86 node, you must first extract the files on an OpenPOWER node and then copy all of the extracted contents to the POWER-Up installer node.
--  If running the PowerAI Enterprise installer from an x_86 node, you must download the Red Hat dependent packages on a Power node and copy them to a directory on the x_86 installer node. A utility script is included to facilitate this process. To use the script, insure you have ssh access with sudo priveleges to a Power node which has a subscription to the Red Hat 'common', 'optional' and 'extras' channels. (One of the cluster nodes or any other suitable Power node can be used for this purpose). To run the script from the power-up directory on the installer node::
+-  If running the PowerAI Enterprise installer from an x_86 node, you must download the Red Hat dependent packages on a Power node and copy them to a directory on the x_86 installer node. A utility script is included to facilitate this process. To use the script, insure you have ssh access with sudo privileges to a Power node which has a subscription to the Red Hat 'common', 'optional' and 'extras' channels. (One of the cluster nodes or any other suitable Power node can be used for this purpose). To run the script from the power-up directory on the installer node::
 
     $ ./software/get-dependent-packages.sh userid hostname
 
-The hostname can be a resolvalble hostname or ip address. The get-dependent-packages script will download the required packages on the specified Power node and then move them to the ~/tempdl directory on the installer node. After running the script, run/rerun the --prep phase of installation. For dependent packages, choose option D (Create from files in a local Directory) and enter the full absolute path to the /tempdl directory.
+The hostname can be a resolvable hostname or ip address. The get-dependent-packages script will download the required packages on the specified Power node and then move them to the ~/tempdl directory on the installer node. After running the script, run/rerun the --prep phase of installation. For dependent packages, choose option D (Create from files in a local Directory) and enter the full absolute path to the /tempdl directory.
 
 **Status of the Software Server**
 
 At any time, you can check the status of the POWER-Up software server by running::
 
-    $ pup software --status paie11
+    $ pup software --status paie*
 
-Note: The POWER-Up software installer runs python installation modules. Inclusion of the '.py' in the software module name is optional. ie paie11 or paie11.py are both acceptable.
+Note: The POWER-Up software installer runs python installation modules. Inclusion of the '.py' in the software module name is optional. ie For PowerAI Enterprise version 1.1.1, paie111 or paie111.py are both acceptable.
 
 **Hint: The POWER-Up command line interface supports tab autocompletion.**
 
 Preparation is run with the following POWER-Up command::
 
-    $ pup software --prep paie11
+    $ pup software --prep paie*
 
 Preparation is interactive and may be rerun if needed. Respond to the prompts as appropriate for your environment. Note that the EPEL, Cuda, dependencies and Anaconda repositories can be replicated from the public web sites or from alternate sites accessible on your intranet environment or from local disk (ie from a mounted USB drive). Most other files come from the local file system except for the Anaconda package which can be downloaded from the public internet during the preparation step.
 
@@ -153,24 +155,23 @@ During the initialization phase, you will need to enter a resolvable hostname fo
 
 To initialize the client nodes and enable access to the POWER-Up software server::
 
-    $ pup software --init-clients paie11
+    $ pup software --init-clients paie*
 
 Note: Initialization of client nodes can be rerun if needed.
 
 Installation
 ~~~~~~~~~~~~
-To install the PowerAI base software Frameworks and prerequisites::
+To install the PowerAI Enterprise software and prerequisites::
 
-    $ pup software --install paie11
+    $ pup software --install paie*
 
-**Notes:**
+NOTES:
 
 -  During the installation phase you will be required to provide values for certain environment variables needed by Spectrum Conductor with Spark and Spectrum Deep Learning Impact. An editor window will be automatically opened to enable this.
     -  If left blank, the CLUSTERADMIN variable will be automatically populated with the cluster node userid provided during the init-client phase of installation.
     -  The DLI_SHARED_FS environment variable should be the full absolute path to the shared file system mount point. (eg DLI_SHARED_FS: /mnt/my-mount-point). The shared file system and the client node mount points need to be configured prior to installing PowerAI Enterprise.
-    -  The DLI_CONDA_HOME environment variable should be the full absolute path of the install location for Anaconda. (ie DLI_CONDA_HOME: /opt/anaconda2)
+    -  If left blank, the DLI_CONDA_HOME environment variable will be automatically populated. If entered, it should be the full absolute path of the install location for Anaconda. (ie DLI_CONDA_HOME: /opt/anaconda2)
 -  Installation of PowerAI Enterprise can be rerun if needed.
 
-
-After completion of the installation of the PowerAI Enterprise software, you must configure Spectrum Conductor Deep Learning Impact and apply any outstanding fixes. See 'Configure IBM Spectrum Conductor Deep Learning Impact' at https://www.ibm.com/support/knowledgecenter/SSFHA8_1.1.0/enterprise/powerai_install.html
-
+After completion of the installation of the PowerAI Enterprise software, you must configure Spectrum Conductor Deep Learning Impact and apply any outstanding fixes.
+Go to https://www.ibm.com/support/knowledgecenter/SSFHA8, choose your version of PowerAI Enterprise and then use the search bar to search for ‘Configure IBM Spectrum Conductor Deep Learning Impact’.
