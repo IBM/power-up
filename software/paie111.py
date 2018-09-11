@@ -25,6 +25,7 @@ import platform
 import re
 import sys
 from shutil import copy2, Error
+import calendar
 import time
 import yaml
 import json
@@ -52,28 +53,89 @@ class software(object):
     initialization activities. The install method implements the actual
     installation.
     """
-    def __init__(self):
+    def __init__(self, eval_ver=False, non_int=False):
         self.log = logger.getlogger()
         self.yum_powerup_repo_files = []
+        self.eval_ver = eval_ver
+        self.non_int = non_int
         yaml.add_constructor(YAMLVault.yaml_tag, YAMLVault.from_yaml)
 
         try:
             self.pkgs = yaml.load(open(GEN_SOFTWARE_PATH + 'pkg-lists111.yml'))
         except IOError:
             self.log.error('Error opening the pkg lists file (pkg-lists111.yml)')
+            sys.exit('Exit due to critical error')
 
-        try:
-            self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars.yml'))
-        except IOError:
-            self.log.info('Creating software vars yaml file')
+        if self.eval_ver:
+            try:
+                self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml'))
+            except IOError:
+                # if no eval vars file exist, see if the license var file exists
+                # and start with that
+                try:
+                    self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars.yml'))
+                except IOError:
+                    self.log.info('Creating software vars yaml file')
+                    self.sw_vars = {}
+                    self.sw_vars['init-time'] = time.ctime()
+                    self.README()
+                    _ = input('\nPress enter to continue')
+                # clear out any licensed version of PowerAI files
+                else:
+                    self.sw_vars['content_files']['powerai-enterprise-license'] = ''
+                    self.sw_vars['content_files']['spectrum-conductor'] = ''
+                    self.sw_vars['content_files']['spectrum-conductor-entitlement'] = ''
+                    self.sw_vars['content_files']['spectrum-dli'] = ''
+                    self.sw_vars['content_files']['spectrum-dli-entitlement'] = ''
+                    self.sw_vars['prep-timestamp'] = calendar.timegm(time.gmtime())
+        else:
+            try:
+                self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars.yml'))
+            except IOError:
+                # if no licensed vars file exist, see if the eval var file exists
+                # and start with that
+                try:
+                    self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml'))
+                except IOError:
+                    self.log.info('Creating software vars yaml file')
+                    self.sw_vars = {}
+                    self.sw_vars['init-time'] = time.ctime()
+                    self.README()
+                    _ = input('\nPress enter to continue')
+                # clear out any eval version of PowerAI Enterprise files
+                else:
+                    self.sw_vars['content_files']['powerai-enterprise-license'] = ''
+                    self.sw_vars['content_files']['spectrum-conductor'] = ''
+                    self.sw_vars['content_files']['spectrum-conductor-entitlement'] = ''
+                    self.sw_vars['content_files']['spectrum-dli'] = ''
+                    self.sw_vars['content_files']['spectrum-dli-entitlement'] = ''
+                    self.sw_vars['prep-timestamp'] = calendar.timegm(time.gmtime())
+
+        if not isinstance(self.sw_vars, dict):
             self.sw_vars = {}
             self.sw_vars['init-time'] = time.ctime()
-            self.README()
-            _ = input('\nPress enter to continue')
+
+        if 'prep-timestamp' not in self.sw_vars:
+            self.sw_vars['prep-timestamp'] = 0
+
+        if self.eval_ver:
+            self.eval_prep_timestamp = self.sw_vars['prep-timestamp']
+            try:
+                temp = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars.yml'))
+                self.lic_prep_timestamp = temp['prep-timestamp']
+            except (IOError, KeyError):
+                self.lic_prep_timestamp = 0
         else:
-            if not isinstance(self.sw_vars, dict):
-                self.sw_vars = {}
-                self.sw_vars['init-time'] = time.ctime()
+            self.lic_prep_timestamp = self.sw_vars['prep-timestamp']
+            try:
+                temp = yaml.load(open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml'))
+                self.eval_prep_timestamp = temp['prep-timestamp']
+            except (IOError, KeyError):
+                self.eval_prep_timestamp = 0
+
+        # print(f'self.lic_prep_timestamp: {self.lic_prep_timestamp}')
+        # print(f'self.eval_prep_timestamp: {self.eval_prep_timestamp}')
+
         if ('ana_powerup_repo_channels' not in self.sw_vars or not
                 isinstance(self.sw_vars['ana_powerup_repo_channels'], list)):
             self.sw_vars['ana_powerup_repo_channels'] = []
@@ -115,16 +177,20 @@ class software(object):
         # When searching for files in other web servers, the fileglobs are converted to
         # regular expressions. An asterisk (*) after a bracket is converted to a
         # regular extression of [0-9]{0,3} Other asterisks are converted to regular
-        # expression of .+
-        self.files = {'Anaconda content': 'Anaconda2-[56].[2-9]*.[0-9]*-Linux-ppc64le.sh',
-                      'CUDA dnn content': 'cudnn-9.[2-9]*-linux-ppc64le-v7.[2-9]**.tgz',
-                      'CUDA nccl2 content': 'nccl_2.2.1[3-9]-1+cuda9.[2-9]*_ppc64le.tgz',
-                      'PowerAI content': 'mldl-repo-local-[5-9]*.[3-9]*.[0-9]**.ppc64le.rpm',
-                      'PowerAI Enterprise license': 'powerai-enterprise-license-[0-9]*.[0-9]*.[0-9]**.ppc64le.rpm',
-                      'Spectrum conductor content': 'conductor[2-9]*.[3-9]*.[0-9]*.[0-9]*_ppc64le.bin',
-                      'Spectrum DLI content': 'dli-[1-9]*.[2-9]*.[0-9]*.[0-9]*_ppc64le.bin',
-                      'Spectrum conductor content entitlement': 'conductor_entitlement.dat',
-                      'Spectrum DLI content entitlement': 'dli_entitlement.dat'}
+        # expression of .*
+        try:
+            file_lists = yaml.load(open(GEN_SOFTWARE_PATH + 'file-lists111.yml'))
+        except IOError:
+            self.log.info('Error while reading installation file lists for PowerAI Enterprise')
+            sys.exit('exiting')
+            _ = input('\nPress enter to continue')
+        else:
+            if self.eval_ver:
+                self.globs = file_lists['globs_eval']
+                self.files = file_lists['files_eval']
+            else:
+                self.globs = file_lists['globs']
+                self.files = file_lists['files']
         if 'ansible_inventory' not in self.sw_vars:
             self.sw_vars['ansible_inventory'] = None
         if 'ansible_become_pass' not in self.sw_vars:
@@ -137,10 +203,16 @@ class software(object):
     def __del__(self):
         if not os.path.exists(GEN_SOFTWARE_PATH):
             os.mkdir(GEN_SOFTWARE_PATH)
-        with open(GEN_SOFTWARE_PATH + 'software-vars.yml', 'w') as f:
-            f.write('# Do not edit this file. This file is autogenerated.\n')
-        with open(GEN_SOFTWARE_PATH + 'software-vars.yml', 'a') as f:
-            yaml.dump(self.sw_vars, f, default_flow_style=False)
+        if self.eval_ver:
+            with open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml', 'w') as f:
+                f.write('# Do not edit this file. This file is autogenerated.\n')
+            with open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml', 'a') as f:
+                yaml.dump(self.sw_vars, f, default_flow_style=False)
+        else:
+            with open(GEN_SOFTWARE_PATH + 'software-vars.yml', 'w') as f:
+                f.write('# Do not edit this file. This file is autogenerated.\n')
+            with open(GEN_SOFTWARE_PATH + 'software-vars.yml', 'a') as f:
+                yaml.dump(self.sw_vars, f, default_flow_style=False)
         if os.path.isfile(self.vault_pass_file):
             os.remove(self.vault_pass_file)
 
@@ -195,7 +267,7 @@ class software(object):
             # Anaconda content status
             if item == 'Anaconda content':
                 item_dir = get_name_dir(item)
-                exists = glob.glob(f'/srv/{item_dir}/**/{self.files[item]}',
+                exists = glob.glob(f'/srv/{item_dir}/**/{self.globs[item]}',
                                    recursive=True)
                 if exists:
                     self.state['Anaconda content'] = ('Anaconda is present in the '
@@ -222,7 +294,7 @@ class software(object):
             # cudnn status
             if item == 'CUDA dnn content':
                 item_dir = get_name_dir(item)
-                exists = glob.glob(f'/srv/{item_dir}/**/{self.files[item]}', recursive=True)
+                exists = glob.glob(f'/srv/{item_dir}/**/{self.globs[item]}', recursive=True)
                 if exists:
                     self.state['CUDA dnn content'] = ('CUDA DNN is present in the '
                                                       'POWER-Up server')
@@ -230,7 +302,7 @@ class software(object):
             # cuda nccl2 status
             if item == 'CUDA nccl2 content':
                 item_dir = get_name_dir(item)
-                exists = glob.glob(f'/srv/{item_dir}/**/{self.files[item]}', recursive=True)
+                exists = glob.glob(f'/srv/{item_dir}/**/{self.globs[item]}', recursive=True)
                 if exists:
                     self.state[item] = ('CUDA nccl2 is present in the '
                                         'POWER-Up server')
@@ -239,9 +311,9 @@ class software(object):
             if item == 'Spectrum conductor content':
                 item_dir = get_name_dir(item)
                 exists = glob.glob(f'/srv/{item_dir}/**/'
-                                   f'{self.files[item]}', recursive=True)
+                                   f'{self.globs[item]}', recursive=True)
                 exists2 = glob.glob(f'/srv/{item_dir}/**/'
-                                    f'{self.files[item + " entitlement"]}', recursive=True)
+                                    f'{self.globs[item + " entitlement"]}', recursive=True)
                 if exists and exists2:
                     self.state[item] = \
                         'Spectrum Conductor is present in the POWER-Up server'
@@ -249,17 +321,17 @@ class software(object):
             # Spectrum DLI status
             if item == 'Spectrum DLI content':
                 item_dir = get_name_dir(item)
-                exists = glob.glob(f'/srv/{item_dir}/**/{self.files[item]}',
+                exists = glob.glob(f'/srv/{item_dir}/**/{self.globs[item]}',
                                    recursive=True)
                 exists2 = glob.glob(f'/srv/{item_dir}/**/'
-                                    f'{self.files[item + " entitlement"]}', recursive=True)
+                                    f'{self.globs[item + " entitlement"]}', recursive=True)
                 if exists and exists2:
                     self.state[item] = ('Spectrum DLI is present in the '
                                         'POWER-Up server')
             # PowerAI status
             if item == 'PowerAI Base Repository':
                 content = glob.glob(os.path.join(self.root_dir, self.repo_id[item],
-                                    self.files['PowerAI content']))
+                                    self.globs['PowerAI content']))
                 repodata = glob.glob(self.repo_dir.format(repo_id=self.repo_id[item]) +
                                      '/**/repodata', recursive=True)
                 if os.path.isfile(f'/etc/yum.repos.d/{self.repo_id[item]}-local.repo') \
@@ -269,7 +341,7 @@ class software(object):
             # PowerAI Enterprise license status
             if item == 'PowerAI Enterprise license':
                 item_dir = get_name_dir(item)
-                exists = glob.glob(f'/srv/{item_dir}/**/{self.files[item]}',
+                exists = glob.glob(f'/srv/{item_dir}/**/{self.globs[item]}',
                                    recursive=True)
                 if exists:
                     self.state[item] = ('PowerAI Enterprise license is present')
@@ -321,10 +393,11 @@ class software(object):
             exists = self.state[which] != '-'
         return exists
 
-    def setup(self):
+    def setup(self, eval_ver=False, non_int=False):
         # Invoked with --prep flag
         # Basic check of the state of yum repos
         print()
+        self.sw_vars['prep-timestamp'] = calendar.timegm(time.gmtime())
         self.log.info('Performing basic check of yum repositories')
         cmd = 'yum repolist --noplugins'
         resp, err, rc = sub_proc_exec(cmd)
@@ -449,7 +522,7 @@ class software(object):
         # Get PowerAI base
         name = 'PowerAI content'
         heading1('Setting up the PowerAI base repository\n')
-        pai_src = self.files['PowerAI content']
+        pai_src = self.globs['PowerAI content']
         pai_url = ''  # No default public url exists
         repo_id = 'power-ai'
         repo_name = 'IBM PowerAI Base'
@@ -494,7 +567,7 @@ class software(object):
         # Get PowerAI Enterprise license file
         name = 'PowerAI Enterprise license'
         heading1(f'Set up {name.title()} \n')
-        lic_src = self.files[name]
+        lic_src = self.globs[name]
         exists = self.status_prep(name)
         lic_url = ''
 
@@ -517,8 +590,8 @@ class software(object):
         # Get Spectrum Conductor
         name = 'Spectrum conductor content'
         heading1(f'Set up {name.title()} \n')
-        spc_src = self.files[name]
-        entitlement = self.files[name + ' entitlement']
+        spc_src = self.globs[name]
+        entitlement = self.globs[name + ' entitlement']
         exists = self.status_prep(name)
         spc_url = ''
 
@@ -544,8 +617,8 @@ class software(object):
         # Get Spectrum DLI
         name = 'Spectrum DLI content'
         heading1(f'Set up {name.title()} \n')
-        spdli_src = self.files[name]
-        entitlement = self.files[name + ' entitlement']
+        spdli_src = self.globs[name]
+        entitlement = self.globs[name + ' entitlement']
         exists = self.status_prep(name)
         spdli_url = ''
 
@@ -692,7 +765,7 @@ class software(object):
 
         # Get Anaconda
         ana_name = 'Anaconda content'
-        ana_src = self.files[ana_name]
+        ana_src = self.globs[ana_name]
         ana_url = 'https://repo.continuum.io/archive/'
         if f'{ana_name}_alt_url' in self.sw_vars:
             alt_url = self.sw_vars[f'{ana_name}_alt_url']
@@ -824,7 +897,7 @@ class software(object):
         # Get cudnn tar file
         name = 'CUDA dnn content'
         heading1(f'Set up {name.title()} \n')
-        cudnn_src = self.files[name]
+        cudnn_src = self.globs[name]
         cudnn_url = ''
 
         if f'{name}_alt_url' in self.sw_vars:
@@ -848,7 +921,7 @@ class software(object):
         # Get cuda nccl2 tar file
         name = 'CUDA nccl2 content'
         heading1(f'Set up {name.title()} \n')
-        nccl2_src = self.files[name]
+        nccl2_src = self.globs[name]
         nccl2_url = ''
         exists = self.status_prep(name)
 
@@ -1053,40 +1126,21 @@ class software(object):
                 self.log.info('Repository setup complete')
         # Display status
         self.status_prep()
-
-    def _setup_anaconda_venv(self):
-
-        ret = False
-        if not os.path.isdir(os.path.expanduser('~/anaconda2/envs/pkgdl')):
-            if self.status_prep('Anaconda content'):
-                if not os.path.isdir(os.path.expanduser('~/anaconda2')):
-                    print('Anaconda needs to be installed on the installer node.')
-                    print('Please accept the license and respond "no" when asked')
-                    print('if you want to update the $PATH environment variable')
-                    print('in your .bashrc file.\n')
-                    input('Press enter to continue')
-                    cmd = f"bash {self.sw_vars['content_files']['anaconda']}"
-                    rc = sub_proc_display(cmd, shell=True)
-                    if rc != 0:
-                        self.log.error(f'Error installing Anaconda. {rc}')
-                if not os.path.isdir(os.path.expanduser('~/anaconda2/envs/pkgdl')):
-                    cmd = os.path.join(os.path.expanduser("~/anaconda2/bin"), 'conda')
-                    cmd += ' create --name pkgdl --yes pip python=2.7'
-                    rc = sub_proc_display(cmd)
-                    if rc != 0:
-                        self.log.error('Error creating package download virtual '
-                                       f'environment. resp: {resp}, err: {err}')
-                    else:
-                        ret = True
-                else:
-                    ret = True
-            else:
-                self.log.info('Ananconda must be installed on the POWER-Up '
-                              'installer node before setting up the Python '
-                              'package index repository')
+        # write software-vars file. Although also done in __del__, the software
+        # vars files are written here in case the user is running all phases of
+        # install
+        if not os.path.exists(GEN_SOFTWARE_PATH):
+            os.mkdir(GEN_SOFTWARE_PATH)
+        if self.eval_ver:
+            with open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml', 'w') as f:
+                f.write('# Do not edit this file. This file is autogenerated.\n')
+            with open(GEN_SOFTWARE_PATH + 'software-vars-eval.yml', 'a') as f:
+                yaml.dump(self.sw_vars, f, default_flow_style=False)
         else:
-            ret = True
-        return ret
+            with open(GEN_SOFTWARE_PATH + 'software-vars.yml', 'w') as f:
+                f.write('# Do not edit this file. This file is autogenerated.\n')
+            with open(GEN_SOFTWARE_PATH + 'software-vars.yml', 'a') as f:
+                yaml.dump(self.sw_vars, f, default_flow_style=False)
 
     def _add_dependent_packages(self, repo_dir, dep_list):
         cmd = (f'yumdownloader --resolve --archlist={self.arch} --destdir '
@@ -1122,12 +1176,18 @@ class software(object):
             sudo_password = self._cache_sudo_pass()
         else:
             self._unlock_vault()
-
-        cmd = ('{} -i {} {}init_clients.yml --extra-vars "@{}" '
-               .format(get_ansible_playbook_path(),
-                       self.sw_vars['ansible_inventory'],
-                       GEN_SOFTWARE_PATH,
-                       GEN_SOFTWARE_PATH + "software-vars.yml"))
+        if self.eval_ver:
+            cmd = ('{} -i {} {}init_clients.yml --extra-vars "@{}" '
+                   .format(get_ansible_playbook_path(),
+                           self.sw_vars['ansible_inventory'],
+                           GEN_SOFTWARE_PATH,
+                           GEN_SOFTWARE_PATH + "software-vars-eval.yml"))
+        else:
+            cmd = ('{} -i {} {}init_clients.yml --extra-vars "@{}" '
+                   .format(get_ansible_playbook_path(),
+                           self.sw_vars['ansible_inventory'],
+                           GEN_SOFTWARE_PATH,
+                           GEN_SOFTWARE_PATH + "software-vars.yml"))
         prompt_msg = ""
         if sudo_password is not None:
             cmd += f'--extra-vars "ansible_become_pass={sudo_password}" '
@@ -1247,6 +1307,24 @@ class software(object):
                     sys.exit(1)
 
     def install(self):
+        print()
+        if self.eval_ver:
+            if self.lic_prep_timestamp > self.eval_prep_timestamp:
+                print(bold('You have requested to install the evaluation version'))
+                print('of PowerAI Enterprise but last ran preparation for ')
+                print('licensed version.')
+                resp = get_yesno('Continue with evaluation installation ')
+                if not resp:
+                    sys.exit('Installation ended by user')
+        else:
+            if self.eval_prep_timestamp > self.lic_prep_timestamp:
+                print(bold('You have requested to install the licensed version'))
+                print('of PowerAI Enterprise but last ran preparation for ')
+                print('evaluation version.')
+                resp = get_yesno('Continue with licensed installation ')
+                if not resp:
+                    sys.exit('Installation ended by user')
+
         log = logger.getlogger()
         if self.sw_vars['ansible_inventory'] is None:
             self.sw_vars['ansible_inventory'] = get_ansible_inventory()
@@ -1294,12 +1372,20 @@ class software(object):
             extra_args += ' --vault-password-file ' + self.vault_pass_file
         elif 'become:' in open(f'{GEN_SOFTWARE_PATH}{tasks_path}').read():
             extra_args += ' --ask-become-pass'
-        cmd = ('{0} -i {1} {2}paie111_ansible/run.yml '
-               '--extra-vars "task_file={2}{3}" '
-               '--extra-vars "@{2}{4}" {5}'
-               .format(get_ansible_playbook_path(),
-                       self.sw_vars['ansible_inventory'], GEN_SOFTWARE_PATH,
-                       tasks_path, 'software-vars.yml', extra_args))
+        if self.eval_ver:
+            cmd = ('{0} -i {1} {2}paie111_ansible/run.yml '
+                   '--extra-vars "task_file={2}{3}" '
+                   '--extra-vars "@{2}{4}" {5}'
+                   .format(get_ansible_playbook_path(),
+                           self.sw_vars['ansible_inventory'], GEN_SOFTWARE_PATH,
+                           tasks_path, 'software-vars-eval.yml', extra_args))
+        else:
+            cmd = ('{0} -i {1} {2}paie111_ansible/run.yml '
+                   '--extra-vars "task_file={2}{3}" '
+                   '--extra-vars "@{2}{4}" {5}'
+                   .format(get_ansible_playbook_path(),
+                           self.sw_vars['ansible_inventory'], GEN_SOFTWARE_PATH,
+                           tasks_path, 'software-vars.yml', extra_args))
         run = True
         while run:
             log.info(f'Running Ansible tasks found in \'{tasks_path}\' ...')
@@ -1381,12 +1467,10 @@ def _interactive_paie_license_accept(ansible_inventory):
     resp, err, rc = sub_proc_exec(cmd, shell=True)
     inv = json.loads(resp)
 
-
     accept_cmd = ('sudo /opt/DL/powerai-enterprise/license/bin/'
                   'accept-powerai-enterprise-license.sh ')
     check_cmd = ('/opt/DL/powerai-enterprise/license/bin/'
                  'check-powerai-enterprise-license.sh ')
-
 
     print(bold('Acceptance of the PowerAI Enterprise license is required on '
                'all nodes in the cluster.'))
