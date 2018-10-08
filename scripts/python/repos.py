@@ -187,6 +187,9 @@ class PowerupRepo(object):
     def get_repo_dir(self):
         return self.repo_dir
 
+    def get_repo_base_dir(self):
+        return self.repo_base_dir
+
     def get_action(self, exists, exists_prompt_yn=False):
         if exists:
             print(f'\nDo you want to sync the local {self.repo_name}\nrepository'
@@ -406,7 +409,8 @@ class PowerupRepoFromRpm(PowerupRepo):
 
         repodata_dir = glob.glob(f'{extract_dir}/**/repodata', recursive=True)
         if repodata_dir:
-            return os.path.dirname(repodata_dir[0])
+            self.repo_dir = os.path.dirname(repodata_dir[0])
+            return self.repo_dir
         else:
             return None
 
