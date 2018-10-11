@@ -22,14 +22,54 @@ import re
 import sys
 import subprocess
 import fileinput
-from shutil import copy2
-from netaddr import IPNetwork
+from subprocess import Popen, PIPE
+from shutil import copy2, Error
+from netaddr import IPNetwork, IPAddress
 
 from lib.config import Config
 import lib.logger as logger
 
 PATTERN_MAC = '[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
 CalledProcessError = subprocess.CalledProcessError
+
+
+class Color:
+    black = '\033[90m'
+    red = '\033[91m'
+    green = '\033[92m'
+    yellow = '\033[93m'
+    blue = '\033[94m'
+    purple = '\033[95m'
+    cyan = '\033[96m'
+    white = '\033[97m'
+    bold = '\033[1m'
+    underline = '\033[4m'
+    sol = '\033[1G'
+    clr_to_eol = '\033[K'
+    clr_to_bot = '\033[J'
+    scroll_five = '\n\n\n\n\n'
+    scroll_ten = '\n\n\n\n\n\n\n\n\n\n'
+    up_one = '\033[1A'
+    up_five = '\033[5A'
+    up_ten = '\033[10A'
+    header1 = '          ' + bold + underline
+    endc = '\033[0m'
+
+
+def bold(text):
+    return Color.bold + text + Color.endc
+
+
+def get_network_addr(ipaddr, prefix):
+    return str(IPNetwork(f'{ipaddr}/{prefix}').network)
+
+
+def get_netmask(prefix):
+    return IPNetwork(f'0.0.0.0/{prefix}').prefixlen
+
+
+def get_prefix(netmask):
+    return IPAddress(netmask).netmask_bits()
 
 
 def bash_cmd(cmd):
@@ -114,6 +154,44 @@ def remove_line(path, regex):
             print(line, end='')
 
 
+def line_in_file(path, regex, replace, backup=None):
+    """If 'regex' exists in the file specified by path, then replace it with
+    the value in 'replace'. Else append 'replace' to the end of the file. This
+    facilitates simplified changing of a parameter to a desired value if it
+    already exists in the file or adding the paramater if it does not exist.
+    Inputs:
+        path (str): path to the file
+        regex (str): Python regular expression
+        replace (str): Replacement string
+        backup (str): If specified, a backup of the orginal file will be made
+            if a backup does not already exist. The backup is made in the same
+            directory as the original file by appending the value of backup to
+            the filename.
+    """
+    if os.path.isfile(path):
+        if backup:
+            if not os.path.isfile(path + backup):
+                copy2(path, path + backup)
+        try:
+            with open(path, 'r') as f:
+                data = f.read()
+        except FileNotFoundError as exc:
+            print(f'File not found: {path}')
+        else:
+            data = data.splitlines()
+            in_file = False
+            # open 'r+' to maintain owner
+            with open(path, 'r+') as f:
+                for line in data:
+                    in_line = re.search(regex, line)
+                    if in_line:
+                        line = re.sub(regex, replace, line)
+                        in_file = True
+                    f.write(line + '\n')
+                if not in_file:
+                    f.write(replace + '\n')
+
+
 def replace_regex(path, regex, replace):
     """Replace line(s) from file containing a regex pattern
 
@@ -144,29 +222,33 @@ def copy_file(source, dest):
     copy2(source, dest)
 
 
-def sub_proc_launch(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+def sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
     """Launch a subprocess and return the Popen process object.
     This is non blocking. This is useful for long running processes.
     """
-    proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    proc = Popen(cmd.split(), stdout=stdout, stderr=stderr)
     return proc
 
 
-def sub_proc_exec(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+def sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE, shell=False):
     """Launch a subprocess wait for the process to finish.
     Returns stdout from the process
     This is blocking
     """
-    proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    if not shell:
+        cmd = cmd.split()
+    proc = Popen(cmd, stdout=stdout, stderr=stderr, shell=shell)
     stdout, stderr = proc.communicate()
-    return stdout, proc.returncode
+    return stdout.decode('utf-8'), stderr.decode('utf-8'), proc.returncode
 
 
-def sub_proc_display(cmd, stdout=None, stderr=None):
+def sub_proc_display(cmd, stdout=None, stderr=None, shell=False):
     """Popen subprocess created without PIPES to allow subprocess printing
     to the parent screen. This is a blocking function.
     """
-    proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
+    if not shell:
+        cmd = cmd.split()
+    proc = Popen(cmd, stdout=stdout, stderr=stderr, shell=shell)
     proc.wait()
     rc = proc.returncode
     return rc
@@ -190,6 +272,53 @@ def sub_proc_wait(proc):
     resp, err = proc.communicate()
     print(resp)
     return rc
+
+# def sub_proc_launch(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+#     """Launch a subprocess and return the Popen process object.
+#     This is non blocking. This is useful for long running processes.
+#     """
+#     proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
+#     return proc
+#
+#
+# def sub_proc_exec(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+#     """Launch a subprocess wait for the process to finish.
+#     Returns stdout from the process
+#     This is blocking
+#     """
+#     proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
+#     stdout, stderr = proc.communicate()
+#     return stdout, proc.returncode
+#
+#
+# def sub_proc_display(cmd, stdout=None, stderr=None):
+#     """Popen subprocess created without PIPES to allow subprocess printing
+#     to the parent screen. This is a blocking function.
+#     """
+#     proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
+#     proc.wait()
+#     rc = proc.returncode
+#     return rc
+#
+#
+# def sub_proc_wait(proc):
+#     """Launch a subprocess and display a simple time counter while waiting.
+#     This is a blocking wait. NOTE: sleeping (time.sleep()) in the wait loop
+#     dramatically reduces performace of the subprocess. It would appear the
+#     subprocess does not get it's own thread.
+#     """
+#     cnt = 0
+#     rc = None
+#     while rc is None:
+#         rc = proc.poll()
+#         print('\rwaiting for process to finish. Time elapsed: {:2}:{:2}:{:2}'.
+#               format(cnt // 3600, cnt % 3600 // 60, cnt % 60), end="")
+#         sys.stdout.flush()
+#         cnt += 1
+#     print('\n')
+#     resp, err = proc.communicate()
+#     print(resp)
+#     return rc
 
 
 def scan_ping_network(network_type='all', config_path=None):
@@ -216,3 +345,62 @@ def scan_ping_network(network_type='all', config_path=None):
         cmd = 'fping -a -r0 -g ' + net_c + '/' + str(netprefix)
         result, err = sub_proc_exec(cmd)
         print(result)
+
+
+def get_selection(items, choices=None, prompt='Enter a selection: ', sep='\n',
+                  allow_none=False, allow_retry=False):
+    """Prompt user to select a choice. Entered choice can be a member of choices or
+    items, but a member of choices is always returned as choice. If choices is not
+    specified a numeric list is generated. Note that if choices or items is a string
+    it will be 'split' using sep. If you wish to include sep in the displayed
+    choices or items, an alternate seperator can be specified.
+    ex: ch, item = get_selection('Apple pie\nChocolate cake')
+    ex: ch, item = get_selection('Apple pie.Chocolate cake', 'Item 1.Item 2', sep='.')
+    Inputs:
+        choices (str or list or tuple): Choices. If not specified, a numeric list is
+        generated.
+        items (str or list or tuple): Description of choices or items to select
+    returns:
+       ch (str): One of the elements in choices
+       item (str): mathing item from items
+    """
+    if not items:
+        return None, None
+    if not isinstance(items, (list, tuple)):
+        items = items.rstrip(sep)
+        items = items.split(sep)
+    if not choices:
+        choices = [str(i) for i in range(1, 1 + len(items))]
+    if not isinstance(choices, (list, tuple)):
+        choices = choices.rstrip(sep)
+        choices = choices.split(sep)
+    if allow_none:
+        choices.append('N')
+        items.append('Return without making a selection.')
+    if allow_retry:
+        choices.append('R')
+        items.append('Retry the search.')
+    if len(choices) == 1:
+        return choices[0], items[0]
+    maxw = 1
+    for ch in choices:
+        maxw = max(maxw, len(ch))
+    print()
+    for i in range(min(len(choices), len(items))):
+        print(bold(f'{choices[i]: <{maxw}}') + ' - ' + items[i])
+    print()
+    ch = ' '
+    while not (ch in choices or ch in items):
+        ch = input(f'{Color.bold}{prompt}{Color.endc}')
+        if not (ch in choices or ch in items):
+            print('Not a valid selection')
+            print(f'Choose from {choices}')
+            ch = ' '
+    if ch not in choices:
+        # not in choices so it must be in items
+        ch = choices[items.index(ch)]
+    item = items[choices.index(ch)]
+    if item == 'Return without making a selection.':
+        item = None
+    print()
+    return ch, item
