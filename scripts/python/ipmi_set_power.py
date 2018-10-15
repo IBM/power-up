@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -14,9 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 import argparse
 import time
@@ -79,7 +76,7 @@ def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
                         password=password)
                 except pyghmi_exception.IpmiException as error:
                     log.error('IPMI login attempt {}, address {}\nIPMI error'
-                              'message: {}'.format(i, ipv4, error.message))
+                              'message: {}'.format(i, ipv4, str(error)))
                     time.sleep(1)
                 else:
                     break

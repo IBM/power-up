@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import os
 import re
 import sys
@@ -159,7 +156,7 @@ def sub_proc_exec(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
     """
     proc = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr)
     stdout, stderr = proc.communicate()
-    return stdout, proc.returncode
+    return stdout.decode("utf-8"), proc.returncode
 
 
 def sub_proc_display(cmd, stdout=None, stderr=None):

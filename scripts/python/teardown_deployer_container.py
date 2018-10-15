@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,9 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import argparse
 import os.path
 import sys
@@ -32,7 +29,7 @@ import lib.logger as logger
 def _sub_proc_exec(cmd):
     data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
     stdout, stderr = data.communicate()
-    return stdout, stderr
+    return stdout.decode("utf-8"), stderr.decode("utf-8")
 
 
 def teardown_deployer_container(config_path):

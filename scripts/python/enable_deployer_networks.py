@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -14,9 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 import argparse
 import os
@@ -212,7 +209,7 @@ def _create_network(
             LOG.info('{}NOTE: bridge {} is already configured.{}'.format(Color.bold,
                      br_label, Color.endc))
             print("Enter to continue, or 'T' to terminate deployment")
-            resp = raw_input("\nEnter or 'T': ")
+            resp = input("\nEnter or 'T': ")
             if resp == 'T':
                 sys.exit('POWER-Up stopped at user request')
 
@@ -270,14 +267,14 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
     """
     opsys = platform.dist()[0]
     LOG.debug('OS: ' + opsys)
-    if opsys not in ('Ubuntu', 'redhat'):
+    if opsys not in ('debian', 'redhat'):
         LOG.error('Unsupported Operating System')
         raise UserCriticalException('Unsupported Operating System')
     network = IPNetwork(ip + '/' + str(prefix))
     network_addr = str(network.network)
     broadcast = str(network.broadcast)
     netmask = str(network.netmask)
-    if opsys == 'Ubuntu':
+    if opsys == 'debian':
         if mode == 'a' and os.path.exists('/etc/network/interfaces.d/' + bridge):
             LOG.debug('Appending to bridge config file {} IP addr {}'.
                       format(bridge, ip))
@@ -374,7 +371,7 @@ def _get_ifcs_file_list():
     """ Returns the absolute path for all interface definition files
     """
     opsys = platform.dist()[0]
-    if opsys == 'Ubuntu':
+    if opsys == 'debian':
         path = '/etc/network/'
         pathd = '/etc/network/interfaces.d/'
         file_list = []
@@ -443,7 +440,8 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
     Returns:
         True if the interface is already being used (is unavailable)
     """
-    br_list = subprocess.check_output(['bash', '-c', 'brctl show']).splitlines()
+    br_list = subprocess.check_output(['bash', '-c', 'brctl show']
+                                      ).decode("utf-8").splitlines()
     output = []
     for line in br_list[1:]:
         if line.startswith('\t'):
@@ -457,7 +455,8 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
 
 
 def _is_ifc_attached(ifc, bridge):
-    br_list = subprocess.check_output(['bash', '-c', 'brctl show']).splitlines()
+    br_list = subprocess.check_output(['bash', '-c', 'brctl show']
+                                      ).decode("utf-8").splitlines()
     output = []
     for line in br_list[1:]:
         if line.startswith('\t'):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """POWER-Up 'gen' command"""
 
 # Copyright 2018 IBM Corp.
@@ -16,9 +16,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 import os
 import sys
@@ -164,12 +161,12 @@ class Gen(object):
             dbase.validate_config()
             nodes.create_nodes()
         except UserCriticalException as exc:
-            exc.message = 'Failure: Config file validation.\n' + exc.message
-            print('{}{}{}'.format(COL.red, exc.message, COL.endc))
+            message = 'Failure: Config file validation.\n' + str(exc)
+            print('{}{}{}'.format(COL.red, message, COL.endc))
             sys.exit(1)
         except UserException as exc:
-            exc.message = 'Warning: Config file validation.\n' + exc.message
-            print('{}{}{}'.format(COL.yellow, exc.message, COL.endc))
+            message = 'Warning: Config file validation.\n' + str(exc)
+            print('{}{}{}'.format(COL.yellow, message, COL.endc))
         else:
             print('Successfully completed config file validation.\n')
 
@@ -183,16 +180,16 @@ class Gen(object):
         try:
             val.validate_mgmt_switches()
         except UserCriticalException as exc:
-            print(exc.message, file=sys.stderr)
+            print(str(exc), file=sys.stderr)
             print('{}Failure: Management switch validation.\n{}{}'.
-                  format(COL.red, exc.message, COL.endc))
+                  format(COL.red, str(exc), COL.endc))
             sys.exit(1)
 
         try:
             val.validate_data_switches()
         except UserException as exc:
             print('{}Failure: Data switch validation\n{}{}'.
-                  format(COL.yellow, exc.message, COL.endc))
+                  format(COL.yellow, str(exc), COL.endc))
             print('Warning. POWER-Up can continue with deployment, but')
             print('data network configuration will not succeed until issues ')
             print('are resolved')
@@ -202,7 +199,7 @@ class Gen(object):
         except UserException as exc:
             err = True
             print('{}Failure: Node IPMI validation error\n{}{}'.
-                  format(COL.yellow, exc.message, COL.endc))
+                  format(COL.yellow, str(exc), COL.endc))
             print('Warning. POWER-Up can continue with deployment, but')
             print('Not all nodes will be deployed at this time')
 
@@ -211,7 +208,7 @@ class Gen(object):
         except UserException as exc:
             err = True
             print('{}Failure: Node PXE validation error\n{}{}'.
-                  format(COL.yellow, exc.message, COL.endc))
+                  format(COL.yellow, str(exc), COL.endc))
             print('Warning. POWER-Up can continue with deployment, but')
             print('Not all nodes will be deployed at this time')
 
@@ -232,7 +229,7 @@ class Gen(object):
         #     print("Press enter to continue using the existing inventory.")
         #     print("Type 'C' to continue creating a new inventory. "
         #           "WARNING: Contents of current file will be overwritten!")
-        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     resp = input("Type 'T' to terminate Cluster Genesis ")
         #     if resp == 'T':
         #         sys.exit('POWER-Up stopped at user request')
         #     elif resp == 'C':
@@ -255,7 +252,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
 
         deployer_inv_file = gen.get_symlink_realpath(self.config_file_path)
@@ -293,7 +290,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('Success: Cobbler installed')
 
@@ -303,7 +300,7 @@ class Gen(object):
         try:
             download_os_images.download_os_images(self.config_file_path)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
 
         cont = Container(self.config_file_path)
@@ -312,7 +309,7 @@ class Gen(object):
         try:
             cont.copy_dir_to_container(local_os_images, cont_os_images)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('Success: OS images downloaded and copied into container')
 
@@ -339,7 +336,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('IPMI ports added to inventory')
 
@@ -355,7 +352,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('Success: Cobbler distros and profiles added')
 
@@ -389,7 +386,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('PXE ports added to inventory')
 
@@ -405,7 +402,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('Success: IPMI and PXE IP Addresses Reserved')
 
@@ -421,7 +418,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         print('Success: Cobbler systems added')
 
@@ -439,7 +436,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         _run_playbook("wait_for_clients_ping.yml", self.config_file_path)
 
@@ -468,7 +465,7 @@ class Gen(object):
             try:
                 cont.run_command(cmd)
             except UserException as exc:
-                print('\n{}Fail: {}{}'.format(COL.red, exc.message, COL.endc),
+                print('\n{}Fail: {}{}'.format(COL.red, str(exc), COL.endc),
                       file=sys.stderr)
             else:
                 print('\nSuccesfully configured data switches')
@@ -476,11 +473,11 @@ class Gen(object):
             try:
                 configure_data_switches.configure_data_switch(self.args.config_file_name)
             except UserException as exc:
-                print('\n{}Fail: {}{}'.format(COL.red, exc.message, COL.endc),
+                print('\n{}Fail: {}{}'.format(COL.red, str(exc), COL.endc),
                       file=sys.stderr)
             except SwitchException as exc:
                 print('\n{}Fail (switch error): {}{}'.format(
-                      COL.red, exc.message, COL.endc), file=sys.stderr)
+                      COL.red, str(exc), COL.endc), file=sys.stderr)
             else:
                 print('\nSuccesfully configured data switches')
 
@@ -496,7 +493,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
 
         _run_playbook("activate_client_interfaces.yml", self.config_file_path)
@@ -506,7 +503,7 @@ class Gen(object):
         try:
             cont.run_command(cmd)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
         else:
             print('Success: Gathered Client MAC addresses')
@@ -516,7 +513,7 @@ class Gen(object):
             _run_playbook("lookup_interface_names.yml --extra-vars config_path=" +
                           self.cont_config_file_path, self.config_file_path)
         except UserException as exc:
-            print('Fail:', exc.message, file=sys.stderr)
+            print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
 
         print('Success: Interface names collected')
@@ -570,7 +567,7 @@ class Gen(object):
             if self.args.validate:
                 cmd = argparse_gen.Cmd.VALIDATE.value
                 print('\nUsing {}'.format(self.config_file_path))
-                resp = raw_input('Enter to continue. "T" to terminate ')
+                resp = input('Enter to continue. "T" to terminate ')
                 if resp == 'T':
                     sys.exit('POWER-Up stopped at user request')
         except AttributeError:
@@ -669,7 +666,7 @@ class Gen(object):
                 print("\n\nPress enter to continue with node configuration ")
                 print("and data switch setup, or 'T' to terminate ")
                 print("POWER-Up. (To restart, type: 'pup post-deploy)")
-                resp = raw_input("\nEnter or 'T': ")
+                resp = input("\nEnter or 'T': ")
                 if resp == 'T':
                     sys.exit('POWER-Up stopped at user request')
                 cmd = argparse_gen.Cmd.POST_DEPLOY.value

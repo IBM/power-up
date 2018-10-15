@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,9 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import argparse
 import time
 import sys
@@ -27,6 +24,7 @@ from subprocess import Popen, PIPE
 from pyroute2 import IPRoute, NetlinkError
 from netaddr import IPNetwork
 from pyghmi.ipmi import command
+from pyghmi.ipmi.private import session
 from pyghmi.exceptions import IpmiException
 from orderedattrdict import AttrDict
 from tabulate import tabulate
@@ -71,7 +69,7 @@ def _sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
 def _sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
     data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
     stdout, stderr = data.communicate()
-    return stdout, stderr
+    return stdout.decode("utf-8"), stderr.decode("utf-8")
 
 
 class NetNameSpace(object):
@@ -108,10 +106,10 @@ class NetNameSpace(object):
         self.peer_ifc = 'veth-' + self.name
 
         try:
-            self.ip.link_create(
-                ifname=self.br_ifc, peer=self.peer_ifc, kind='veth')
+            self.ip.link(
+                "add", ifname=self.br_ifc, peer=self.peer_ifc, kind='veth')
         except NetlinkError as exc:
-            if 'File exists' not in exc:
+            if 'File exists' not in str(exc):
                 self.log.error('Failed creating veth pair. {}'.format(exc))
                 sys.exit(1)
 
@@ -287,17 +285,14 @@ class ValidateClusterHardware(object):
             cred_list.sort(key=lambda x: x[2], reverse=True)
             for j, creds in enumerate(cred_list):
                 try:
-                    bmc = command.Command(
-                        node,
-                        userid=creds[0],
-                        password=creds[1])
+                    bmc = self._bmc_ipmi_login(node, creds[0], creds[1])
                 except IpmiException as exc:
-                    if exc.message is not None:
-                        if 'Incorrect password' in exc.message or \
-                                'Unauthorized name' in exc.message:
+                    if str(exc) is not None:
+                        if 'Incorrect password' in str(exc) or \
+                                'Unauthorized name' in str(exc):
                             pass
                     else:
-                        self.log.error(exc.message)
+                        self.log.error(str(exc))
                 else:
                     self.log.debug(
                         node + ' power is ' + bmc.get_power()['powerstate'])
@@ -314,8 +309,7 @@ class ValidateClusterHardware(object):
                     except IpmiException as exc:
                         self.log.error('Failed attempting reset on {}. {}'
                                        .format(node, exc))
-                    rc = bmc.ipmi_session.logout()
-                    self.log.debug('Logging out rc: {}'.format(rc['success']))
+                    self._bmc_ipmi_logout(bmc)
                     break
         if left != 0:
             self.log.error('IPMI communication succesful with only {} of {} '
@@ -472,25 +466,21 @@ class ValidateClusterHardware(object):
             reset = False
             for j, creds in enumerate(cred_list):
                 try:
-                    bmc = command.Command(
-                        node,
-                        userid=creds[0],
-                        password=creds[1])
+                    bmc = self._bmc_ipmi_login(node, creds[0], creds[1])
                 except IpmiException as exc:
-                    if exc.message is not None:
-                        if 'Incorrect password' in exc.message or \
-                                'Unauthorized name' in exc.message:
+                    if str(exc) is not None:
+                        if 'Incorrect password' in str(exc) or \
+                                'Unauthorized name' in str(exc):
                             pass
                     else:
-                        self.log.error(exc.message)
+                        self.log.error(str(exc))
                 else:
                     try:
                         rc = bmc.reset_bmc()
                     except IpmiException as exc:
                         self.log.error('Failed attempting reset on {}'.format(node))
                     reset = True
-                    rc = bmc.ipmi_session.logout()
-                    self.log.debug('Logging out rc: {}'.format(rc['success']))
+                    self._bmc_ipmi_logout(bmc)
                     break
             if not reset:
                 self.log.warning('Unable to reset BMC: {}'.format(node))
@@ -503,9 +493,9 @@ class ValidateClusterHardware(object):
         #           "running IPMI hardware validation.")
         #     print("Type 'C' to validate cluster nodes defined in current "
         #           "'config.yml'")
-        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     resp = input("Type 'T' to terminate Cluster Genesis ")
         #     if resp == 'T':
-        #         resp = raw_input("Type 'y' to confirm ")
+        #         resp = input("Type 'y' to confirm ")
         #         if resp == 'y':
         #             self.log.info("'{}' entered. Terminating Genesis at user "
         #                           "request".format(resp))
@@ -597,9 +587,9 @@ class ValidateClusterHardware(object):
                 break
             print('\n\nPress Enter to continue scanning for cluster nodes.\nOr')
             print("Or enter 'C' to continue cluster deployment with a subset of nodes")
-            resp = raw_input("Or Enter 'T' to terminate Cluster Genesis ")
+            resp = input("Or Enter 'T' to terminate Cluster Genesis ")
             if resp == 'T':
-                resp = raw_input("Enter 'y' to confirm ")
+                resp = input("Enter 'y' to confirm ")
                 if resp == 'y':
                     self.log.info("'{}' entered. Terminating Genesis at user request"
                                   .format(resp))
@@ -607,7 +597,7 @@ class ValidateClusterHardware(object):
                     sys.exit(1)
             elif resp == 'C':
                 print('\nNot all nodes have been discovered')
-                resp = raw_input("Enter 'y' to confirm continuation of"
+                resp = input("Enter 'y' to confirm continuation of"
                                  " deployment without all nodes ")
                 if resp == 'y':
                     self.log.info("'{}' entered. Continuing Genesis".format(resp))
@@ -711,9 +701,9 @@ class ValidateClusterHardware(object):
         #           "running PXE hardware validation.")
         #     print("Type 'C' to validate cluster nodes defined in current "
         #           "'config.yml'")
-        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     resp = input("Type 'T' to terminate Cluster Genesis ")
         #     if resp == 'T':
-        #         resp = raw_input("Type 'y' to confirm ")
+        #         resp = input("Type 'y' to confirm ")
         #         if resp == 'y':
         #             self.log.info("'{}' entered. Terminating Genesis at user "
         #                           "request".format(resp))
@@ -829,9 +819,9 @@ class ValidateClusterHardware(object):
             print('\n\nPress Enter to continue scanning for cluster nodes.')
             print("Or enter 'C' to continue cluster deployment with a subset of nodes")
             print("Or enter 'R' to cycle power to missing nodes")
-            resp = raw_input("Or enter 'T' to terminate Cluster Genesis ")
+            resp = input("Or enter 'T' to terminate Cluster Genesis ")
             if resp == 'T':
-                resp = raw_input("Enter 'y' to confirm ")
+                resp = input("Enter 'y' to confirm ")
                 if resp == 'y':
                     self.log.info("'{}' entered. Terminating Genesis at user"
                                   " request".format(resp))
@@ -842,7 +832,7 @@ class ValidateClusterHardware(object):
                 self._reset_unfound_nodes()
             elif resp == 'C':
                 print('\nNot all nodes have been discovered')
-                resp = raw_input("Enter 'y' to confirm continuation of"
+                resp = input("Enter 'y' to confirm continuation of"
                                  " deployment without all nodes ")
                 if resp == 'y':
                     self.log.info("'{}' entered. Continuing Genesis".format(resp))
@@ -920,12 +910,11 @@ class ValidateClusterHardware(object):
         for node in ipmi_list_ai.keys():
             print(node)
             try:
-                bmc = command.Command(
-                    node,
-                    userid=self.ipmi_list_ai[node][0],
-                    password=self.ipmi_list_ai[node][1])
+                bmc = self._bmc_ipmi_login(node,
+                                           self.ipmi_list_ai[node][0],
+                                           self.ipmi_list_ai[node][1])
             except IpmiException as exc:
-                self.log.error(exc.message)
+                self.log.error(str(exc))
                 break
 
             try:
@@ -933,8 +922,7 @@ class ValidateClusterHardware(object):
             except IpmiException as exc:
                 self.log.error('Failed attempting BMC reset on {}'.format(node[0]))
 
-            rc = bmc.ipmi_session.logout()
-            self.log.debug('Logging out rc: {}'.format(rc['success']))
+            self._bmc_ipmi_logout(bmc)
 
     def _power_all(self, ipmi_list_ai, state, bootdev=None, persist=False):
         """Power on or off all nodes in node_list
@@ -947,26 +935,25 @@ class ValidateClusterHardware(object):
             t1 = time.time()
             for node in sorted(ipmi_list_ai):
                 try:
-                    bmc = command.Command(
-                        node,
-                        userid=self.ipmi_list_ai[node][0],
-                        password=self.ipmi_list_ai[node][1])
+                    bmc = self._bmc_ipmi_login(node,
+                                               self.ipmi_list_ai[node][0],
+                                               self.ipmi_list_ai[node][1])
                 except IpmiException as exc:
                     self.log.error('Failed login attempting set bootdev ' +
-                                   exc.message)
+                                   str(exc))
                 else:
                     try:
                         rc = bmc.set_bootdev(bootdev, persist)
                         self.log.debug('Node boot device set to {}'.format(bootdev))
                     except IpmiException as exc:
                         self.log.error('Failed attempting set boot device. {}'
-                                       .format(exc.message))
+                                       .format(str(exc)))
                     else:
                         try:
                             rc = bmc.get_bootdev()
                         except IpmiException as exc:
                             self.log.error('Failed attempting get boot device. {}'
-                                           .format(exc.message))
+                                           .format(str(exc)))
                         else:
                             if 'error' in rc or rc['bootdev'] != bootdev:
                                 self.log.error('Failed attempting get boot device on {}'
@@ -974,20 +961,18 @@ class ValidateClusterHardware(object):
                             else:
                                 self.log.debug('Get boot successful on {}: \n{}'.
                                                format(node, rc))
-                    rc = bmc.ipmi_session.logout()
-                    self.log.debug('Logging out rc: {}'.format(rc['success']))
+                    self._bmc_ipmi_logout(bmc)
 
             while time.time() < t1 + 1:
                 time.sleep(0.5)
 
         for node in sorted(ipmi_list_ai):
             try:
-                bmc = command.Command(
-                    node,
-                    userid=self.ipmi_list_ai[node][0],
-                    password=self.ipmi_list_ai[node][1])
+                bmc = self._bmc_ipmi_login(node,
+                                           self.ipmi_list_ai[node][0],
+                                           self.ipmi_list_ai[node][1])
             except IpmiException as exc:
-                self.log.error(exc.message)
+                self.log.error(str(exc))
                 break
 
             try:
@@ -996,17 +981,15 @@ class ValidateClusterHardware(object):
             except IpmiException as exc:
                 self.log.error('Failed attempting power {} of {}'.format(state, node))
 
-            rc = bmc.ipmi_session.logout()
-            self.log.debug('Logging out rc: {}'.format(rc['success']))
+            self._bmc_ipmi_logout(bmc)
 
         for node in sorted(ipmi_list_ai):
             try:
-                bmc = command.Command(
-                    node,
-                    userid=self.ipmi_list_ai[node][0],
-                    password=self.ipmi_list_ai[node][1])
+                bmc = self._bmc_ipmi_login(node,
+                                           self.ipmi_list_ai[node][0],
+                                           self.ipmi_list_ai[node][1])
             except IpmiException as exc:
-                self.log.error(exc.message)
+                self.log.error(str(exc))
                 break
 
             success = False
@@ -1024,8 +1007,7 @@ class ValidateClusterHardware(object):
             if not success:
                 self.log.error('Failed setting power state to {} for node {}'
                                .format(state, node))
-            rc = bmc.ipmi_session.logout()
-            self.log.debug('Logging out rc: {}'.format(rc['success']))
+            self._bmc_ipmi_logout(bmc)
 
     def _get_network(self, type_):
         """Returns details of a Genesis network.
@@ -1202,6 +1184,20 @@ class ValidateClusterHardware(object):
             self.log.debug(' OK - All management switches verified')
         else:
             raise UserCriticalException('Failed verification of management switches')
+
+    def _bmc_ipmi_logout(self, bmc):
+        rc = bmc.ipmi_session.logout()
+        self.log.debug(f'Closing IPMI connection to: {bmc.bmc} '
+                       f'rc: {rc["success"]}')
+        del bmc.ipmi_session.initialized
+
+    def _bmc_ipmi_login(self, node, userid, password):
+        self.log.debug(f'Attempting to open IPMI connection to: {node} / '
+                       f'{userid} / {password}')
+        session.Session.initting_sessions = {}
+        return command.Command(bmc=node,
+                               userid=userid,
+                               password=password)
 
 
 if __name__ == '__main__':
