@@ -23,8 +23,6 @@ import re
 from subprocess import PIPE
 from pyroute2 import IPRoute, NetlinkError
 from netaddr import IPNetwork
-from pyghmi.ipmi import command
-from pyghmi.ipmi.private import session
 from pyghmi.exceptions import IpmiException
 from orderedattrdict import AttrDict
 from tabulate import tabulate
@@ -38,7 +36,8 @@ from lib.switch import SwitchFactory
 from lib.exception import UserException, UserCriticalException
 from get_dhcp_lease_info import GetDhcpLeases
 from lib.genesis import get_dhcp_pool_start, GEN_PATH
-from lib.utilities import sub_proc_exec, sub_proc_launch
+from lib.utilities import sub_proc_exec, sub_proc_launch, bmc_ipmi_login,\
+    bmc_ipmi_logout
 
 # offset relative to bridge address
 NAME_SPACE_OFFSET_ADDR = 1
@@ -278,7 +277,7 @@ class ValidateClusterHardware(object):
             cred_list.sort(key=lambda x: x[2], reverse=True)
             for j, creds in enumerate(cred_list):
                 try:
-                    bmc = self._bmc_ipmi_login(node, creds[0], creds[1])
+                    bmc = bmc_ipmi_login(node, creds[0], creds[1])
                 except IpmiException as exc:
                     if str(exc) is not None:
                         if 'Incorrect password' in str(exc) or \
@@ -302,7 +301,7 @@ class ValidateClusterHardware(object):
                     except IpmiException as exc:
                         self.log.error('Failed attempting reset on {}. {}'
                                        .format(node, exc))
-                    self._bmc_ipmi_logout(bmc)
+                    bmc_ipmi_logout(bmc)
                     break
         if left != 0:
             self.log.error('IPMI communication succesful with only {} of {} '
@@ -459,7 +458,7 @@ class ValidateClusterHardware(object):
             reset = False
             for j, creds in enumerate(cred_list):
                 try:
-                    bmc = self._bmc_ipmi_login(node, creds[0], creds[1])
+                    bmc = bmc_ipmi_login(node, creds[0], creds[1])
                 except IpmiException as exc:
                     if str(exc) is not None:
                         if 'Incorrect password' in str(exc) or \
@@ -473,7 +472,7 @@ class ValidateClusterHardware(object):
                     except IpmiException as exc:
                         self.log.error('Failed attempting reset on {}'.format(node))
                     reset = True
-                    self._bmc_ipmi_logout(bmc)
+                    bmc_ipmi_logout(bmc)
                     break
             if not reset:
                 self.log.warning('Unable to reset BMC: {}'.format(node))
@@ -911,9 +910,9 @@ class ValidateClusterHardware(object):
         for node in ipmi_list_ai.keys():
             print(node)
             try:
-                bmc = self._bmc_ipmi_login(node,
-                                           self.ipmi_list_ai[node][0],
-                                           self.ipmi_list_ai[node][1])
+                bmc = bmc_ipmi_login(node,
+                                     self.ipmi_list_ai[node][0],
+                                     self.ipmi_list_ai[node][1])
             except IpmiException as exc:
                 self.log.error(str(exc))
                 break
@@ -923,7 +922,7 @@ class ValidateClusterHardware(object):
             except IpmiException as exc:
                 self.log.error('Failed attempting BMC reset on {}'.format(node[0]))
 
-            self._bmc_ipmi_logout(bmc)
+            bmc_ipmi_logout(bmc)
 
     def _power_all(self, ipmi_list_ai, state, bootdev=None, persist=False):
         """Power on or off all nodes in node_list
@@ -936,9 +935,9 @@ class ValidateClusterHardware(object):
             t1 = time.time()
             for node in sorted(ipmi_list_ai):
                 try:
-                    bmc = self._bmc_ipmi_login(node,
-                                               self.ipmi_list_ai[node][0],
-                                               self.ipmi_list_ai[node][1])
+                    bmc = bmc_ipmi_login(node,
+                                         self.ipmi_list_ai[node][0],
+                                         self.ipmi_list_ai[node][1])
                 except IpmiException as exc:
                     self.log.error('Failed login attempting set bootdev ' +
                                    str(exc))
@@ -962,16 +961,16 @@ class ValidateClusterHardware(object):
                             else:
                                 self.log.debug('Get boot successful on {}: \n{}'.
                                                format(node, rc))
-                    self._bmc_ipmi_logout(bmc)
+                    bmc_ipmi_logout(bmc)
 
             while time.time() < t1 + 1:
                 time.sleep(0.5)
 
         for node in sorted(ipmi_list_ai):
             try:
-                bmc = self._bmc_ipmi_login(node,
-                                           self.ipmi_list_ai[node][0],
-                                           self.ipmi_list_ai[node][1])
+                bmc = bmc_ipmi_login(node,
+                                     self.ipmi_list_ai[node][0],
+                                     self.ipmi_list_ai[node][1])
             except IpmiException as exc:
                 self.log.error(str(exc))
                 break
@@ -982,13 +981,13 @@ class ValidateClusterHardware(object):
             except IpmiException as exc:
                 self.log.error('Failed attempting power {} of {}'.format(state, node))
 
-            self._bmc_ipmi_logout(bmc)
+            bmc_ipmi_logout(bmc)
 
         for node in sorted(ipmi_list_ai):
             try:
-                bmc = self._bmc_ipmi_login(node,
-                                           self.ipmi_list_ai[node][0],
-                                           self.ipmi_list_ai[node][1])
+                bmc = bmc_ipmi_login(node,
+                                     self.ipmi_list_ai[node][0],
+                                     self.ipmi_list_ai[node][1])
             except IpmiException as exc:
                 self.log.error(str(exc))
                 break
@@ -1008,7 +1007,7 @@ class ValidateClusterHardware(object):
             if not success:
                 self.log.error('Failed setting power state to {} for node {}'
                                .format(state, node))
-            self._bmc_ipmi_logout(bmc)
+            bmc_ipmi_logout(bmc)
 
     def _get_network(self, type_):
         """Returns details of a Genesis network.
@@ -1185,20 +1184,6 @@ class ValidateClusterHardware(object):
             self.log.debug(' OK - All management switches verified')
         else:
             raise UserCriticalException('Failed verification of management switches')
-
-    def _bmc_ipmi_logout(self, bmc):
-        rc = bmc.ipmi_session.logout()
-        self.log.debug(f'Closing IPMI connection to: {bmc.bmc} '
-                       f'rc: {rc["success"]}')
-        del bmc.ipmi_session.initialized
-
-    def _bmc_ipmi_login(self, node, userid, password):
-        self.log.debug(f'Attempting to open IPMI connection to: {node} / '
-                       f'{userid} / {password}')
-        session.Session.initting_sessions = {}
-        return command.Command(bmc=node,
-                               userid=userid,
-                               password=password)
 
 
 if __name__ == '__main__':

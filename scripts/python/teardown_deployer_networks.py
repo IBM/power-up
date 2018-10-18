@@ -172,8 +172,8 @@ def _delete_br_cfg_file(bridge, ifc=''):
     """
     if OPSYS in ('debian', 'Ubuntu'):
         if os.path.exists('/etc/network/interfaces.d/' + bridge):
-            LOG.info('Deleting bridge config file {bridge}')
-            os.remove('/etc/network/interfaces.d/{bridge}')
+            LOG.info(f'Deleting bridge config file {bridge}')
+            os.remove(f'/etc/network/interfaces.d/{bridge}')
     elif OPSYS == 'redhat':
         path = f'/etc/sysconfig/network-scripts/ifcfg-{bridge}'
         if os.path.isfile(path):
