@@ -568,25 +568,23 @@ class PowerupPypiRepoFromRepo(PowerupRepo):
         pkg_list2 = pkg_list.split()
         if alt_url:
             host = re.search(r'http://([^/]+)', alt_url).group(1)
-            for pkg in pkg_list2:
-                print(pkg)
-                cmd = (f'python2.7 -m pip download --platform ppc64le --no-deps '
-                       f'--index-url={alt_url} -d {self.pypirepo_dir} {pkg} '
-                       f'--trusted-host {host}')
-                resp, err, rc = sub_proc_exec(cmd, shell=True)
-                if rc != 0:
-                    self.log.error('Error occured while downloading python package: '
-                                   f'{pkg_list}. \nResp: {resp} \nRet code: {rc} '
-                                   f'\nerr: {err}')
+            # wait on 'f' string formatting since 'pkg' is not available yet
+            cmd = ("f'python -m pip download --python-version 27 "
+                   "--platform ppc64le --no-deps --index-url={alt_url} "
+                   "-d {self.pypirepo_dir} {pkg} --trusted-host {host}'")
         else:
-            for pkg in pkg_list2:
-                print(pkg)
-                cmd = (f'python2.7 -m pip download --platform ppc64le  --no-deps '
-                       f'-d {self.pypirepo_dir} {pkg}')
-                resp, err, rc = sub_proc_exec(cmd, shell=True)
-                if rc != 0:
+            cmd = ("f'python -m pip download --python-version 27 "
+                   "--platform ppc64le --no-deps -d {self.pypirepo_dir} {pkg}'")
+        for pkg in pkg_list2:
+            print(pkg)
+            resp, err, rc = sub_proc_exec(eval(cmd), shell=True)
+            if rc != 0:
+                if 'functools32' in resp and 'for Python 2.7 only' in resp:
+                    pass
+                else:
                     self.log.error('Error occured while downloading python packages: '
                                    f'\nResp: {resp} \nRet code: {rc} \nerr: {err}')
+
         if not os.path.isdir(self.pypirepo_dir + '/simple'):
             os.mkdir(self.pypirepo_dir + '/simple')
         dir_list = os.listdir(self.pypirepo_dir)

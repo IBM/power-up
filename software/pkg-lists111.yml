@@ -129,7 +129,7 @@ python_pkgs:
 - Flask-Script==2.0.5
 - funcsigs==1.0.2
 - functools32==3.2.3-2
-- futures==3.2.0
+- '"futures>=2.2.0,<4.0.0"'
 - gensim
 - hanziconv
 - idna==2.7
