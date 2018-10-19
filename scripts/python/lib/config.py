@@ -79,10 +79,13 @@ class Config(object):
         self.log = logger.getlogger()
         if cfg:
             self.cfg = cfg
+            self.config_path = config_path
         elif config_path:
+            self.config_path = config_path
             dbase = DatabaseConfig(config_path)
             self.cfg = dbase.load_config()
         else:
+            self.config_path = CFG_FILE
             dbase = DatabaseConfig(CFG_FILE)
             self.cfg = dbase.load_config()
 

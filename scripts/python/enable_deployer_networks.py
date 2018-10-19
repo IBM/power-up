@@ -416,24 +416,6 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
                 'sudo cp {}{} /etc/network/interfaces.d/{}'
                 .format(GEN_PATH, bridge, bridge))
             os.system('rm ' + GEN_PATH + bridge)
-
-        os.system('cp /etc/lxc/lxc-usernet ' + GEN_PATH)
-        f = open(GEN_PATH + 'lxc-usernet', 'r')
-        data = f.read()
-        f.close()
-        username = os.getlogin()
-        perm = re.findall(username + r'\s+veth\s+' + bridge, data, re.MULTILINE)
-        permlxcbr0 = re.findall(username + r'\s+veth\s+lxcbr0', data, re.MULTILINE)
-        if not perm or not permlxcbr0:
-            LOG.debug('Updating lxc user network permissions')
-            f = open(GEN_PATH + 'lxc-usernet', 'a')
-            if not permlxcbr0:
-                f.write(username + ' veth lxcbr0 10\n')
-            if not perm:
-                f.write(username + ' veth ' + bridge + ' 10\n')
-            f.close()
-
-            os.system('sudo cp ' + GEN_PATH + 'lxc-usernet /etc/lxc/lxc-usernet')
         return
     elif OPSYS == 'redhat':
         # Create the ifc config file

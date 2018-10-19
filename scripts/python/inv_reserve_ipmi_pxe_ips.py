@@ -187,7 +187,7 @@ def inv_set_ipmi_pxe_ip(config_path):
 
             # Attempt to connect to new IPMI IP address
             try:
-                ipmi_cmd = util.bmc_ipmi_login(ipmi_ipaddr,
+                ipmi_cmd = util.bmc_ipmi_login(ipmi_new_ipaddr,
                                                ipmi_userid,
                                                ipmi_password)
                 status = ipmi_cmd.get_power()

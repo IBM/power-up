@@ -24,6 +24,7 @@ from pyroute2 import IPRoute
 
 from lib.config import Config
 from lib.genesis import GEN_PATH
+from lib.container import Container
 import lib.logger as logger
 from lib.utilities import sub_proc_exec, remove_line, get_netmask
 
@@ -40,6 +41,8 @@ def teardown_deployer_network(config_path=None):
     global LOG
     LOG = logger.getlogger()
     LOG.debug('----------------------------------------')
+    LOG.info('Teardown Docker networks')
+    _remove_docker_networks(cfg)
     LOG.info('Teardown deployer management networks')
     dev_label = cfg.get_depl_netw_mgmt_device()
     interface_ipaddr = cfg.get_depl_netw_mgmt_intf_ip()
@@ -304,6 +307,11 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
                 and bridge not in output[len(output) - 1]:
             return True
     return False
+
+
+def _remove_docker_networks(cfg):
+    container = Container(cfg.config_path)
+    container.create_networks(remove=True)
 
 
 if __name__ == '__main__':
