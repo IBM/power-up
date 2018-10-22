@@ -582,6 +582,14 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
 
 
 def _is_ifc_attached(ifc, bridge):
+    """ Checks to see if ifc is in use on a bridge other than that specified
+    Args:
+        ifc (str) interface name
+        bridge (str) name of bridge the interface is intended for
+    Returns:
+        True if the interface is already being used (is unavailable)
+    """
+
     br_list = subprocess.check_output(['bash', '-c', 'brctl show']).splitlines()
     output = []
     for line in br_list[1:]:

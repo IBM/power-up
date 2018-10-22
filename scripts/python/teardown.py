@@ -78,7 +78,7 @@ class Teardown(object):
         self.config_file_path = os.path.abspath(self.config_file_path)
 
         print('\nUsing {}'.format(self.config_file_path))
-        resp = raw_input('Enter to continue. "T" to terminate ')
+        resp = input('Enter to continue. "T" to terminate ')
         if resp == 'T':
             sys.exit('POWER-Up stopped at user request')
 

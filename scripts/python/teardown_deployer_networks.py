@@ -15,9 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
+import argparse
 import sys
 import os
 import re
@@ -27,8 +25,11 @@ from pyroute2 import IPRoute
 
 from lib.config import Config
 import lib.logger as logger
+from lib.utilities import sub_proc_exec
 
 IPR = IPRoute()
+OPSYS = platform.dist()[0]
+IFCFG_PATH = '/etc/sysconfig/network-scripts/'
 
 
 def teardown_deployer_network(config_path=None):
@@ -126,7 +127,7 @@ def _delete_network(
                         LOG.debug('Address {} already configured in {}'.
                                   format(interface_ipaddr, filename))
         if addr_cfgd:
-            _delete_ifc_cfg_file(dev_label)
+            _delete_ifc_cfg(dev_label, interface_ipaddr)
     else:
         # bridge specified
         # Prepare to delete the bridge
@@ -150,40 +151,59 @@ def _delete_network(
                 IPR.link("del", ifname=link)
         _delete_bridge(br_label)
 
-        _delete_br_cfg_file(br_label)
+        _delete_br_cfg_file(br_label, dev_label)
 
 
-def _delete_ifc_cfg_file(ifc):
-    """ Deletes a Genesis created interface specific configuration file
+def _delete_ifc_cfg(ifc, ipaddr=''):
+    """ Deletes a PowerUp created interface specific configuration. For Ubuntu
+    this involves removing the PowerUp generated config file. For Red Hat, this
+    involves removing the interface IP address and netmask from the 'ifcfg' file.
+    There may be additional PowerUp changes to the Red Hat ifcfg file which are
+    not undone. The original interface configuration can be restored from the
+    PowerUp generated backup (ifcfg-{ifc}.orig)
     Args:
         ifc (str) interface name
         ip (str) interface ipv4 address
         mask (str) interface netmask
         broadcast (str) interface broadcast address
     """
-    file_name = '/etc/network/interfaces.d/' + ifc + '-genesis-generated'
-    if os.path.exists(file_name):
-        LOG.info('Deleting {} config file'.format(file_name))
-        os.system('sudo rm ' + file_name)
+    if OPSYS == 'Ubuntu':
+        file_path = '/etc/network/interfaces.d/' + ifc + '-genesis-generated'
+        if os.path.exists(file_path):
+            LOG.info('Deleting {} config file'.format(file_path))
+            os.remove(file_path)
+    elif OPSYS == 'redhat':
+        file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifc}'
+        regex = r'IPADDR\d*=ipaddr'
+        remove_line(file_path, regex)
+    else:
+        LOG.warning(f'Unsupported OS: {OPSYS}')
 
 
-def _delete_br_cfg_file(bridge):
+def _delete_br_cfg_file(bridge, ifc=''):
     """ Deletes the config file for the specified bridge.
     Args:
         bridge (str) bridge name
     """
-    opsys = platform.dist()[0]
-    LOG.debug('OS: ' + opsys)
-    if opsys not in ('Ubuntu', 'redhat'):
-        LOG.error('Unsupported Operating System')
-        sys.exit('Unsupported Operating System')
-    if opsys == 'Ubuntu':
+    if OPSYS == 'Ubuntu':
         if os.path.exists('/etc/network/interfaces.d/' + bridge):
-            LOG.info('Deleting bridge config file {}'.format(bridge))
-            os.system('sudo rm /etc/network/interfaces.d/{}'.format(bridge))
-        return
-    LOG.error('Support for Red Hat not yet implemented')
-    sys.exit('Support for Red Hat not yet implemented')
+            LOG.info('Deleting bridge config file {bridge}')
+            os.remove('/etc/network/interfaces.d/{bridge}')
+    elif OPSYS == 'redhat':
+        path = f'/etc/sysconfig/network-scripts/ifcfg-{bridge}'
+        if os.path.isfile(path):
+            LOG.info(f'Deleting bridge config file {path}')
+            os.remove(path)
+        else:
+            LOG.info(f'Bridge config file {path} not found')
+        # Delete the vlan interface
+        vlan = bridge[1 + bridge.rfind('-'):]
+        path = f'/etc/sysconfig/network-scripts/ifcfg-{ifc}.{vlan}'
+        if os.path.isfile(path):
+            LOG.info(f'Deleting vlan config file {path}')
+            os.remove(path)
+    else:
+        LOG.warning(f'Unsupported OS: {OPSYS}')
 
 
 def _get_ifc_addresses():
@@ -203,14 +223,20 @@ def _get_ifc_addresses():
 def _get_ifcs_file_list():
     """ Returns the absolute path for all interface definition files
     """
-    opsys = platform.dist()[0]
-    if opsys == 'Ubuntu':
+    if OPSYS == 'Ubuntu':
         path = '/etc/network/'
         pathd = '/etc/network/interfaces.d/'
         file_list = []
         file_list.append(path + 'interfaces')
         for filename in os.listdir(pathd):
             file_list.append(pathd + filename)
+    elif OPSYS == 'redhat':
+        path = '/etc/sysconfig/network-scripts/'
+        file_list = []
+        for filename in os.listdir(path):
+            _file = re.search(r'(?!.*\.orig$)ifcfg-.+', filename)
+            if _file:
+                file_list.append(path + _file.group(0))
     return file_list
 
 
@@ -249,7 +275,8 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
     Returns:
         True if the interface is already being used (is unavailable)
     """
-    br_list = subprocess.check_output(['bash', '-c', 'brctl show']).splitlines()
+    br_list, err, rc = sub_proc_exec('brctl show')
+    br_list = br_list.splitlines()
     output = []
     for line in br_list[1:]:
         if line.startswith('\t'):
@@ -257,11 +284,33 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
         else:
             output.append(line)
         if ifc in output[len(output) - 1] \
-                and bridge not in output[len(output) - 1]:
+                and bridge in output[len(output) - 1]:
+                # and bridge not in output[len(output) - 1]:
             return True
     return False
 
 
 if __name__ == '__main__':
-    logger.create('nolog', 'info')
-    teardown_deployer_network()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path', default='config.yml',
+                        help='Config file path.  Absolute path or relative to '
+                        'power-up/ sudo env "PATH=$PATH"  '
+                        'teardown_deployer_networks.py config-name')
+
+    parser.add_argument('--print', '-p', dest='log_lvl_print',
+                        help='print log level', default='info')
+
+    parser.add_argument('--file', '-f', dest='log_lvl_file',
+                        help='file log level', default='info')
+
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.config_path):
+        args.config_path = GEN_PATH + args.config_path
+        print('Using config path: {}'.format(args.config_path))
+    if not os.path.isfile(args.config_path):
+        sys.exit('{} does not exist'.format(args.config_path))
+
+    logger.create(args.log_lvl_print, args.log_lvl_file)
+    # logger.create('nolog', 'info')
+    teardown_deployer_network(args.config_path)

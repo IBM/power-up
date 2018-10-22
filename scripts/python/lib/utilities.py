@@ -91,19 +91,24 @@ def bash_cmd(cmd):
     return output
 
 
-def backup_file(path):
+def backup_file(path, suffix='.orig', multi=True):
     """Save backup copy of file
 
-    Backup copy is saved as the name of the original with '.orig'
-    appended. The backup copy filemode is set to read-only.
+    Backup copy is saved as the name of the original with the value of suffix
+    appended. If multi is True, and a backup already exists, an additional
+    backup is made with a numeric index value appended to the name. The backup
+    copy filemode is set to read-only.
 
     Args:
         path (str): Path of file to backup
+        suffix (str): String to append to the filename of the backup
+        multi (bin): Set False to only make a backup if one does not exist
+            already.
     """
     log = logger.getlogger()
-    backup_path = path + '.orig'
+    backup_path = path + suffix
     version = 0
-    while os.path.exists(backup_path):
+    while os.path.exists(backup_path) and multi:
         version += 1
         backup_path += "." + str(version)
     log.debug('Make backup copy of orignal file: \'%s\'' % backup_path)
@@ -170,8 +175,7 @@ def line_in_file(path, regex, replace, backup=None):
     """
     if os.path.isfile(path):
         if backup:
-            if not os.path.isfile(path + backup):
-                copy2(path, path + backup)
+            backup_file(path, multi=False)
         try:
             with open(path, 'r') as f:
                 data = f.read()
