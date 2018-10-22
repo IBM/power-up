@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import sys
 import platform
 import os.path
@@ -125,7 +122,8 @@ def get_container_name(config_path=None):
 
 def is_container_running():
     cont_running = False
-    lxc_ls_output = subprocess.check_output(['bash', '-c', 'lxc-ls -f'])
+    lxc_ls_output = subprocess.check_output(['bash', '-c', 'lxc-ls -f']
+                                            ).decode("utf-8")
     lxc_ls_output_search = re.search('^%s\d+\s+RUNNING' %
                                      (DEFAULT_CONTAINER_NAME + '-pxe'),
                                      lxc_ls_output, re.MULTILINE)
@@ -136,7 +134,8 @@ def is_container_running():
 
 def container_addr():
     cont_address = None
-    lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
+    lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f']
+                                            ).decode("utf-8")
     cont_address = re.search('(\S+),\s+(\S+),', lxc_ls_output, re.MULTILINE)
     if cont_address is None:
         return None

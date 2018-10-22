@@ -21,22 +21,23 @@ source /etc/os-release
 if [[ $ID == "ubuntu" ]]; then
 
     sudo apt-get update
-    sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
+    sudo apt-get -y install libffi-dev libssl-dev \
         python-netaddr ipmitool aptitude lxc vim vlan bridge-utils gcc cpp \
         python-tabulate fping g++ make unzip libncurses5 libncurses5-dev
 
     if [[ $VERSION_ID == "14.04" ]]; then
-        sudo apt-get -y install lxc-dev liblxc1
+        sudo apt-get -y install lxc-dev liblxc1 python3-dev
     elif [[ $VERSION_ID == "16.04" ]]; then
-        sudo apt-get -y install python-lxc
+        sudo apt-get -y install python-lxc python3-dev
     fi
 
 elif [[ $ID == "rhel" ]]; then
-    sudo yum -y install python-pip python-devel libffi-devel openssl-devel \
-        python-netaddr ipmitool lxc lxc-devel lxc-extra lxc-templates libvirt \
-        debootstrap gcc vim vlan bridge-utils cpp flex bison unzip cmake \
+    sudo yum -y install python36-devel libffi-devel \
+        lxc lxc-devel lxc-extra lxc-templates libvirt ipmitool\
+        debootstrap gcc vim bridge-utils cpp flex bison unzip cmake \
         fping gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue \
-        python-tabulate ncurses-devel
+        ncurses-devel bash-completion yum-utils createrepo sshpass \
+        python-tabulate openssl-devel
     sudo systemctl start lxc.service
     sudo systemctl start libvirtd
 
@@ -45,12 +46,9 @@ else
     exit 1
 fi
 
-sudo -E -H pip install --upgrade pip
+sudo -E -H pip install --upgrade pip==18.0
 sudo -E -H pip install --upgrade setuptools
 sudo -E -H pip install --upgrade wheel
-if [[ $VERSION_ID == "14.04" || $ID == "rhel" ]]; then
-    sudo -E -H pip install --upgrade lxc-python2
-fi
 
 /bin/bash "${BASH_SOURCE%/*}/venv_install.sh"
 

@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright 2017 IBM Corp.
+#!/usr/bin/env python3
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -185,7 +185,7 @@ def _delete_br_cfg_file(bridge, ifc=''):
     Args:
         bridge (str) bridge name
     """
-    if OPSYS == 'Ubuntu':
+    if OPSYS in ('debian', 'Ubuntu'):
         if os.path.exists('/etc/network/interfaces.d/' + bridge):
             LOG.info('Deleting bridge config file {bridge}')
             os.remove('/etc/network/interfaces.d/{bridge}')
@@ -223,7 +223,7 @@ def _get_ifc_addresses():
 def _get_ifcs_file_list():
     """ Returns the absolute path for all interface definition files
     """
-    if OPSYS == 'Ubuntu':
+    if OPSYS in ('debian', 'Ubuntu'):
         path = '/etc/network/'
         pathd = '/etc/network/interfaces.d/'
         file_list = []

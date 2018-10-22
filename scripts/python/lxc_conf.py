@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Create lxc-conf.yml"""
 
 # Copyright 2018 IBM Corp.
@@ -16,9 +16,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 import sys
 import os
@@ -64,15 +61,15 @@ class LxcConf(object):
             sys.exit(1)
         except TemplateAssertionError as exc:
             self.log.error('Template assertion error: %s in %s, line %d' % (
-                exc.message, exc.filename, exc.lineno))
+                str(exc), exc.filename, exc.lineno))
             print('Template assertion error: %s in %s, line %d' % (
-                exc.message, exc.filename, exc.lineno))
+                str(exc), exc.filename, exc.lineno))
             sys.exit(1)
         except TemplateSyntaxError as exc:
             self.log.error('Template syntax error: %s in %s, line %d' % (
-                exc.message, exc.filename, exc.lineno))
+                str(exc), exc.filename, exc.lineno))
             print('Template syntax error: %s in %s, line %d' % (
-                exc.message, exc.filename, exc.lineno))
+                str(exc), exc.filename, exc.lineno))
             sys.exit(1)
 
         nets = []

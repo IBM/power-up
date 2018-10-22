@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Container"""
 
 # Copyright 2018 IBM Corp.
@@ -17,14 +17,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import os.path
 import sys
 import re
 import platform
-import ConfigParser
+import configparser
 from enum import Enum
 from orderedattrdict import AttrDict
 from Crypto.PublicKey import RSA
@@ -176,7 +173,7 @@ class Container(object):
             self.log.warning(msg)
             print("\nPress enter to continue with node configuration using ")
             print("existing container, or 'T' to terminate.")
-            resp = raw_input("\nEnter or 'T': ")
+            resp = input("\nEnter or 'T': ")
             if resp == 'T':
                 sys.exit('POWER-Up stopped at user request')
         else:
@@ -293,11 +290,11 @@ class Container(object):
         self.run_command(["apt-get", "dist-upgrade", "-y"], stdout=self.fd)
 
         # Read INI file
-        ini = ConfigParser.SafeConfigParser(allow_no_value=True)
+        ini = configparser.SafeConfigParser(allow_no_value=True)
         try:
             ini.read(self.cont_ini)
-        except ConfigParser.Error as exc:
-            msg = exc.message.replace('\n', ' - ')
+        except configparser.Error as exc:
+            msg = str(exc).replace('\n', ' - ')
             self.log.error(msg)
             raise UserException(msg)
 
@@ -323,6 +320,9 @@ class Container(object):
             for pkg in ini.options(self.Packages.DISTRO_PPC64EL.value):
                 cmd.append(pkg)
             self.run_command(cmd, stdout=self.fd)
+
+        # Install additional python modules
+        self.run_command(['pip', 'install', 'ipaddress'], stdout=self.fd)
 
         # Create project directory
         self.run_command(['mkdir', '-p', self.cont_package_path],
