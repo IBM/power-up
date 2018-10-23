@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import os
 import re
 import sys
@@ -65,7 +62,7 @@ def get_network_addr(ipaddr, prefix):
 
 
 def get_netmask(prefix):
-    return IPNetwork(f'0.0.0.0/{prefix}').prefixlen
+    return str(IPNetwork(f'0.0.0.0/{prefix}').netmask)
 
 
 def get_prefix(netmask):

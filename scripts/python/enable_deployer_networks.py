@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -217,8 +217,8 @@ def _create_network(
             LOG.info('{}NOTE: bridge {} is already configured.{}'.format(Color.bold,
                      br_label, Color.endc))
             print("Enter to continue, or 'T' to terminate deployment")
-            ch, item = get_selection('Continue PowerUp deployment\nTerminate deployment', 'C\nT')
-            if ch == 'T':
+            resp = input("\nEnter or 'T': ")
+            if resp == 'T':
                 sys.exit('POWER-Up stopped at user request')
 
         _write_br_cfg_file(
@@ -354,14 +354,14 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
         ifc (str) name of the interface to be added to the bridge.
     """
     LOG.debug('OS: ' + OPSYS)
-    if OPSYS not in ('Ubuntu', 'redhat'):
+    if OPSYS not in ('debian', 'Ubuntu', 'redhat'):
         LOG.error('Unsupported Operating System')
         raise UserCriticalException('Unsupported Operating System')
     network = IPNetwork(ip + '/' + str(prefix))
     network_addr = str(network.network)
     broadcast = str(network.broadcast)
     netmask = str(network.netmask)
-    if OPSYS == 'Ubuntu':
+    if OPSYS in ('debian', 'Ubuntu'):
         if mode == 'a' and os.path.exists('/etc/network/interfaces.d/' + bridge):
             LOG.debug('Appending to bridge config file {} IP addr {}'.
                       format(bridge, ip))
@@ -466,11 +466,12 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
         else:
             with open(file_path, 'w') as f:
                 f.write(f'DEVICE={bridge}\n')
+                f.write('ONBOOT=yes\n')
                 f.write('TYPE=Bridge\n')
                 f.write(f'IPADDR={ip}\n')
                 f.write(f'PREFIX={prefix}\n')
                 f.write('BOOTPROTO=none\n')
-                f.write('ONBOOT=yes\n')
+                f.write('NM_CONTROLLED=no\n')
                 f.write('DELAY=0')
 
 
@@ -491,7 +492,7 @@ def _get_ifc_addresses():
 def _get_ifcs_file_list():
     """ Returns the absolute path for all interface definition files
     """
-    if OPSYS == 'Ubuntu':
+    if OPSYS in ('debian', 'Ubuntu'):
         path = '/etc/network/'
         pathd = '/etc/network/interfaces.d/'
         file_list = []
@@ -590,7 +591,8 @@ def _is_ifc_attached(ifc, bridge):
         True if the interface is already being used (is unavailable)
     """
 
-    br_list = subprocess.check_output(['bash', '-c', 'brctl show']).splitlines()
+    br_list = subprocess.check_output(['bash', '-c', 'brctl show']
+                                      ).decode("utf-8").splitlines()
     output = []
     for line in br_list[1:]:
         if line.startswith('\t'):
