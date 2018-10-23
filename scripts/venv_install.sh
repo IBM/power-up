@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 sudo -E -H pip install --upgrade virtualenv
 virtualenv --no-wheel --system-site-packages ${1}pup-venv
 source ${1}pup-venv/bin/activate
