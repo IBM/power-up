@@ -466,11 +466,12 @@ def _write_br_cfg_file(bridge, ip=None, prefix=None, ifc=None, mode='w'):
         else:
             with open(file_path, 'w') as f:
                 f.write(f'DEVICE={bridge}\n')
+                f.write('ONBOOT=yes\n')
                 f.write('TYPE=Bridge\n')
                 f.write(f'IPADDR={ip}\n')
                 f.write(f'PREFIX={prefix}\n')
                 f.write('BOOTPROTO=none\n')
-                f.write('ONBOOT=yes\n')
+                f.write('NM_CONTROLLED=no\n')
                 f.write('DELAY=0')
 
 

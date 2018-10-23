@@ -25,7 +25,7 @@ from pyroute2 import IPRoute
 
 from lib.config import Config
 import lib.logger as logger
-from lib.utilities import sub_proc_exec
+from lib.utilities import sub_proc_exec, remove_line, get_netmask
 
 IPR = IPRoute()
 OPSYS = platform.dist()[0]
@@ -40,11 +40,6 @@ def teardown_deployer_network(config_path=None):
     global LOG
     LOG = logger.getlogger()
     LOG.debug('----------------------------------------')
-
-    # if inv.is_passive_mgmt_switches():
-    #     self.LOG.info('Passive Management Switch(es) specified')
-    # return
-
     LOG.info('Teardown deployer management networks')
     dev_label = cfg.get_depl_netw_mgmt_device()
     interface_ipaddr = cfg.get_depl_netw_mgmt_intf_ip()
@@ -106,28 +101,15 @@ def _delete_network(
                       format(interface_ipaddr, dev_label))
 
         # Check to see if the device and address is configured in any interface
-        # definition file. If it is and it was Genesis created, then delete the
+        # definition file. If it is and it was PowerUp created, then delete the
         # definition file.
-        ifc_file_list = _get_ifcs_file_list()
-        addr_cfgd = False
-        for filename in ifc_file_list:
-            f = open(filename, 'r')
-            interfaces = f.read()
-            f.close()
-            if re.findall(r'^ *auto\s+' + dev_label + '\s',
-                          interfaces, re.MULTILINE):
-                LOG.debug('Device {} already configured in network configuration '
-                          'file {}'.format(dev_label, filename))
-            interfaces = interfaces.split('iface')
-            for line in interfaces:
-                if dev_label in line:
-                    if re.findall(r'^ *address\s+' +
-                                  interface_ipaddr, line, re.MULTILINE):
-                        addr_cfgd = True
-                        LOG.debug('Address {} already configured in {}'.
-                                  format(interface_ipaddr, filename))
+        ifc_path_list = _get_ifcs_path_list()
+        for filename in ifc_path_list:
+            ifc_cfgd, addr_cfgd = _is_ifc_configured(filename, dev_label, interface_ipaddr)
+            if ifc_cfgd:
+                break
         if addr_cfgd:
-            _delete_ifc_cfg(dev_label, interface_ipaddr)
+            _delete_ifc_cfg(dev_label, interface_ipaddr, get_netmask(netprefix))
     else:
         # bridge specified
         # Prepare to delete the bridge
@@ -154,7 +136,7 @@ def _delete_network(
         _delete_br_cfg_file(br_label, dev_label)
 
 
-def _delete_ifc_cfg(ifc, ipaddr=''):
+def _delete_ifc_cfg(ifc, ipaddr='', netmask=''):
     """ Deletes a PowerUp created interface specific configuration. For Ubuntu
     this involves removing the PowerUp generated config file. For Red Hat, this
     involves removing the interface IP address and netmask from the 'ifcfg' file.
@@ -174,7 +156,10 @@ def _delete_ifc_cfg(ifc, ipaddr=''):
             os.remove(file_path)
     elif OPSYS == 'redhat':
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifc}'
-        regex = r'IPADDR\d*=ipaddr'
+        regex = fr'IPADDR\d*={ipaddr}'
+        LOG.info(f'Removing {IPADDR} from {file_path}')
+        remove_line(file_path, regex)
+        regex = fr'NETMASK\d*={netmask}'
         remove_line(file_path, regex)
     else:
         LOG.warning(f'Unsupported OS: {OPSYS}')
@@ -206,6 +191,38 @@ def _delete_br_cfg_file(bridge, ifc=''):
         LOG.warning(f'Unsupported OS: {OPSYS}')
 
 
+def _is_ifc_configured(ifc_cfg_file, dev_label, interface_ipaddr):
+    """Looks through an interface config file to see if the interface specified
+    by dev_label is configured and if the address specified by interface_ipaddr
+    is configured on that interface.
+    """
+    ifc_cfgd = False
+    addr_cfgd = False
+    f = open(ifc_cfg_file, 'r')
+    interfaces = f.read()
+    f.close()
+    if OPSYS == 'Ubuntu':
+        ssdl = fr'^ *auto\s+{dev_label}\s'
+        ssad = fr'^ *address\s+{interface_ipaddr}'
+        split_str = 'iface'
+    elif OPSYS == 'redhat':
+        ssdl = fr'^ *DEVICE="?{dev_label}"?'
+        ssad = fr'^ *IPADDR="?{interface_ipaddr}"?'
+        split_str = 'NAME='
+    if re.search(ssdl, interfaces, re.MULTILINE):
+        ifc_cfgd = True
+        LOG.debug('Device {} already configured in network configuration file {}'.
+                  format(dev_label, ifc_cfg_file))
+    interfaces = interfaces.split(split_str)
+    for line in interfaces:
+        if dev_label in line:
+            if re.findall(ssad, line, re.MULTILINE):
+                addr_cfgd = True
+                LOG.debug('Address {} configured in {}'.
+                          format(interface_ipaddr, ifc_cfg_file))
+    return ifc_cfgd, addr_cfgd
+
+
 def _get_ifc_addresses():
     """ Create a dictionary of links.  For each link, create list of cidr
     addresses
@@ -220,24 +237,24 @@ def _get_ifc_addresses():
     return ifc_addresses
 
 
-def _get_ifcs_file_list():
+def _get_ifcs_path_list():
     """ Returns the absolute path for all interface definition files
     """
     if OPSYS in ('debian', 'Ubuntu'):
         path = '/etc/network/'
         pathd = '/etc/network/interfaces.d/'
-        file_list = []
-        file_list.append(path + 'interfaces')
+        path_list = []
+        path_list.append(path + 'interfaces')
         for filename in os.listdir(pathd):
-            file_list.append(pathd + filename)
+            path_list.append(pathd + filename)
     elif OPSYS == 'redhat':
         path = '/etc/sysconfig/network-scripts/'
-        file_list = []
+        path_list = []
         for filename in os.listdir(path):
             _file = re.search(r'(?!.*\.orig$)ifcfg-.+', filename)
             if _file:
-                file_list.append(path + _file.group(0))
-    return file_list
+                path_list.append(path + _file.group(0))
+    return path_list
 
 
 def _delete_bridge(bridge):
@@ -284,8 +301,7 @@ def _is_ifc_attached_elsewhere(ifc, bridge):
         else:
             output.append(line)
         if ifc in output[len(output) - 1] \
-                and bridge in output[len(output) - 1]:
-                # and bridge not in output[len(output) - 1]:
+                and bridge not in output[len(output) - 1]:
             return True
     return False
 

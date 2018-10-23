@@ -62,7 +62,7 @@ def get_network_addr(ipaddr, prefix):
 
 
 def get_netmask(prefix):
-    return IPNetwork(f'0.0.0.0/{prefix}').prefixlen
+    return str(IPNetwork(f'0.0.0.0/{prefix}').netmask)
 
 
 def get_prefix(netmask):
