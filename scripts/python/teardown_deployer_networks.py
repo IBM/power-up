@@ -19,11 +19,11 @@ import argparse
 import sys
 import os
 import re
-import subprocess
 import platform
 from pyroute2 import IPRoute
 
 from lib.config import Config
+from lib.genesis import GEN_PATH
 import lib.logger as logger
 from lib.utilities import sub_proc_exec, remove_line, get_netmask
 
@@ -156,8 +156,8 @@ def _delete_ifc_cfg(ifc, ipaddr='', netmask=''):
             os.remove(file_path)
     elif OPSYS == 'redhat':
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifc}'
-        regex = fr'IPADDR\d*={ipaddr}'
-        LOG.info(f'Removing {IPADDR} from {file_path}')
+        regex = rf'IPADDR\d*={ipaddr}'
+        LOG.info(f'Removing {ipaddr} from {file_path}')
         remove_line(file_path, regex)
         regex = fr'NETMASK\d*={netmask}'
         remove_line(file_path, regex)

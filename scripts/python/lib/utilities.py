@@ -20,7 +20,7 @@ import sys
 import subprocess
 import fileinput
 from subprocess import Popen, PIPE
-from shutil import copy2, Error
+from shutil import copy2
 from netaddr import IPNetwork, IPAddress
 
 from lib.config import Config

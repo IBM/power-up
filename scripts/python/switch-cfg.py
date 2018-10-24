@@ -175,7 +175,7 @@ def main(_class, host):
             sw.configure_interface(cfg['ifc_addr'], cfg['ifc_netmask'], cfg['vlan'])
             print('Created interface vlan {}'.format(cfg['vlan']))
         except SwitchException as exc:
-            print (exc)
+            print(exc)
 
     def _delete_inband_ifc(cfg):
         print('Testing remove interface')

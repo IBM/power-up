@@ -305,7 +305,7 @@ class ValidateClusterHardware(object):
                           .format(tot - left, tot), end="")
                     sys.stdout.flush()
                     try:
-                        rc = bmc.set_power('off')
+                        bmc.set_power('off')
                     except IpmiException as exc:
                         self.log.error('Failed attempting reset on {}. {}'
                                        .format(node, exc))
@@ -476,7 +476,7 @@ class ValidateClusterHardware(object):
                         self.log.error(str(exc))
                 else:
                     try:
-                        rc = bmc.reset_bmc()
+                        bmc.reset_bmc()
                     except IpmiException as exc:
                         self.log.error('Failed attempting reset on {}'.format(node))
                     reset = True
@@ -598,7 +598,7 @@ class ValidateClusterHardware(object):
             elif resp == 'C':
                 print('\nNot all nodes have been discovered')
                 resp = input("Enter 'y' to confirm continuation of"
-                                 " deployment without all nodes ")
+                             " deployment without all nodes ")
                 if resp == 'y':
                     self.log.info("'{}' entered. Continuing Genesis".format(resp))
                     break
@@ -833,7 +833,7 @@ class ValidateClusterHardware(object):
             elif resp == 'C':
                 print('\nNot all nodes have been discovered')
                 resp = input("Enter 'y' to confirm continuation of"
-                                 " deployment without all nodes ")
+                             " deployment without all nodes ")
                 if resp == 'y':
                     self.log.info("'{}' entered. Continuing Genesis".format(resp))
                     break
@@ -918,7 +918,7 @@ class ValidateClusterHardware(object):
                 break
 
             try:
-                rc = bmc.reset_bmc()
+                bmc.reset_bmc()
             except IpmiException as exc:
                 self.log.error('Failed attempting BMC reset on {}'.format(node[0]))
 

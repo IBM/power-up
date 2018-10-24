@@ -127,7 +127,7 @@ class Menu(object):
                 if key in self.enter_selects:
                     selection = self.items[self.cursor_pos]
                 elif key in self.num_selects:
-                    selection = self.items[int(unichr(key))]
+                    selection = self.items[int(chr(key))]
 
                 if selection.item_type == 'simple':
                     if selection.exit:

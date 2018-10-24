@@ -22,15 +22,14 @@ import sys
 import subprocess
 import platform
 import time
-from netaddr import IPNetwork, IPAddress
+from netaddr import IPNetwork
 from pyroute2 import IPRoute
 
 import lib.logger as logger
 from lib.config import Config
 from lib.exception import UserCriticalException
 from lib.genesis import Color, GEN_PATH
-from lib.utilities import line_in_file, sub_proc_exec, get_network_addr, \
-    get_selection
+from lib.utilities import line_in_file, sub_proc_exec
 
 IPR = IPRoute()
 OPSYS = platform.dist()[0]

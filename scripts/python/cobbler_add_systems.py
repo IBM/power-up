@@ -94,7 +94,7 @@ def cobbler_add_systems(cfg_file=None):
         ks_meta = ""
         disks = inv.get_nodes_os_install_device(index)
         if disks is not None:
-            if isinstance(disks, basestring):
+            if isinstance(disks, str):
                 ks_meta += 'install_disk=%s ' % disks
             elif isinstance(disks, list) and len(disks) == 2:
                 ks_meta += (
