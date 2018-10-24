@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 python3.6 -m venv ${1}pup-venv
 source ${1}pup-venv/bin/activate
 pip install --upgrade pip
