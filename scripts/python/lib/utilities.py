@@ -333,7 +333,7 @@ def scan_ping_network(network_type='all', config_path=None):
         cidr_cip = IPNetwork(cip + '/' + str(netprefix))
         net_c = str(IPNetwork(cidr_cip).network)
         cmd = 'fping -a -r0 -g ' + net_c + '/' + str(netprefix)
-        result, err = sub_proc_exec(cmd)
+        result, err, rc = sub_proc_exec(cmd)
         print(result)
 
     if network_type == 'ipmi' or network_type == 'all':
@@ -344,7 +344,7 @@ def scan_ping_network(network_type='all', config_path=None):
         cidr_cip = IPNetwork(cip + '/' + str(netprefix))
         net_c = str(IPNetwork(cidr_cip).network)
         cmd = 'fping -a -r0 -g ' + net_c + '/' + str(netprefix)
-        result, err = sub_proc_exec(cmd)
+        result, err, rc = sub_proc_exec(cmd)
         print(result)
 
 

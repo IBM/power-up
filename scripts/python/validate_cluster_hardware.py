@@ -726,7 +726,7 @@ class ValidateClusterHardware(object):
         netmask = str(addr.netmask)
         addr.value += NAME_SPACE_OFFSET_ADDR
         addr = str(addr)
-        rc = False
+        foundall = False
         dhcp_st = get_dhcp_pool_start()
         pxe_ns = NetNameSpace('pxe-ns-', 'br-pxe-' + str(pxe_vlan), addr)
 
@@ -805,7 +805,7 @@ class ValidateClusterHardware(object):
                     time.sleep(5)
                     self._build_port_table_pxe(mac_list)
                 if cnt >= pxe_cnt:
-                    rc = True
+                    foundall = True
                     print('\r{} of {} nodes requesting PXE boot. Scan count: {} '
                           .format(cnt, pxe_cnt, cnt_down - i), end="")
                     break
@@ -844,10 +844,9 @@ class ValidateClusterHardware(object):
 
         self._teardown_ns(pxe_ns)
 
-        self.log.debug('\nCycling power to discovered nodes.\n')
-
         # Cycle power on all discovered nodes if bootdev set to 'network'
         if bootdev == 'network':
+            self.log.debug('\nCycling power to discovered nodes.\n')
             t1 = time.time()
             self._power_all(self.ipmi_list_ai, 'off')
 
@@ -858,12 +857,12 @@ class ValidateClusterHardware(object):
 
         self._teardown_ns(self.ipmi_ns)
 
-        # Reset BMCs to insure they acquire a new address from container
-        # during inv_add_ports. Avoids conflicting addresses during redeploy
+#        # Reset BMCs to insure they acquire a new address from container
+#        # during inv_add_ports. Avoids conflicting addresses during redeploy
         self._reset_existing_bmcs(self.node_list, self._get_cred_list())
 
         self.log.info('Cluster nodes validation complete')
-        if not rc:
+        if not foundall:
             raise UserException('Not all node PXE ports validated')
 
     def _reset_unfound_nodes(self):
