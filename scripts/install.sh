@@ -17,7 +17,7 @@
 
 set -e
 source /etc/os-release
-
+arch=$(uname -m)
 rhel_docker_ce_repo="[docker]
 name=Docker
 baseurl=http://ftp.unicamp.br/pub/ppc64el/rhel/7/docker-ppc64el/
@@ -29,12 +29,26 @@ if [[ $ID == "ubuntu" ]]; then
     sudo apt-get update
     sudo apt-get -y install libffi-dev libssl-dev \
         python-netaddr ipmitool aptitude vim vlan bridge-utils gcc cpp \
-        python-tabulate fping g++ make unzip libncurses5 libncurses5-dev
-
-    if [[ $VERSION_ID == "14.04" ]]; then
-        sudo apt-get -y install python3-dev
-    elif [[ $VERSION_ID == "16.04" ]]; then
-        sudo apt-get -y install python3-dev
+        python-tabulate fping g++ make unzip libncurses5 libncurses5-dev \
+    if ! type "docker"; then
+        sudo apt-get -y install \
+        apt-transport-https ca-certificates curl software-properties-common
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+            sudo apt-key add -
+        sudo apt-key fingerprint 0EBFCD88
+        if [ $(uname -m) = "x86_64" ]; then
+            sudo add-apt-repository \
+                "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) \
+                stable"
+        elif [ $(uname -m) = "ppc64le" ]; then
+            sudo add-apt-repository \
+                "deb [arch=ppc64el] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) \
+                stable"
+        fi
+        sudo apt-get update
+        sudo apt-get -y install docker-ce
     fi
 
 elif [[ $ID == "rhel" ]]; then
@@ -44,15 +58,23 @@ elif [[ $ID == "rhel" ]]; then
         bash-completion yum-utils createrepo sshpass python-tabulate \
         openssl-devel
     if ! type "docker"; then
-        echo "$rhel_docker_ce_repo" | \
-            sudo tee /etc/yum.repos.d/docker.repo > /dev/null
+        sudo yum -y install device-mapper-persistent-data lvm2
+        if [ $(uname -m) = "x86_64" ]; then
+            sudo yum-config-manager \
+                --add-repo \
+                https://download.docker.com/linux/centos/docker-ce.repo
+        elif [ $(uname -m) = "ppc64le" ]; then
+            echo "$rhel_docker_ce_repo" | \
+                sudo tee /etc/yum.repos.d/docker.repo > /dev/null
+        fi
         sudo yum makecache fast
         sudo yum install -y docker-ce
         sudo systemctl start docker.service
         sudo systemctl enable docker.service
-    elif ! docker container ls &> /dev/null; then
-        sudo usermod -aG docker $USER  # user needs to logout & login
-    fi
+
+if ! docker container ls &> /dev/null; then
+    sudo usermod -aG docker $USER  # user needs to logout & login
+fi
 
 else
     echo "Unsupported OS"
