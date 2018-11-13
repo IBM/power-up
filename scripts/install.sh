@@ -18,6 +18,12 @@
 set -e
 source /etc/os-release
 
+rhel_docker_ce_repo="[docker]
+name=Docker
+baseurl=http://ftp.unicamp.br/pub/ppc64el/rhel/7/docker-ppc64el/
+enabled=1
+gpgcheck=0"
+
 if [[ $ID == "ubuntu" ]]; then
 
     sudo apt-get update
@@ -32,12 +38,21 @@ if [[ $ID == "ubuntu" ]]; then
     fi
 
 elif [[ $ID == "rhel" ]]; then
-    sudo yum -y install python36-devel libffi-devel \
-        ipmitool \
-        debootstrap gcc vim bridge-utils cpp flex bison unzip cmake \
-        fping gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue \
-        ncurses-devel bash-completion yum-utils createrepo sshpass \
-        python-tabulate openssl-devel
+    sudo yum -y install python36-devel libffi-devel ipmitool debootstrap gcc \
+        vim bridge-utils cpp flex bison unzip cmake fping gcc-c++ patch \
+        perl-ExtUtils-MakeMaker perl-Thread-Queue ncurses-devel \
+        bash-completion yum-utils createrepo sshpass python-tabulate \
+        openssl-devel
+    if ! type "docker"; then
+        echo "$rhel_docker_ce_repo" | \
+            sudo tee /etc/yum.repos.d/docker.repo > /dev/null
+        sudo yum makecache fast
+        sudo yum install -y docker-ce
+        sudo systemctl start docker.service
+        sudo systemctl enable docker.service
+    elif ! docker container ls &> /dev/null; then
+        sudo usermod -aG docker $USER  # user needs to logout & login
+    fi
 
 else
     echo "Unsupported OS"
