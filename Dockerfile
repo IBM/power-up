@@ -36,10 +36,21 @@ RUN apt-get update && \
     dnsmasq \
     fence-agents \
     lsb-release \
-    syslinux \
     createrepo \
     debmirror \
     ntp
+
+RUN if [ $(uname -m) = "x86_64" ]; then \
+    apt-get update && \
+    apt-get install -y \
+    syslinux; \
+    fi
+
+RUN if [ $(uname -m) = "ppc64le" ]; then \
+    apt-get update && \
+    apt-get install -y \
+    syslinux-common; \
+    fi
 
 COPY . /opt/power-up/
 
