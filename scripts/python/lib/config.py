@@ -1286,9 +1286,9 @@ class Config(object):
             tuple or list of tuples of access info : label (str), class (str),
             userid (str), password (str), ip address.
         """
-        if index > self.get_sw_data_cnt() - 1:
-            raise UserException('switch index out of range')
         if index is not None:
+            if index > self.get_sw_data_cnt() - 1:
+                raise UserException('switch index out of range')
             switch_indeces = [index]
         else:
             switch_indeces = range(self.get_sw_data_cnt())
