@@ -75,14 +75,11 @@ elif [[ $ID == "rhel" ]]; then
         sudo yum install -y docker-ce
         sudo systemctl start docker.service
         sudo systemctl enable docker.service
+    fi
+fi
 
 if ! docker container ls &> /dev/null; then
     sudo usermod -aG docker $USER  # user needs to logout & login
-fi
-
-else
-    echo "Unsupported OS"
-    exit 1
 fi
 
 sudo -E -H pip install --upgrade pip==18.0

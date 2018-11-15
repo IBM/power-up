@@ -46,7 +46,6 @@ PLAYBOOKS_DIR = 'playbooks'
 HOSTS_FILE = 'hosts'
 DYNAMIC_INVENTORY = 'inventory.py'
 CONFIG_FILE = 'config.yml'
-LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
 SSH_PRIVATE_KEY_FILE = os.path.expanduser('~/.ssh/gen')
 SSH_PRIVATE_KEY_FILE_CONTAINER = '/root/.ssh/gen'
 SSH_PUBLIC_KEY_FILE = SSH_PRIVATE_KEY_FILE + '.pub'
@@ -54,7 +53,6 @@ CFG_FILE_NAME = 'config.yml'
 CFG_FILE = GEN_PATH + CFG_FILE_NAME
 INV_FILE_NAME = 'inventory.yml'
 INV_FILE = GEN_PATH + INV_FILE_NAME
-LXC_DIR = os.path.expanduser('~/.local/share/lxc/')
 ANSIBLE = 'ansible'
 ANSIBLE_PLAYBOOK = 'ansible-playbook'
 ANSIBLE_VAULT = 'ansible-vault'
@@ -114,8 +112,12 @@ def get_inventory_realpath(config_path=None):
     # file.  If callled outside the container, returns the realpath of the
     # inventory.yml file corresponding to the specified config file.
     if is_container():
-        return INV_FILE
+        return get_container_inventory_realpath()
     return os.path.realpath(get_symlink_path(config_path))
+
+
+def get_container_inventory_realpath():
+    return os.path.join(CONTAINER_PACKAGE_PATH, INV_FILE_NAME)
 
 
 def get_container_name(config_path=None):
@@ -236,10 +238,6 @@ def get_hosts_file_path():
 
 def get_dynamic_inventory_path():
     return os.path.join(get_python_path(), DYNAMIC_INVENTORY)
-
-
-def get_lxc_conf_file_path():
-    return os.path.join(GEN_PATH, LXC_CONF_FILE_PATH)
 
 
 def get_config_file_name():

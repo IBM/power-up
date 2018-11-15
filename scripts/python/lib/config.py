@@ -79,10 +79,13 @@ class Config(object):
         self.log = logger.getlogger()
         if cfg:
             self.cfg = cfg
+            self.config_path = config_path
         elif config_path:
+            self.config_path = config_path
             dbase = DatabaseConfig(config_path)
             self.cfg = dbase.load_config()
         else:
+            self.config_path = CFG_FILE
             dbase = DatabaseConfig(CFG_FILE)
             self.cfg = dbase.load_config()
 
@@ -1283,9 +1286,9 @@ class Config(object):
             tuple or list of tuples of access info : label (str), class (str),
             userid (str), password (str), ip address.
         """
-        if index > self.get_sw_data_cnt() - 1:
-            raise UserException('switch index out of range')
         if index is not None:
+            if index > self.get_sw_data_cnt() - 1:
+                raise UserException('switch index out of range')
             switch_indeces = [index]
         else:
             switch_indeces = range(self.get_sw_data_cnt())
