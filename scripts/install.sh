@@ -29,7 +29,8 @@ if [[ $ID == "ubuntu" ]]; then
     sudo apt-get update
     sudo apt-get -y install libffi-dev libssl-dev \
         python-netaddr ipmitool aptitude vim vlan bridge-utils gcc cpp \
-        python-tabulate fping g++ make unzip libncurses5 libncurses5-dev \
+        python-tabulate fping g++ make unzip libncurses5 libncurses5-dev
+
     if ! type "docker"; then
         sudo apt-get -y install \
         apt-transport-https ca-certificates curl software-properties-common
