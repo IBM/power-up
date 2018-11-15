@@ -29,7 +29,6 @@ import configure_mgmt_switches
 import remove_client_host_keys
 from lib.utilities import scan_ping_network
 import download_os_images
-import lxc_conf
 import lib.argparse_gen as argparse_gen
 import lib.logger as logger
 import lib.genesis as gen
@@ -130,18 +129,6 @@ class Gen(object):
               'software{}\n'.format(COL.header1, COL.endc))
         from lib.container import Container
         cont = Container(self.config_file_path)
-        print('created container object')
-        try:
-            cont.check_permissions(getpass.getuser())
-        except UserException as exc:
-            print('Fail:', exc, file=sys.stderr)
-            sys.exit(1)
-        try:
-            conf = lxc_conf.LxcConf(self.config_file_path)
-            conf.create()
-        except Exception as exc:
-            print("Fail:", exc, file=sys.stderr)
-            sys.exit(1)
         try:
             cont.create()
         except UserException as exc:
@@ -244,38 +231,18 @@ class Gen(object):
         log = logger.getlogger()
 
         cont = Container(self.config_file_path, self.args.create_inventory)
+        cont.copy(self.config_file_path, self.cont_config_file_path)
         cmd = []
         cmd.append(gen.get_container_venv_python_exe())
         cmd.append(os.path.join(
             gen.get_container_python_path(), 'inv_create.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
 
-        deployer_inv_file = gen.get_symlink_realpath(self.config_file_path)
-
-        # If inventory file symlink is broken link remove it
-        symlink_path = gen.get_symlink_path(self.config_file_path)
-        if os.path.islink(symlink_path):
-            if not os.path.exists(os.readlink(symlink_path)):
-                os.unlink(symlink_path)
-
-        # If inventory is an empty file delete it
-        if (os.path.isfile(deployer_inv_file) and
-                os.stat(deployer_inv_file).st_size == 0):
-            os.remove(deployer_inv_file)
-
-        # Create a sym link on deployer to inventory inside container
-        if not os.path.isfile(deployer_inv_file):
-            cont_inv_file = os.path.join(gen.LXC_DIR, cont.name, 'rootfs',
-                                         gen.CONTAINER_PACKAGE_PATH[1:],
-                                         gen.INV_FILE_NAME)
-            log.debug("Creating symlink on deployer to container inventory: "
-                      "{} -> {}".format(deployer_inv_file, cont_inv_file))
-            os.symlink(cont_inv_file, deployer_inv_file)
         print('Success: Created inventory file')
 
     def _install_cobbler(self):
@@ -288,7 +255,7 @@ class Gen(object):
             gen.get_container_python_path(), 'cobbler_install.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -307,7 +274,7 @@ class Gen(object):
         local_os_images = gen.get_os_images_path()
         cont_os_images = gen.get_container_os_images_path()
         try:
-            cont.copy_dir_to_container(local_os_images, cont_os_images)
+            cont.copy(local_os_images, cont_os_images)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -334,7 +301,7 @@ class Gen(object):
         cmd.append('ipmi')
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -350,7 +317,7 @@ class Gen(object):
             gen.get_container_python_path(), 'cobbler_add_distros.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -384,7 +351,7 @@ class Gen(object):
         cmd.append('pxe')
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -400,7 +367,7 @@ class Gen(object):
             gen.get_container_python_path(), 'inv_reserve_ipmi_pxe_ips.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -416,7 +383,7 @@ class Gen(object):
             gen.get_container_python_path(), 'cobbler_add_systems.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -434,7 +401,7 @@ class Gen(object):
             gen.get_container_python_path(), 'install_client_os.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -463,7 +430,7 @@ class Gen(object):
                 gen.get_container_python_path(), 'configure_data_switches.py'))
             cmd.append(self.cont_config_file_path)
             try:
-                cont.run_command(cmd)
+                cont.run_command(cmd, interactive=True)
             except UserException as exc:
                 print('\n{}Fail: {}{}'.format(COL.red, str(exc), COL.endc),
                       file=sys.stderr)
@@ -491,7 +458,7 @@ class Gen(object):
             gen.get_container_python_path(), 'clear_port_macs.py'))
         cmd.append(self.cont_config_file_path)
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)
@@ -501,7 +468,7 @@ class Gen(object):
         cmd[-2] = os.path.join(
             gen.get_container_python_path(), 'set_port_macs.py')
         try:
-            cont.run_command(cmd)
+            cont.run_command(cmd, interactive=True)
         except UserException as exc:
             print('Fail:', str(exc), file=sys.stderr)
             sys.exit(1)

@@ -19,26 +19,7 @@ set -e
 
 python3.6 -m venv ${1}pup-venv
 source ${1}pup-venv/bin/activate
-pip install --upgrade pip
-pip install --upgrade setuptools==40.0.0
-pip install \
-    'ansible==2.7.0' \
-    'ansible-vault==1.2.0' \
-    'click==7.0' \
-    'filelock==3.0.9' \
-    'gitpython==2.1.11' \
-    'jsl==0.2.4' \
-    'jsonschema==2.6.0' \
-    'netaddr==0.7.19' \
-    'orderedattrdict==1.5' \
-    'paramiko==2.4.2' \
-    'pip2pi==0.7.0' \
-    'pyaml==17.12.1' \
-    'pyasn1==0.4.4' \
-    'pycrypto==2.6.1' \
-    'pyghmi==1.2.14' \
-    'pyroute2==0.5.3' \
-    'pysnmp==4.4.6' \
-    'tabulate==0.8.2' \
-    'wget==3.2'
+python3.6 -m pip install --upgrade pip
+python3.6 -m pip install --upgrade setuptools==40.0.0
+python3.6 -m pip install -r ${1}requirements.txt
 deactivate

@@ -43,7 +43,6 @@ PYTHON_DIR = 'python'
 OS_IMAGES_DIR = 'os-images'
 PLAYBOOKS_DIR = 'playbooks'
 CONFIG_FILE = 'config.yml'
-LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
 SSH_PRIVATE_KEY_FILE = os.path.expanduser('~/.ssh/gen')
 SSH_PRIVATE_KEY_FILE_CONTAINER = '/root/.ssh/gen'
 SSH_PUBLIC_KEY_FILE = SSH_PRIVATE_KEY_FILE + '.pub'
@@ -51,7 +50,6 @@ CFG_FILE_NAME = 'config.yml'
 CFG_FILE = GEN_PATH + CFG_FILE_NAME
 INV_FILE_NAME = 'inventory.yml'
 INV_FILE = GEN_PATH + INV_FILE_NAME
-LXC_DIR = os.path.expanduser('~/.local/share/lxc/')
 ANSIBLE_PLAYBOOK = 'ansible-playbook'
 POWER_TIME_OUT = 60
 POWER_WAIT = 10
@@ -109,8 +107,12 @@ def get_inventory_realpath(config_path=None):
     # file.  If callled outside the container, returns the realpath of the
     # inventory.yml file corresponding to the specified config file.
     if is_container():
-        return INV_FILE
+        return get_container_inventory_realpath()
     return os.path.realpath(get_symlink_path(config_path))
+
+
+def get_container_inventory_realpath():
+    return os.path.join(CONTAINER_PACKAGE_PATH, INV_FILE_NAME)
 
 
 def get_container_name(config_path=None):
@@ -217,10 +219,6 @@ def get_playbooks_path():
     return os.path.join(GEN_PATH, PLAYBOOKS_DIR)
 
 
-def get_lxc_conf_file_path():
-    return os.path.join(GEN_PATH, LXC_CONF_FILE_PATH)
-
-
 def get_config_file_name():
     return CONFIG_FILE
 
@@ -272,9 +270,11 @@ def get_dhcp_pool_start():
 def check_os_profile(profile):
     ubuntu_lts_pointers = {
         "ubuntu-14.04-server-amd64": "ubuntu-14.04.5-server-amd64",
-        "ubuntu-14.04-server-ppc64el": "ubuntu-14.04.5-server-ppc64el",
-        "ubuntu-16.04-server-amd64": "ubuntu-16.04.4-server-amd64",
-        "ubuntu-16.04-server-ppc64el": "ubuntu-16.04.4-server-ppc64el"}
+        "ubuntu-16.04-server-amd64": "ubuntu-16.04.5-server-amd64",
+        "ubuntu-16.04-server-ppc64el": "ubuntu-16.04.5-server-ppc64el",
+        "ubuntu-18.04-live-server-amd64": "ubuntu-18.04.1-live-server-amd64",
+        "ubuntu-18.04-server-amd64": "ubuntu-18.04.1-server-amd64",
+        "ubuntu-18.04-server-ppc64el": "ubuntu-18.04.1-server-ppc64el",}
     if profile in list(ubuntu_lts_pointers):
         return ubuntu_lts_pointers[profile]
     else:
