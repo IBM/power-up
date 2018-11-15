@@ -16,34 +16,30 @@
 # limitations under the License.
 
 set -e
-sudo yum -y install python36
-sudo python36 -m ensurepip --default-pip
 source /etc/os-release
 
 if [[ $ID == "ubuntu" ]]; then
     # Needs update for Python36
     sudo apt-get update
-    sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
-    # sudo apt-get -y install python36-dev libffi-dev libssl-dev \
+    sudo apt-get -y install libffi-dev libssl-dev \
         python-netaddr ipmitool aptitude lxc vim vlan bridge-utils gcc cpp \
         python-tabulate fping g++ make unzip libncurses5 libncurses5-dev \
         sshpass
 
     if [[ $VERSION_ID == "14.04" ]]; then
-        sudo apt-get -y install lxc-dev liblxc1
+        sudo apt-get -y install lxc-dev liblxc1 python3-dev
     elif [[ $VERSION_ID == "16.04" ]]; then
-        sudo apt-get -y install python-lxc
+        sudo apt-get -y install python-lxc python3-dev
     fi
 
 elif [[ $ID == "rhel" ]]; then
-    sudo yum -y install python2-pip python-devel python36-devel libffi-devel \
-        lxc lxc-devel lxc-extra lxc-templates libvirt ipmitool\
+    sudo yum -y install python36 python36-devel libffi-devel \
+        ibvirt ipmitool \
         debootstrap gcc vim bridge-utils cpp flex bison unzip cmake \
         fping gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue \
-        ncurses-devel bash-completion yum-utils createrepo sshpass openssl-devel
-    sudo systemctl start lxc.service
-    sudo systemctl start libvirtd
-
+        ncurses-devel bash-completion yum-utils createrepo sshpass \
+        python-tabulate openssl-devel
+    sudo python36 -m ensurepip --default-pip
 
 else
     echo "Unsupported OS"

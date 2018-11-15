@@ -16,9 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import sys
 from enum import Enum
 import netaddr
@@ -877,7 +874,7 @@ class Config(object):
             tuple or list of tuples of access info : label (str), class (str),
             userid (str), password (str), ip address.
         """
-        if index > self.get_sw_mgmt_cnt() - 1:
+        if index is not None and index > self.get_sw_mgmt_cnt() - 1:
             raise UserException('switch index out of range')
         if index is not None:
             switch_indices = [index]
@@ -903,7 +900,7 @@ class Config(object):
 
             ai_list.append(ai_tuple)
         # if index specified, make it a tuple
-        if index:
+        if index is not None:
             ai_list = ai_list[0]
         return ai_list
 

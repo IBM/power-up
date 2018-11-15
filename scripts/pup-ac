@@ -112,4 +112,4 @@ _pup()
     COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
 }
 
-complete -F _pup pup
+complete -o filenames -F _pup pup

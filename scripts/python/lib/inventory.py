@@ -16,9 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 from enum import Enum
 from orderedattrdict import AttrDict, DefaultAttrDict
 
@@ -416,6 +413,16 @@ class Inventory(object):
             return [pxe_addr_list[x][self.InvKey.IPADDRS][0]
                     for x in range(len(pxe_addr_list))]
 
+    def yield_nodes_pxe_ipaddr(self):
+        """Yield nodes PXE ipaddrs
+        Returns:
+            iter of str: Nodes ipaddrs
+        """
+
+        for node in self.inv.nodes:
+            for ipaddr in node.pxe.ipaddrs:
+                yield ipaddr
+
     def set_nodes_pxe_ipaddr(self, if_index, index, ipaddr):
         """Set nodes PXE interface ipaddr
         Args:
@@ -722,7 +729,7 @@ class Inventory(object):
 
         for interface in self.inv.nodes[node_index][self.InvKey.INTERFACES]:
             for key, value in iter(interface.items()):
-                if isinstance(value, basestring):
+                if isinstance(value, str):
                     value_split = []
                     for _value in value.split():
                         if old_name == _value or old_name in _value.split('.'):

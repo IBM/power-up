@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright 2017 IBM Corp.
+#!/usr/bin/env python3
+# Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
 #
@@ -14,9 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 import sys
 import time
@@ -47,6 +44,10 @@ class InventoryAddPorts(object):
         self.port_type = port_type
         self.inv = Inventory(cfg_file=config_path)
         self.log.debug('Add ports, port type: {}'.format(self.port_type))
+        self.sw_dict = {}
+        for sw_ai in self.cfg.yield_sw_mgmt_access_info():
+            label = sw_ai[0]
+            self.sw_dict[label] = SwitchFactory.factory(*sw_ai[1:])
 
     def get_ports(self):
         dhcp_leases = GetDhcpLeases(self.dhcp_leases_file)
@@ -72,12 +73,10 @@ class InventoryAddPorts(object):
                 mgmt_sw_cfg_mac_lists[switch_label] = \
                     SwitchCommon.get_port_to_mac(mac_info, self.log)
         else:
-            for sw_ai in self.cfg.yield_sw_mgmt_access_info():
-                self.log.debug('switch ai: {}'.format(sw_ai))
-                sw = SwitchFactory.factory(*sw_ai[1:])
-                label = sw_ai[0]
-                mgmt_sw_cfg_mac_lists[label] = \
-                    sw.show_mac_address_table(format='std')
+            for switch in self.sw_dict:
+                self.log.debug('Switch: {}'.format(switch))
+                mgmt_sw_cfg_mac_lists[switch] = \
+                    self.sw_dict[switch].show_mac_address_table(format='std')
 
         self.log.debug('Management switches MAC address tables: {}'.format(
             mgmt_sw_cfg_mac_lists))
@@ -289,7 +288,7 @@ def get_port_status(dhcp_leases_file, port_type, config_path):
         log.warning('Incomplete! Found {} of {} nodes'.format(status[0], status[1]))
         print('{}-------------------------------------------{}'.format(yellow, endc))
         print("\nPress enter to continue gathering port information.")
-        resp = raw_input("Enter C to continue Cluster Genesis or 'T' to terminate ")
+        resp = input("Enter C to continue Cluster Genesis or 'T' to terminate ")
         if resp == 'T':
             log.info("'{}' entered. Terminating Genesis at user request".format(resp))
             sys.exit(1)

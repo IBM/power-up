@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Create inventory"""
-
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -18,25 +16,28 @@
 # limitations under the License.
 
 import argparse
-import os.path
 import sys
+import os.path
 
+from lib.inventory import Inventory
 import lib.logger as logger
-from lib.inv_nodes import InventoryNodes
-from lib.genesis import GEN_PATH
+import lib.genesis as gen
+import lib.utilities as util
 
 
-class InventoryCreate(object):
-    """Create inventory"""
+def remove_client_host_keys(config_path=None):
+    log = logger.getlogger()
+    inv = Inventory(config_path)
 
-    def __init__(self, config_path=None):
-        self.config_path = config_path
-
-    def create(self):
-        """Create inventory"""
-
-        nodes = InventoryNodes(cfg_path=self.config_path)
-        nodes.create_nodes()
+    for ipaddr in inv.yield_nodes_pxe_ipaddr():
+        log.info("Remove any stale ssh host keys for {}".format(ipaddr))
+        if os.path.isfile(os.path.expanduser('~/.ssh/known_hosts')):
+            util.bash_cmd("ssh-keygen -R {}".format(ipaddr))
+        playbooks_known_hosts = (os.path.join(gen.get_playbooks_path(),
+                                              'known_hosts'))
+        if os.path.isfile(playbooks_known_hosts):
+            util.bash_cmd("ssh-keygen -R {} -f {}"
+                          .format(ipaddr, playbooks_known_hosts))
 
 
 if __name__ == '__main__':
@@ -54,12 +55,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if not os.path.isfile(args.config_path):
-        args.config_path = GEN_PATH + args.config_path
+        args.config_path = gen.GEN_PATH + args.config_path
         print('Using config path: {}'.format(args.config_path))
     if not os.path.isfile(args.config_path):
         sys.exit('{} does not exist'.format(args.config_path))
 
     logger.create(args.log_lvl_print, args.log_lvl_file)
-
-    INV = InventoryCreate(args.config_path)
-    INV.create()
+    remove_client_host_keys(args.config_path)
