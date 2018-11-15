@@ -57,7 +57,7 @@ elif [[ $ID == "rhel" ]]; then
         vim bridge-utils cpp flex bison unzip cmake fping gcc-c++ patch \
         perl-ExtUtils-MakeMaker perl-Thread-Queue ncurses-devel \
         bash-completion yum-utils createrepo sshpass python-tabulate \
-        openssl-devel
+        openssl-devel tcpdump
     if ! type "docker"; then
         sudo yum -y install device-mapper-persistent-data lvm2
         if [ $(uname -m) = "x86_64" ]; then
