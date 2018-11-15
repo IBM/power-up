@@ -67,12 +67,13 @@ elif [[ $ID == "rhel" ]]; then
             sudo yum-config-manager \
                 --add-repo \
                 https://download.docker.com/linux/centos/docker-ce.repo
+            sudo yum -y install container-selinux
         elif [ $(uname -m) = "ppc64le" ]; then
             echo "$rhel_docker_ce_repo" | \
                 sudo tee /etc/yum.repos.d/docker.repo > /dev/null
         fi
         sudo yum makecache fast
-        sudo yum install -y docker-ce
+        sudo yum -y install docker-ce
         sudo systemctl start docker.service
         sudo systemctl enable docker.service
     fi
