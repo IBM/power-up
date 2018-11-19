@@ -45,7 +45,7 @@ from lib.genesis import GEN_SOFTWARE_PATH, get_ansible_playbook_path
 
 
 class software(object):
-    """ Software installation class. The setup method is used to setup
+    """ Software installation class. The prep method is used to setup
     repositories, download files to the installer node or perform other
     initialization activities. The install method implements the actual
     installation.
@@ -393,7 +393,7 @@ class software(object):
 
         return exists
 
-    def setup(self, eval_ver=False, non_int=False):
+    def prep(self, eval_ver=False, non_int=False):
         # Invoked with --prep flag
         # Basic check of the state of yum repos
         print()
@@ -1705,8 +1705,8 @@ class YAMLVault(yaml.YAMLObject):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['setup', 'install'],
-                        help='Action to take: setup or install')
+    parser.add_argument('action', choices=['prep', 'install'],
+                        help='Action to take: prep or install')
 
     parser.add_argument('--print', '-p', dest='log_lvl_print',
                         help='print log level', default='info')
@@ -1720,7 +1720,7 @@ if __name__ == '__main__':
 
     soft = software()
 
-    if args.action == 'setup':
-        soft.setup()
+    if args.action == 'prep':
+        soft.prep()
     elif args.action == 'install':
         soft.install()
