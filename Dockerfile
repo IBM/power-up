@@ -58,6 +58,5 @@ RUN bash -e /opt/power-up/scripts/venv_install.sh /opt/power-up/
 
 EXPOSE 67/udp
 EXPOSE 68/udp
-EXPOSE 80
 
 CMD /bin/bash

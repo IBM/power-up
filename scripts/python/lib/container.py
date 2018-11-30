@@ -136,7 +136,6 @@ class Container(object):
                 self.cont = (
                     self.client.containers.run(image=self.image.id,
                                                name=self.name,
-                                               ports={80: 80},
                                                cap_add=["NET_ADMIN"],
                                                tty=True,
                                                stdin_open=True,
