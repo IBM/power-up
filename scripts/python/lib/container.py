@@ -127,7 +127,7 @@ class Container(object):
             if not os.path.isfile(source):
                 os.mknod(source)
 
-            volumes = {source: {'bind': target, 'mode': 'rw'}}
+            volumes = {source: {'bind': target, 'mode': 'Z'}}
             self.log.debug(f'Container volumes: {volumes}')
 
             # Create container
