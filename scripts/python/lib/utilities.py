@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 from glob import glob
 import os
 import re
@@ -25,13 +22,30 @@ import time
 import subprocess
 import fileinput
 import readline
-from shutil import copy2, Error
+from shutil import copy2
 from subprocess import Popen, PIPE
+from netaddr import IPNetwork, IPAddress
 from tabulate import tabulate
+from pyghmi.ipmi import command
+from pyghmi.ipmi.private import session
+
+from lib.config import Config
 import lib.logger as logger
 
 PATTERN_MAC = '[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
 CalledProcessError = subprocess.CalledProcessError
+
+
+def get_network_addr(ipaddr, prefix):
+    return str(IPNetwork(f'{ipaddr}/{prefix}').network)
+
+
+def get_netmask(prefix):
+    return str(IPNetwork(f'0.0.0.0/{prefix}').netmask)
+
+
+def get_prefix(netmask):
+    return IPAddress(netmask).netmask_bits()
 
 
 def bash_cmd(cmd):
@@ -48,24 +62,33 @@ def bash_cmd(cmd):
     log.debug('Run subprocess: %s' % ' '.join(command))
     output = subprocess.check_output(command, universal_newlines=True,
                                      stderr=subprocess.STDOUT)
+    try:
+        output = output.decode('utf-8')
+    except AttributeError:
+        pass
     log.debug(output)
 
     return output
 
 
-def backup_file(path):
+def backup_file(path, suffix='.orig', multi=True):
     """Save backup copy of file
 
-    Backup copy is saved as the name of the original with '.orig'
-    appended. The backup copy filemode is set to read-only.
+    Backup copy is saved as the name of the original with the value of suffix
+    appended. If multi is True, and a backup already exists, an additional
+    backup is made with a numeric index value appended to the name. The backup
+    copy filemode is set to read-only.
 
     Args:
         path (str): Path of file to backup
+        suffix (str): String to append to the filename of the backup
+        multi (bin): Set False to only make a backup if one does not exist
+            already.
     """
     log = logger.getlogger()
-    backup_path = path + '.orig'
+    backup_path = path + suffix
     version = 0
-    while os.path.exists(backup_path):
+    while os.path.exists(backup_path) and multi:
         version += 1
         backup_path += "." + str(version)
     log.debug('Make backup copy of orignal file: \'%s\'' % backup_path)
@@ -116,6 +139,43 @@ def remove_line(path, regex):
             print(line, end='')
 
 
+def line_in_file(path, regex, replace, backup=None):
+    """If 'regex' exists in the file specified by path, then replace it with
+    the value in 'replace'. Else append 'replace' to the end of the file. This
+    facilitates simplified changing of a parameter to a desired value if it
+    already exists in the file or adding the paramater if it does not exist.
+    Inputs:
+        path (str): path to the file
+        regex (str): Python regular expression
+        replace (str): Replacement string
+        backup (str): If specified, a backup of the orginal file will be made
+            if a backup does not already exist. The backup is made in the same
+            directory as the original file by appending the value of backup to
+            the filename.
+    """
+    if os.path.isfile(path):
+        if backup:
+            backup_file(path, multi=False)
+        try:
+            with open(path, 'r') as f:
+                data = f.read()
+        except FileNotFoundError as exc:
+            print(f'File not found: {path}')
+        else:
+            data = data.splitlines()
+            in_file = False
+            # open 'r+' to maintain owner
+            with open(path, 'r+') as f:
+                for line in data:
+                    in_line = re.search(regex, line)
+                    if in_line:
+                        line = re.sub(regex, replace, line)
+                        in_file = True
+                    f.write(line + '\n')
+                if not in_file:
+                    f.write(replace + '\n')
+
+
 def replace_regex(path, regex, replace):
     """Replace line(s) from file containing a regex pattern
 
@@ -163,7 +223,15 @@ def sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE, shell=False):
         cmd = cmd.split()
     proc = Popen(cmd, stdout=stdout, stderr=stderr, shell=shell)
     stdout, stderr = proc.communicate()
-    return stdout.decode('utf-8'), stderr.decode('utf-8'), proc.returncode
+    try:
+        stdout = stdout.decode('utf-8')
+    except AttributeError:
+        pass
+    try:
+        stderr = stderr.decode('utf-8')
+    except AttributeError:
+        pass
+    return stdout, stderr, proc.returncode
 
 
 def sub_proc_display(cmd, stdout=None, stderr=None, shell=False):
@@ -505,6 +573,32 @@ def get_dir(src_dir):
                 return path
 
 
+def scan_ping_network(network_type='all', config_path=None):
+    cfg = Config(config_path)
+    type_ = cfg.get_depl_netw_client_type()
+    if network_type == 'pxe' or network_type == 'all':
+        net_type = 'pxe'
+        idx = type_.index(net_type)
+        cip = cfg.get_depl_netw_client_cont_ip()[idx]
+        netprefix = cfg.get_depl_netw_client_prefix()[idx]
+        cidr_cip = IPNetwork(cip + '/' + str(netprefix))
+        net_c = str(IPNetwork(cidr_cip).network)
+        cmd = 'fping -a -r0 -g ' + net_c + '/' + str(netprefix)
+        result, err, rc = sub_proc_exec(cmd)
+        print(result)
+
+    if network_type == 'ipmi' or network_type == 'all':
+        net_type = 'ipmi'
+        idx = type_.index(net_type)
+        cip = cfg.get_depl_netw_client_cont_ip()[idx]
+        netprefix = cfg.get_depl_netw_client_prefix()[idx]
+        cidr_cip = IPNetwork(cip + '/' + str(netprefix))
+        net_c = str(IPNetwork(cidr_cip).network)
+        cmd = 'fping -a -r0 -g ' + net_c + '/' + str(netprefix)
+        result, err, rc = sub_proc_exec(cmd)
+        print(result)
+
+
 def get_selection(items, choices=None, prompt='Enter a selection: ', sep='\n',
                   allow_none=False, allow_retry=False):
     """Prompt user to select a choice. Entered choice can be a member of choices or
@@ -703,3 +797,35 @@ def ansible_pprint(ansible_output):
                 index_indent = False
 
     return pretty_out
+
+
+def bmc_ipmi_login(node, userid, password):
+    """Open new IPMI connection
+
+    Args:
+        node (str): BMC hostname or IP address
+        userid (str): IPMI login userid
+        password (str): IPMI login password
+
+    Returns:
+        object: pyghmi.ipmi.command instance
+    """
+    log = logger.getlogger()
+    log.debug(f'Attempting to open IPMI connection to: {node} / '
+              f'{userid} / {password}')
+    session.Session.initting_sessions = {}
+    return command.Command(bmc=node,
+                           userid=userid,
+                           password=password)
+
+
+def bmc_ipmi_logout(bmc):
+    """Logout and close IPMI connection
+
+    Args:
+        bmc (pyghmi.ipmi.command object): command instance to logout
+    """
+    log = logger.getlogger()
+    rc = bmc.ipmi_session.logout()
+    log.debug(f'Closing IPMI connection to: {bmc.bmc} rc: {rc["success"]}')
+    del bmc.ipmi_session.initialized

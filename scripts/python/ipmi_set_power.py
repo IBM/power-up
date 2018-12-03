@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,16 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import argparse
 import time
-from pyghmi.ipmi import command as ipmi_command
 from pyghmi import exceptions as pyghmi_exception
 
 from lib.inventory import Inventory
 import lib.logger as logger
+from lib.utilities import bmc_ipmi_login
 
 
 def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
@@ -44,8 +41,15 @@ def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
         client_list = inv.get_nodes_ipmi_ipaddr(0)
 
     clients_left = client_list[:]
-
     attempt = 0
+
+    none_cnt = 0
+    for client in client_list:
+        if client is None:
+            none_cnt += 1
+            log.warning('client node ip address is "None"')
+            clients_left.remove(None)
+
     clients_left.sort()
     while clients_left and attempt < max_attempts:
         nodes = {}
@@ -58,7 +62,7 @@ def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
         bmc_dict = {}
         for index, hostname in enumerate(inv.yield_nodes_hostname()):
             ipv4 = inv.get_nodes_ipmi_ipaddr(0, index)
-            if ipv4 not in clients_left:
+            if ipv4 is None or ipv4 not in clients_left:
                 continue
             rack_id = inv.get_nodes_rack_id(index)
             userid = inv.get_nodes_ipmi_userid(index)
@@ -66,13 +70,10 @@ def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
             nodes[ipv4] = [rack_id, ipv4]
             for i in range(2):
                 try:
-                    bmc_dict[ipv4] = ipmi_command.Command(
-                        bmc=ipv4,
-                        userid=userid,
-                        password=password)
+                    bmc_dict[ipv4] = bmc_ipmi_login(ipv4, userid, password)
                 except pyghmi_exception.IpmiException as error:
                     log.error('IPMI login attempt {}, address {}\nIPMI error'
-                              'message: {}'.format(i, ipv4, error.message))
+                              'message: {}'.format(i, ipv4, str(error)))
                     time.sleep(1)
                 else:
                     break
@@ -129,7 +130,8 @@ def ipmi_set_power(state, config_path=None, client_list=None, max_attempts=5,
         del bmc_dict
 
     log.info('Powered {} {} of {} client devices.'
-             .format(state, len(client_list) - len(clients_left), len(client_list)))
+             .format(state, len(client_list) - (len(clients_left) + none_cnt),
+                     len(client_list)))
 
     if state == 'off':
         print('Pausing 60 sec for client power off')

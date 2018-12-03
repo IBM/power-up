@@ -10,18 +10,21 @@ Setting up the Deployer Node
 
 It is recommended that the deployer node have at least one available core of a
 XEON class processor, 16 GB of memory free and 64 GB available disk space. When
-using the POWER-Up software installation capabilities, it is recommended that 300 GB
-of disk space be available. For larger cluster deployments, additional cores,
+using the POWER-Up software installation capabilities, it is recommended that 100 GB
+of disk space be available and that there be at least 40 GB of free disk space in the
+partition holding the /srv directory. For larger clusters, additional cores,
 memory and disk space are recommended. A 4 core XEON class processor with 32 GB
-memory and 320 GB disk space is generally adequate for cluster deployments up
+memory and 320 GB disk space is generally adequate for clusters up
 to several racks.
 
 The deployer node requires internet access for setup and installation of the POWER-UP
-software and setup of any repositories needed for software installation.
+software and may need internet access for creation of any repositories needed for
+software installation.
 This can be achieved through the interface used for connection to the management
 switch (assuming the management switch has a connection to the internet) or through
-another interface. Internet access is not required when running POWER-Up software
-installation functions, but is required when running cluster deployments.
+another interface. Internet access requirements for software installation depends on
+the software installation module. Internet access is required when running cluster
+deployments.
 
 
 Operating Sytem and Package setup of the Deployer Node
@@ -30,29 +33,26 @@ Operating Sytem and Package setup of the Deployer Node
 - Deployer OS Requirements:
     - Ubuntu (Software installation is not yet supported under Ubuntu)
         - Release 14.04LTS or 16.04LTS
-        - SSH login enabled
         - sudo privileges
     - RHEL (Software installation is supported with POWER-Up vs 2.1. Cluster deployment is not yet supported under RHEL)
         - Release 7.2 or later
         - Extra Packages for Enterprise Linux (EPEL) repository enabled
           (https://fedoraproject.org/wiki/EPEL)
-        - SSH login enabled
         - sudo privileges
+        - Enable Red Hat 'optional' and 'extra' repository channels or enable the repository on the RHEL installation iso if available. (https://access.redhat.com/solutions/1355683) (required only if using the POWER-Up software installer)
+            - Power8:
+                - $ sudo subscription-manager repos --enable=rhel-7-for-power-le-optional-rpms
+                - $ sudo subscription-manager repos --enable=rhel-7-for-power-le-extras-rpms
 
-- Optionally, assign a static, public ip address to the BMC port to allow
-  external control of the deployer node.
+            - Power9:
+                - $ sudo subscription-manager repos --enable=rhel-7-for-power-9-optional-rpms
+                - $ sudo subscription-manager repos --enable=rhel-7-for-power-9-extras-rpms
 
-- login into the deployer and install the vim, vlan, bridge-utils and fping
-  packages:
 
-    - Ubuntu::
-
-        $ sudo apt-get update
-        $ sudo apt-get install vim vlan bridge-utils fping
-
-    - RHEL::
-
-        $ sudo yum install vim vlan bridge-utils fping
+- Optional:
+    - Assign a static, public ip address to the BMC port to allow
+      external control of the deployer node.
+    - Enable ssh login
 
 Network Configuration of the Deployer Node
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -60,7 +60,7 @@ Network Configuration of the Deployer Node
 **For Software Installation**
 
 Use of the POWER-Up software installer requires that an interface on the installer node
-be preconfigured with access to the cluster nodes. If the cluster was not deployed by
+be pre-configured with access to the cluster nodes. If the cluster was not deployed by
 POWER-Up, this needs to be done manually. If the cluster has been deployed by POWER-Up,
 the PXE network will be automatically configured and can be used for software installation.
 

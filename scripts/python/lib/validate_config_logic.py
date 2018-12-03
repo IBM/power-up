@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Config logic validation"""
 
 # Copyright 2018 IBM Corp.
@@ -16,9 +16,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 from netaddr import IPNetwork
 import re
@@ -245,6 +242,56 @@ class ValidateConfigLogic(object):
                     'hours (e.g. "1h") or "infinite" (lease does not expire).')
             raise UserException(exc)
 
+    def _validate_labels(self):
+        """Verify that all labels are valid."""
+        labels = self.cfg.get_ntmpl_label()
+        self._check_for_dashes(labels)
+        labels = self.cfg.get_sw_data_label()
+        self._check_for_dashes(labels)
+        labels = self.cfg.get_sw_mgmt_label()
+        self._check_for_dashes(labels)
+        labels = self.cfg.get_loc_racks_label()
+        self._check_for_dashes(labels)
+        ifcs = self.cfg.get_interfaces()
+        for ifc in ifcs:
+            self._check_for_dashes([ifc.label])
+
+    def _check_for_dashes(self, labels):
+        for label in labels:
+            if '-' in label:
+                msg = ('\nLabels can not contain dashes. (underscores are permitted)\n'
+                       'Label: {}\n'.format(label))
+                self.exc += msg
+
+    def _validata_software_bootstrap(self):
+        valid_hosts = ['all']
+
+        for ntmpl_ind, ntmpl_label in enumerate(self.cfg.yield_ntmpl_label()):
+            valid_hosts.append(ntmpl_label)
+
+            hostname_prefix = self.cfg.get_ntmpl_os_hostname_prefix(ntmpl_ind)
+            if hostname_prefix is None:
+                hostname_prefix = self.cfg.get_ntmpl_label(ntmpl_ind)
+
+            index_host = 0
+            for index_port in self.cfg.yield_ntmpl_phyintf_ipmi_pt_ind(
+                    ntmpl_ind, 0):
+                valid_hosts.append(hostname_prefix + '-' + str(index_host + 1))
+                index_host += 1
+
+            if self.cfg.get_ntmpl_roles_cnt(ntmpl_ind) > 0:
+                valid_hosts = list(set(valid_hosts +
+                                       self.cfg.get_ntmpl_roles(ntmpl_ind)))
+
+        bs = self.cfg.get_software_bootstrap()
+        for item in bs:
+            if item.hosts not in valid_hosts:
+                msg = ('\nUndefined software bootstrap host.\nhost: {}\n'.
+                       format(item.hosts))
+                self.exc += msg
+                msg = ('Valid hosts: {}'.format(valid_hosts))
+                self.exc += msg
+
     def validate_config_logic(self):
         """Config logic validation"""
 
@@ -252,6 +299,8 @@ class ValidateConfigLogic(object):
         self._validate_physical_interfaces()
         self._validate_deployer_networks()
         self._validate_dhcp_lease_time()
+        self._validate_labels()
+        self._validata_software_bootstrap()
 
         if self.exc:
             raise UserCriticalException(self.exc)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,12 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import argparse
 import os.path
 import sys
+import readline
 
 import lib.logger as logger
 from lib.config import Config
@@ -32,6 +30,14 @@ from lib.genesis import GEN_PATH
 
 ACTIVE = 'active'
 PASSIVE = 'passive'
+
+
+def rlinput(prompt, prefill=''):
+    readline.set_startup_hook(lambda: readline.insert_text(prefill))
+    try:
+        return input(prompt)
+    finally:
+        readline.set_startup_hook()
 
 
 def configure_mgmt_switches(config_file=None):
@@ -113,6 +119,17 @@ def configure_mgmt_switches(config_file=None):
             '%d: \"%s\" (%s) %s %s/%s' %
             (index, switch_label, mode, switch_ip, userid, password))
 
+        ports_cfg = sw.show_ports(format='std')
+
+        sw_vlans = []
+        for port in ports_cfg:
+            if int(ports_cfg[str(port)]['nvlan']) not in sw_vlans:
+                sw_vlans.append(int(port))
+            avlans = ports_cfg[str(port)]['avlans'].split(', ')
+            for avlan in avlans:
+                if avlan and int(avlan) not in sw_vlans:
+                    sw_vlans.append(int(avlan))
+
         vlan_mgmt = cfg.get_depl_netw_mgmt_vlan()
         vlan_mgmt = [x for x in vlan_mgmt if x is not None]
         LOG.debug('Management vlans: {}'.format(vlan_mgmt))
@@ -120,7 +137,7 @@ def configure_mgmt_switches(config_file=None):
         vlan_client = cfg.get_depl_netw_client_vlan()
         LOG.debug('vlan_mgmt: {} , vlan_client: {}'.format(vlan_mgmt, vlan_client))
         for vlan in vlan_mgmt + vlan_client:
-            if vlan:
+            if vlan and vlan not in sw_vlans:
                 print('.', end="")
                 sys.stdout.flush()
                 sw.create_vlan(vlan)
@@ -146,18 +163,27 @@ def configure_mgmt_switches(config_file=None):
                 enumerate(cfg.yield_sw_mgmt_links_target(index))):
             port = cfg.get_sw_mgmt_links_port(index, target_i)
             if target.lower() == 'deployer':
-                try:
-                    print('.', end="")
-                    sys.stdout.flush()
-                    vlans = vlan_mgmt + vlan_client
-                    LOG.debug('Adding vlans {} to port {}'.format(vlans, port))
-                    sw.set_switchport_mode(port, port_mode.TRUNK)
-                except SwitchException as exc:
-                    LOG.error(exc)
-                try:
-                    sw.allowed_vlans_port(port, allow_op.ADD, vlans)
-                except SwitchException as exc:
-                    LOG.error(exc)
+                vlans = vlan_mgmt + vlan_client
+                if ports_cfg[str(port)]['mode'] != 'trunk':
+                    try:
+                        print('.', end="")
+                        sys.stdout.flush()
+                        LOG.debug('Adding vlans {} to port {}'.format(vlans, port))
+                        sw.set_switchport_mode(port, port_mode.TRUNK)
+                    except SwitchException as exc:
+                        LOG.error(exc)
+                else:
+                    LOG.debug('Port {} already in trunk mode'.format(port))
+                port_vlans = ports_cfg[str(port)]['avlans'].split(', ')
+                add_vlans = False
+                for vlan in vlan_client:
+                    if str(vlan) not in port_vlans:
+                        add_vlans = True
+                if (vlan_mgmt and str(vlan_mgmt) not in port_vlans) or add_vlans:
+                    try:
+                        sw.allowed_vlans_port(port, allow_op.ADD, vlans)
+                    except SwitchException as exc:
+                        LOG.error(exc)
             else:
                 vlan = cfg.get_sw_mgmt_links_vlan(index, target_i)
                 if vlan is None:
@@ -165,13 +191,16 @@ def configure_mgmt_switches(config_file=None):
                         vlan = 1
                     else:
                         vlan = vlan_mgmt[0]
-                try:
-                    sw.set_switchport_mode(port, port_mode.TRUNK)
-                    sw.allowed_vlans_port(port, allow_op.NONE)
-                    sw.allowed_vlans_port(port, allow_op.ADD, vlan)
-                    sw.set_switchport_mode(port, port_mode.TRUNK, vlan)
-                except SwitchException as exc:
-                    LOG.error(exc)
+                if ports_cfg[str(port)]['mode'] != 'trunk' or \
+                        str(vlan) not in ports_cfg[str(port)]['avlans'].split(', '):
+                    try:
+                        sw.set_switchport_mode(port, port_mode.TRUNK)
+                        sw.allowed_vlans_port(port, allow_op.NONE)
+                        sw.allowed_vlans_port(port, allow_op.ADD, vlan)
+                        sw.set_switchport_mode(port, port_mode.TRUNK, vlan)
+                    except SwitchException as exc:
+                        LOG.error(exc)
+
         for if_type in ['ipmi', 'pxe']:
             vlan = cfg.get_depl_netw_client_vlan(if_type=if_type)[0]
 
@@ -181,12 +210,32 @@ def configure_mgmt_switches(config_file=None):
                 else:
                     print('.', end="")
                     sys.stdout.flush()
-                    try:
-                        LOG.debug('Setting port {} into {} mode with access '
-                                  'vlan {}'.format(port, port_mode.ACCESS, vlan))
-                        sw.set_switchport_mode(port, port_mode.ACCESS, vlan)
-                    except SwitchException as exc:
-                        LOG.error(exc)
+                    if vlan != int(ports_cfg[str(port)]['nvlan']):
+                        try:
+                            LOG.debug('Setting port {} into {} mode with access '
+                                      'vlan {}'.format(port, port_mode.ACCESS, vlan))
+                            sw.set_switchport_mode(port, port_mode.ACCESS, vlan)
+                        except SwitchException as exc:
+                            LOG.error(exc)
+                    else:
+                        LOG.debug('\n{} port {} access vlan already configured.'.
+                                  format(if_type, port))
+            # Remove (optionally) access vlan from ports in pxe or ipmi vlan that
+            # are not listed in the config file.
+            ports = cfg.get_client_switch_ports(switch_label, if_type)
+            resp = 'y'
+            for port in ports_cfg:
+                if int(port) not in ports and ports_cfg[port]['nvlan'] == str(vlan):
+                    msg = ('Port {} on switch {} configured with vlan {} but is '
+                           'not specified in the {} network in your cluster config '
+                           'file '.format(port, switch_label, vlan, if_type))
+                    print()
+                    LOG.warning(msg)
+                    if resp not in ('yta', 'nta'):
+                        resp = rlinput('\nOK to remove port {} from {} vlan '
+                                       '(y/yta/n/nta)? '.format(port, if_type), 'y')
+                    if resp in ('y', 'yta'):
+                        sw.set_switchport_mode(port, port_mode.ACCESS, 1)
 
         # write switch memory?
         # if cfg.is_write_switch_memory():

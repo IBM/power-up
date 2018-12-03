@@ -25,7 +25,7 @@ CONFIG_CMD = 'config'
 VALIDATE_CMD = 'validate'
 DEPLOY_CMD = 'deploy'
 SOFTWARE_CMD = 'software'
-# UTIL_CMD = 'util'
+UTIL_CMD = 'utils'
 POST_DEPLOY_CMD = 'post-deploy'
 SETUP_DESC = 'Setup deployment environment (requires root privileges)'
 CONFIG_DESC = 'Configure deployment environment'
@@ -49,7 +49,7 @@ class Cmd(Enum):
     DEPLOY = DEPLOY_CMD
     POST_DEPLOY = POST_DEPLOY_CMD
     SOFTWARE = SOFTWARE_CMD
-#    UTIL = UTIL_CMD
+    UTIL = UTIL_CMD
 
 
 def get_args(parser_args=False):
@@ -123,18 +123,18 @@ def get_args(parser_args=False):
         parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
 
-#    parser_util = subparsers.add_parser(
-#        UTIL_CMD,
-#        description='%s - %s' % (PROJECT, UTIL_DESC),
-#        help=UTIL_DESC,
-#        epilog=EPILOG,
-#        parents=[common_parser],
-#        formatter_class=RawTextHelpFormatter)
-
     parser_software = subparsers.add_parser(
         SOFTWARE_CMD,
         description='%s - %s' % (PROJECT, SOFTWARE_DESC),
         help=SOFTWARE_DESC,
+        epilog=EPILOG,
+        parents=[common_parser],
+        formatter_class=RawTextHelpFormatter)
+
+    parser_utils = subparsers.add_parser(
+        UTIL_CMD,
+        description='%s - %s' % (PROJECT, UTIL_DESC),
+        help=UTIL_DESC,
         epilog=EPILOG,
         parents=[common_parser],
         formatter_class=RawTextHelpFormatter)
@@ -364,23 +364,32 @@ def get_args(parser_args=False):
         action='store_true',
         help='Run all software prep and install steps')
 
+    # 'utils' subcommand arguments
+    parser_utils.set_defaults(utils=True)
+
+    parser_utils.add_argument(
+        '--scan-pxe-network',
+        action='store_true',
+        help='Ping all addresses in PXE subnet')
+
+    parser_utils.add_argument(
+        '--scan-ipmi-network',
+        action='store_true',
+        help='Ping all addresses in IPMI subnet')
+
+    parser_utils.add_argument(
+        'config_file_name',
+        nargs='?',
+        default='config.yml',
+        metavar='CONFIG-FILE-NAME',
+        help='Config file name. Specify relative to the power-up directory.')
+
     if parser_args:
         return (parser, parser_setup, parser_config, parser_validate,
-                parser_deploy, parser_post_deploy, parser_software)
-    return parser
+                parser_deploy, parser_post_deploy, parser_software,
+                parser_utils)
 
-#    # 'util' subcommand arguments
-#    parser_util.set_defaults(util=True)
-#
-#    parser_util.add_argument(
-#        '--scan-pxe-network',
-#        action='store_true',
-#        help='Ping all addresses in PXE subnet')
-#
-#    parser_util.add_argument(
-#        '--scan-ipmi-network',
-#        action='store_true',
-#        help='Ping all addresses in IPMI subnet')
+    return parser
 
 
 def _check_setup(args, subparser):
@@ -442,6 +451,12 @@ def _check_software(args, subparser):
                         'plus a software installer module name is required')
 
 
+def _check_utils(args, subparser):
+    if not args.scan_pxe_network and not args.scan_ipmi_network:
+        subparser.error(
+            'one of the arguments --scan-pxe-network --scan-ipmi-network is required')
+
+
 def is_arg_present(arg):
     if arg == ABSENT or arg is False:
         return False
@@ -452,7 +467,7 @@ def get_parsed_args():
     """Get parsed 'pup' command arguments"""
 
     parser, parser_setup, parser_config, parser_validate, parser_deploy, \
-        parser_post_deploy, parser_software = get_args(parser_args=True)
+        parser_post_deploy, parser_software, parser_utils = get_args(parser_args=True)
     args = parser.parse_args()
 
     # Check arguments
@@ -484,6 +499,11 @@ def get_parsed_args():
     try:
         if args.software:
             _check_software(args, parser_software)
+    except AttributeError:
+        pass
+    try:
+        if args.utils:
+            _check_utils(args, parser_utils)
     except AttributeError:
         pass
 

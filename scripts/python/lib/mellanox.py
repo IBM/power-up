@@ -115,7 +115,7 @@ class Mellanox(SwitchCommon):
     STP_BPDUFILTER_ENABLE = '"spanning-tree bpdufilter enable"'
     MLAG_ACTIVE = '"mlag-channel-group {} mode active"'
     NO_MLAG_CHANNEL_GROUP = '"no mlag-channel-group"'
-    MAC_RE = re.compile('([\da-fA-F]{2}:){5}([\da-fA-F]{2})')
+    MAC_RE = re.compile(r'([\da-fA-F]{2}:){5}([\da-fA-F]{2})')
     SHOW_MAC_ADDRESS_TABLE = '"show mac-address-table"'
     CLEAR_MAC_ADDRESS_TABLE = '"clear mac-address-table dynamic"'
     SHOW_INTERFACE = '"show interface vlan {}"'
@@ -157,7 +157,7 @@ class Mellanox(SwitchCommon):
             port_info = port_info.splitlines()
             for line in port_info:
                 match = re.search(r'Eth1/(\d+)\s+(access|hybrid|trunk)'
-                                  '\s+(\d+|N/A)\s+(.+)', line)
+                                  r'\s+(\d+|N/A)\s+(.+)', line)
                 if match:
                     ports[match.group(1)] = {
                         'mode': match.group(2),
@@ -209,7 +209,7 @@ class Mellanox(SwitchCommon):
         ifc_info = ifc_info.rsplit('Vlan')
         for line in ifc_info:
             match = re.search(r'\s+(\d+).*Internet Address:\s+'
-                              '((\w+.\w+.\w+.\w+)/\d+)', line, re.DOTALL)
+                              r'((\w+.\w+.\w+.\w+)/\d+)', line, re.DOTALL)
             if match:
                 mask = netaddr.IPNetwork(match.group(2))
                 mask = str(mask.netmask)
@@ -419,7 +419,7 @@ class Mellanox(SwitchCommon):
         match = re.search(
             r'\d+\s+Po' +
             port_channel +
-            '\S+\s+\w+\s+Eth1/(\d+)\S+\s+Eth1/(\d+)', port_channel_info)
+            r'\S+\s+\w+\s+Eth1/(\d+)\S+\s+Eth1/(\d+)', port_channel_info)
         if match:
             port1 = match.group(1)
             port2 = match.group(2)

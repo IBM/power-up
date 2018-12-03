@@ -16,38 +16,71 @@
 # limitations under the License.
 
 set -e
-sudo yum -y install python36
-sudo python36 -m ensurepip --default-pip
 source /etc/os-release
+arch=$(uname -m)
+rhel_docker_ce_repo="[docker]
+name=Docker
+baseurl=http://ftp.unicamp.br/pub/ppc64el/rhel/7/docker-ppc64el/
+enabled=1
+gpgcheck=0"
 
 if [[ $ID == "ubuntu" ]]; then
     # Needs update for Python36
     sudo apt-get update
-    sudo apt-get -y install python-pip python-dev libffi-dev libssl-dev \
-    # sudo apt-get -y install python36-dev libffi-dev libssl-dev \
-        python-netaddr ipmitool aptitude lxc vim vlan bridge-utils gcc cpp \
+    sudo apt-get -y install libffi-dev libssl-dev python3-dev \
+        python-netaddr ipmitool aptitude vim vlan bridge-utils gcc cpp \
         python-tabulate fping g++ make unzip libncurses5 libncurses5-dev \
         sshpass
 
-    if [[ $VERSION_ID == "14.04" ]]; then
-        sudo apt-get -y install lxc-dev liblxc1
-    elif [[ $VERSION_ID == "16.04" ]]; then
-        sudo apt-get -y install python-lxc
+    if ! type "docker"; then
+        sudo apt-get -y install \
+        apt-transport-https ca-certificates curl software-properties-common
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+            sudo apt-key add -
+        sudo apt-key fingerprint 0EBFCD88
+        if [ $(uname -m) = "x86_64" ]; then
+            sudo add-apt-repository \
+                "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) \
+                stable"
+        elif [ $(uname -m) = "ppc64le" ]; then
+            sudo add-apt-repository \
+                "deb [arch=ppc64el] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) \
+                stable"
+        fi
+        sudo apt-get update
+        sudo apt-get -y install docker-ce
     fi
 
 elif [[ $ID == "rhel" ]]; then
-    sudo yum -y install python2-pip python-devel python36-devel libffi-devel \
-        lxc lxc-devel lxc-extra lxc-templates libvirt ipmitool\
-        debootstrap gcc vim bridge-utils cpp flex bison unzip cmake \
-        fping gcc-c++ patch perl-ExtUtils-MakeMaker perl-Thread-Queue \
-        ncurses-devel bash-completion yum-utils createrepo sshpass openssl-devel
-    sudo systemctl start lxc.service
-    sudo systemctl start libvirtd
+    sudo yum -y install python36-devel libffi-devel ipmitool debootstrap gcc \
+        vim bridge-utils cpp flex bison unzip cmake fping gcc-c++ patch \
+        perl-ExtUtils-MakeMaker perl-Thread-Queue ncurses-devel \
+        bash-completion yum-utils createrepo sshpass python-tabulate \
+        openssl-devel tcpdump
+    sudo python36 -m ensurepip --default-pip
 
+    if ! type "docker"; then
+        sudo yum -y install device-mapper-persistent-data lvm2
+        if [ $(uname -m) = "x86_64" ]; then
+            sudo yum-config-manager \
+                --add-repo \
+                https://download.docker.com/linux/centos/docker-ce.repo
+            sudo yum -y install container-selinux
+        elif [ $(uname -m) = "ppc64le" ]; then
+            echo "$rhel_docker_ce_repo" | \
+                sudo tee /etc/yum.repos.d/docker.repo > /dev/null
+        fi
+        sudo yum makecache fast
+        sudo yum -y install docker-ce
+        sudo systemctl start docker.service
+        sudo systemctl enable docker.service
+    fi
+fi
 
-else
-    echo "Unsupported OS"
-    exit 1
+if ! docker container ls &> /dev/null; then
+    sudo usermod -aG docker $USER  # user needs to logout & login
 fi
 
 sudo -E -H pip install --upgrade pip==18.0

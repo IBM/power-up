@@ -14,15 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
-import os.path
+import os
+import stat
 import subprocess
 import re
 import netaddr
 from orderedattrdict import AttrDict
 from enum import Enum
+from filelock import Timeout, FileLock
+from socket import gethostbyname
+from time import sleep
+from random import random
 
 import lib.logger as logger
 from lib.ssh import SSH
@@ -53,6 +55,9 @@ class SwitchCommon(object):
     SWITCHPORT_TRUNK_NATIVE_VLAN = 'switchport trunk native vlan {} '
     SWITCHPORT_TRUNK_ALLOWED_VLAN = 'switchport trunk allowed vlan {} {}'
     SET_MTU = 'mtu {}'
+    NO_MTU = 'no mtu'
+    SHUTDOWN = 'shutdown'
+    NO_SHUTDOWN = 'no shutdown'
     FORCE = 'force'
     MGMT_INTERFACE_CONFIG = 'interface ip {}'
     SET_INTERFACE_IPADDR = ' ;ip address {}'
@@ -92,18 +97,45 @@ class SwitchCommon(object):
             f.close()
             return
 
-        if self.ENABLE_REMOTE_CONFIG:
-            cmd = self.ENABLE_REMOTE_CONFIG.format(cmd)
-            self.log.debug(cmd)
-        ssh = SSH()
-        __, data, _ = ssh.exec_cmd(
-            self.host,
-            self.userid,
-            self.password,
-            cmd,
-            ssh_log=True,
-            look_for_keys=False)
-        return data
+        host_ip = gethostbyname(self.host)
+        lockfile = os.path.join('/var/lock', host_ip + '.lock')
+        if not os.path.isfile(lockfile):
+            os.mknod(lockfile)
+            os.chmod(lockfile, stat.S_IRWXO | stat.S_IRWXG | stat.S_IRWXU)
+        lock = FileLock(lockfile)
+        cnt = 0
+        while cnt < 5 and not lock.is_locked:
+            if cnt > 0:
+                self.log.info('Waiting to acquire lock for switch {}'.
+                              format(self.host))
+            cnt += 1
+            try:
+                lock.acquire(timeout=5, poll_intervall=0.05)  # 5 sec, 50 ms
+                sleep(0.01)  # give switch a chance to close out comms
+            except Timeout:
+                pass
+        if lock.is_locked:
+            if self.ENABLE_REMOTE_CONFIG:
+                cmd = self.ENABLE_REMOTE_CONFIG.format(cmd)
+                self.log.debug(cmd)
+            ssh = SSH()
+            __, data, _ = ssh.exec_cmd(
+                self.host,
+                self.userid,
+                self.password,
+                cmd,
+                ssh_log=True,
+                look_for_keys=False)
+            lock.release()
+            # sleep 60 ms to give other processes a chance.
+            sleep(0.06 + random() / 100)  # lock acquire polls at 50 ms
+            if lock.is_locked:
+                self.log.error('Lock is locked. Should be unlocked')
+            return data.decode("utf-8")
+        else:
+            self.log.error('Unable to acquire lock for switch {}'.format(self.host))
+            raise SwitchException('Unable to acquire lock for switch {}'.
+                                  format(self.host))
 
     def get_enums(self):
         return self.PortMode, self.AllowOp
@@ -313,19 +345,19 @@ class SwitchCommon(object):
     def set_mtu_for_port(self, port, mtu):
         # Bring port down
         self.send_cmd(
-            self.IFC_ETH_CFG.format(port) + self.SHUTDOWN)
+            self.IFC_ETH_CFG.format(port) + self.SEP + self.SHUTDOWN)
 
         # Set MTU
         if mtu == 0:
             self.send_cmd(
-                self.IFC_ETH_CFG.format(port) + 'no mtu')
+                self.IFC_ETH_CFG.format(port) + self.SEP + self.NO_MTU)
         else:
             self.send_cmd(
-                self.IFC_ETH_CFG.format(port) + self.SET_MTU.format(mtu))
+                self.IFC_ETH_CFG.format(port) + self.SEP + self.SET_MTU.format(mtu))
 
         # Bring port up
         self.send_cmd(
-            self.INTERFACE_CONFIG.format(port) + self.NO_SHUTDOWN)
+            self.IFC_ETH_CFG.format(port) + self.SEP + self.NO_SHUTDOWN)
 
     def show_mac_address_table(self, format=False):
         """Get switch mac address table.
@@ -373,7 +405,7 @@ class SwitchCommon(object):
             if self.mode == 'passive':
                 return None
             output = subprocess.check_output(
-                ['bash', '-c', 'ping -c2 -i.5 ' + self.host])
+                ['bash', '-c', 'ping -c2 -i.5 ' + self.host]).decode("utf-8")
             if '0% packet loss' in output:
                 return True
             else:
@@ -420,7 +452,8 @@ class SwitchCommon(object):
                 iter = re.finditer(r'--+', line)
                 for i, match in enumerate(iter):
                     # find column aligned with 'Port'
-                    if pos >= match.span()[0] and pos < match.span()[1]:
+                    if (pos is not None and pos >= match.span()[0] and
+                            pos < match.span()[1]):
                         port_span = (match.span()[0], match.span()[1])
             # find rows with MACs
             match = _mac_regex.search(line)

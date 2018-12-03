@@ -15,26 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 python3.6 -m venv ${1}pup-venv
 source ${1}pup-venv/bin/activate
-pip install --upgrade pip
-pip install --upgrade setuptools==40.0.0
-pip install \
-    'ansible==2.5.5' \
-    'orderedattrdict==1.5' \
-    'pyroute2==0.5.0' \
-    'jsonschema==2.6.0' \
-    'jsl==0.2.4' \
-    'pyghmi==1.0.42' \
-    'wget==3.2' \
-    'pyasn1==0.4.2' \
-    'pysnmp==4.4.4' \
-    'pyaml==17.12.1' \
-    'paramiko==2.4.1' \
-    'tabulate==0.8.2' \
-    'gitpython==2.1.9' \
-    'netaddr==0.7.19' \
-    'click==6.7' \
-    'ansible-vault==1.1.1' \
-    'pip2pi==0.7.0'
+python3.6 -m pip install --upgrade pip
+python3.6 -m pip install --upgrade setuptools==40.0.0
+python3.6 -m pip install -r ${1}requirements.txt
 deactivate
