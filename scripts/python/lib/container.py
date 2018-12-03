@@ -320,22 +320,25 @@ class Container(object):
                     network.remove()
                     network = None
             except docker.errors.NotFound:
-                self.log.debug(f"Creating Docker network '{name}'")
-                subnet = str(IPNetwork(bridge_ipaddr + '/' +
-                                       str(netprefix)).cidr)
-                ipam_pool = docker.types.IPAMPool(subnet=subnet,
-                                                  gateway=bridge_ipaddr)
-                ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-                try:
-                    network = self.client.networks.create(
-                        name=name,
-                        driver='bridge',
-                        ipam=ipam_config,
-                        options={'com.docker.network.bridge.name': br_name})
-                except docker.errors.APIError as exc:
-                    msg = (f"Failed to create network '{name}': {exc}")
-                    self.log.error(msg)
-                    raise UserException(msg)
+                if not remove:
+                    self.log.debug(f"Creating Docker network '{name}'")
+                    subnet = str(IPNetwork(bridge_ipaddr + '/' +
+                                           str(netprefix)).cidr)
+                    ipam_pool = docker.types.IPAMPool(subnet=subnet,
+                                                      gateway=bridge_ipaddr)
+                    ipam_config = docker.types.IPAMConfig(
+                        pool_configs=[ipam_pool])
+                    try:
+                        network = self.client.networks.create(
+                            name=name,
+                            driver='bridge',
+                            ipam=ipam_config,
+                            options={'com.docker.network.bridge.name':
+                                     br_name})
+                    except docker.errors.APIError as exc:
+                        msg = (f"Failed to create network '{name}': {exc}")
+                        self.log.error(msg)
+                        raise UserException(msg)
 
         return network
 
