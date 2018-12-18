@@ -797,35 +797,3 @@ def ansible_pprint(ansible_output):
                 index_indent = False
 
     return pretty_out
-
-
-def bmc_ipmi_login(node, userid, password):
-    """Open new IPMI connection
-
-    Args:
-        node (str): BMC hostname or IP address
-        userid (str): IPMI login userid
-        password (str): IPMI login password
-
-    Returns:
-        object: pyghmi.ipmi.command instance
-    """
-    log = logger.getlogger()
-    log.debug(f'Attempting to open IPMI connection to: {node} / '
-              f'{userid} / {password}')
-    session.Session.initting_sessions = {}
-    return command.Command(bmc=node,
-                           userid=userid,
-                           password=password)
-
-
-def bmc_ipmi_logout(bmc):
-    """Logout and close IPMI connection
-
-    Args:
-        bmc (pyghmi.ipmi.command object): command instance to logout
-    """
-    log = logger.getlogger()
-    rc = bmc.ipmi_session.logout()
-    log.debug(f'Closing IPMI connection to: {bmc.bmc} rc: {rc["success"]}')
-    del bmc.ipmi_session.initialized

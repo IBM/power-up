@@ -48,6 +48,8 @@ class InventoryNodes(object):
             hostname = cfg.get_ntmpl_os_hostname_prefix(index_ntmplt)
             if hostname is None:
                 hostname = label
+            # Get bmc_type
+            bmc_type = cfg.get_ntmpl_bmc_type(index_ntmplt)
             # Get Rack
             switch_label = cfg.get_ntmpl_phyintf_ipmi_switch(index_ntmplt, 0)
             switch_index = cfg.get_sw_mgmt_index_by_label(switch_label)
@@ -64,6 +66,8 @@ class InventoryNodes(object):
                 # Set Hostname
                 self.inv.add_nodes_hostname(
                     hostname + '-' + str(index_host + 1))
+                # Set bmc_type
+                self.inv.add_nodes_bmc_type(bmc_type)
                 # Set Rack ID
                 switch_label = cfg.get_ntmpl_phyintf_ipmi_switch(
                     index_ntmplt, 0)

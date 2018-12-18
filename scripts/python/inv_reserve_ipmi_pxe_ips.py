@@ -20,16 +20,17 @@ import os.path
 import sys
 import xmlrpc.client
 from netaddr import IPNetwork
-from pyghmi import exceptions as pyghmi_exception
-from time import time
+#from pyghmi import exceptions as pyghmi_exception
+from time import time, sleep
 
 from lib.config import Config
 from lib.inventory import Inventory
 import lib.genesis as gen
 import lib.utilities as util
-from ipmi_set_power import ipmi_set_power
+from set_power_clients import set_power_clients
 from lib.exception import UserException
 import lib.logger as logger
+import lib.bmc as _bmc
 
 DNSMASQ_TEMPLATE = '/etc/cobbler/dnsmasq.template'
 COBBLER_USER = gen.get_cobbler_user()
@@ -95,7 +96,7 @@ def inv_set_ipmi_pxe_ip(config_path):
     nodes_list = []
 
     # All nodes should be powered off before starting
-    ipmi_set_power('off', config_path, wait=POWER_WAIT)
+    set_power_clients('off', config_path, wait=POWER_WAIT)
 
     # Create IPManager object for IPMI and/or PXE networks
     start_offset = gen.get_dhcp_pool_start()
@@ -151,6 +152,7 @@ def inv_set_ipmi_pxe_ip(config_path):
         # Save info to verify connection come back up
         ipmi_userid = inv.get_nodes_ipmi_userid(index)
         ipmi_password = inv.get_nodes_ipmi_password(index)
+        bmc_type = inv.get_nodes_bmc_type(index)
         # No need to reset and check if the IP does not change
         if ipmi_new_ipaddr != ipmi_ipaddr:
             nodes_list.append({'hostname': hostname,
@@ -159,23 +161,33 @@ def inv_set_ipmi_pxe_ip(config_path):
                                'ipmi_password': ipmi_password,
                                'ipmi_new_ipaddr': ipmi_new_ipaddr,
                                'ipmi_ipaddr': ipmi_ipaddr,
-                               'ipmi_mac': ipmi_mac})
+                               'ipmi_mac': ipmi_mac,
+                               'bmc_type': bmc_type})
 
     # Issue MC cold reset to force refresh of IPMI interfaces
     for node in nodes_list:
         ipmi_userid = node['ipmi_userid']
         ipmi_password = node['ipmi_password']
         ipmi_ipaddr = node['ipmi_ipaddr']
-        ipmi_cmd = util.bmc_ipmi_login(ipmi_ipaddr, ipmi_userid, ipmi_password)
-        ipmi_cmd.reset_bmc()
-        util.bmc_ipmi_logout(ipmi_cmd)
-        log.debug('BMC Cold Reset Issued - Node: %s - IP: %s' %
-                  (hostname, ipmi_ipaddr))
+        bmc_type = node['bmc_type']
+        bmc = _bmc.Bmc(ipmi_ipaddr, ipmi_userid, ipmi_password, bmc_type)
+        if bmc.is_connected():
+            log.debug(f'Issuing BMC Cold Reset - Node: {node["hostname"]} '
+                      f'- IP: {ipmi_ipaddr}')
+            if not bmc.bmc_reset('cold'):
+                log.error(f'Failed attempting BMC reset on {node["ipmi_ipaddr"]}')
+            bmc.logout()
+
+    log.info('Pausing 1 minute for BMCs to begin reset')
+    sleep(60)
 
     # Check connections for set amount of time
     end_time = time() + WAIT_TIME
     while time() < end_time and len(nodes_list) > 0:
+        print(f'\rTimeout count down: {int(end_time - time())}    ', end='')
+        sys.stdout.flush()
         success_list = []
+        sleep(2)
         for list_index, node in enumerate(nodes_list):
             hostname = node['hostname']
             index = node['index']
@@ -184,28 +196,27 @@ def inv_set_ipmi_pxe_ip(config_path):
             ipmi_new_ipaddr = node['ipmi_new_ipaddr']
             ipmi_ipaddr = node['ipmi_ipaddr']
             ipmi_mac = node['ipmi_mac']
+            bmc_type = node['bmc_type']
 
             # Attempt to connect to new IPMI IP address
-            try:
-                ipmi_cmd = util.bmc_ipmi_login(ipmi_new_ipaddr,
-                                               ipmi_userid,
-                                               ipmi_password)
-                status = ipmi_cmd.get_power()
-            except pyghmi_exception.IpmiException as error:
-                log.debug('BMC connection failed - Node: %s IP: %s, %s '
-                          '(Retrying for %s seconds)' %
-                          (hostname, ipmi_new_ipaddr, str(error), WAIT_TIME))
-                continue
-
-            # If connection sucessful modify inventory
-            if status.get('powerstate') in ['on', 'off']:
-                log.debug('BMC connection success - Node: %s IP: %s' %
-                          (hostname, ipmi_new_ipaddr))
-                log.info('Modifying Inventory IPMI IP - Node: %s MAC: %s '
-                         'Original IP: %s New IP: %s' %
-                         (hostname, ipmi_mac, ipmi_ipaddr, ipmi_new_ipaddr))
+            bmc = _bmc.Bmc(ipmi_new_ipaddr, ipmi_userid, ipmi_password, bmc_type)
+            if bmc.is_connected():
+                if bmc.chassis_power('status') in ('on', 'off'):
+                    log.debug(f'BMC connection success - Node: {hostname} '
+                              f'IP: {ipmi_ipaddr}')
+                else:
+                    log.debug(f'BMC communication failed - Node: {hostname} '
+                              f'IP: {ipmi_ipaddr}')
+                    continue
+                log.info(f'Modifying Inventory IPMI IP - Node: {hostname} MAC: '
+                         f'{ipmi_mac} Original IP: {ipmi_ipaddr} New IP: '
+                         f'{ipmi_new_ipaddr}')
                 inv.set_nodes_ipmi_ipaddr(0, index, ipmi_new_ipaddr)
                 success_list.append(list_index)
+            else:
+                log.debug(f'BMC connection failed - Node: {hostname} '
+                          f'IP: {ipmi_ipaddr}')
+                continue
 
         # Remove nodes that connected successfully
         for remove_index in sorted(success_list, reverse=True):

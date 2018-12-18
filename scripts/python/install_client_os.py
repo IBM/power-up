@@ -23,8 +23,8 @@ from subprocess import Popen, PIPE
 from time import sleep
 
 from cobbler_set_netboot_enabled import cobbler_set_netboot_enabled
-from ipmi_set_bootdev import ipmi_set_bootdev
-from ipmi_set_power import ipmi_set_power
+from set_bootdev_clients import set_bootdev_clients
+from set_power_clients import set_power_clients
 from lib.config import Config
 from lib.inventory import Inventory
 import lib.logger as logger
@@ -61,9 +61,9 @@ def _get_lists(latest_list, handled_list):
 def install_client_os(config_path=None):
     log = logger.getlogger()
     cobbler_set_netboot_enabled(True)
-    ipmi_set_power('off', config_path, wait=POWER_WAIT)
-    ipmi_set_bootdev('network', False, config_path)
-    ipmi_set_power('on', config_path, wait=POWER_WAIT)
+    set_power_clients('off', config_path, wait=POWER_WAIT)
+    set_bootdev_clients('network', False, config_path)
+    set_power_clients('on', config_path, wait=POWER_WAIT)
     cfg = Config(config_path)
     inv = Inventory(config_path)
 
@@ -91,7 +91,7 @@ def install_client_os(config_path=None):
               format(installing_cnt, client_cnt, cnt, gen.Color.up_one))
         sys.stdout.flush()
         if new_list:
-            ipmi_set_bootdev('default', True, config_path, new_list)
+            set_bootdev_clients('default', True, config_path, new_list)
         else:
             sleep(10)
         if installing_cnt == client_cnt:

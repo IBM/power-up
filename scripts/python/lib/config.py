@@ -1610,9 +1610,15 @@ class Config(object):
         if index is None:
             list_ = []
             for member in self.cfg.node_templates:
-                list_.append(member.ipmi.userid)
+                if hasattr(member, 'ipmi'):
+                    list_.append(member.ipmi.userid)
+                elif hasattr(member, 'openbmc'):
+                    list_.append(member.openbmc.userid)
             return list_
-        return self.cfg.node_templates[index].ipmi.userid
+        if hasattr(self.cfg.node_templates[index], 'ipmi'):
+            return self.cfg.node_templates[index].ipmi.userid
+        elif hasattr(self.cfg.node_templates[index], 'openbmc'):
+            return self.cfg.node_templates[index].openbmc.userid
 
     def yield_ntmpl_ipmi_userid(self):
         """Yield node_templates ipmi userid
@@ -1624,19 +1630,25 @@ class Config(object):
             yield member
 
     def get_ntmpl_ipmi_password(self, index=None):
-        """Get node_templates ipmi password
+        """Get node_templates bmc password
         Args:
             index (int, optional): List index
 
         Returns:
-            str or list of str: IPMI password member or list
+            str or list of str: BMC password member or list
         """
         if index is None:
             list_ = []
             for member in self.cfg.node_templates:
-                list_.append(member.ipmi.password)
+                if hasattr(member, 'ipmi'):
+                    list_.append(member.ipmi.password)
+                elif hasattr(member, 'openbmc'):
+                    list_.append(member.openbmc.password)
             return list_
-        return self.cfg.node_templates[index].ipmi.password
+        if hasattr(self.cfg.node_templates[index], 'ipmi'):
+            return self.cfg.node_templates[index].ipmi.password
+        elif hasattr(self.cfg.node_templates[index], 'openbmc'):
+            return self.cfg.node_templates[index].openbmc.password
 
     def yield_ntmpl_ipmi_password(self):
         """Yield node_templates ipmi password
@@ -1645,6 +1657,35 @@ class Config(object):
         """
 
         for member in self.get_ntmpl_ipmi_password():
+            yield member
+
+    def get_ntmpl_bmc_type(self, index=None):
+        """Get node_templates bmc type
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str or list of str of type item or list ('ipmi', 'open')
+        """
+        if index is None:
+            list_ = []
+            for member in self.cfg.node_templates:
+                if hasattr(member, 'ipmi'):
+                    list_.append('ipmi')
+                elif hasattr(member, 'openbmc'):
+                    list_.append('openbmc')
+            return list_
+        if hasattr(self.cfg.node_templates[index], 'ipmi'):
+            return 'ipmi'
+        elif hasattr(self.cfg.node_templates[index], 'openbmc'):
+            return 'openbmc'
+
+    def yield_ntmpl_bmc_type(self):
+        """Yield node_templates bmc type
+        Returns:
+            iter of str: IPMI password
+        """
+        for member in self.get_ntmpl_bmc_type():
             yield member
 
     def get_ntmpl_os_dict(self, index=None):

@@ -31,7 +31,7 @@ from lib.genesis import GEN_PASSIVE_PATH
 
 
 class InventoryAddPorts(object):
-    """Class instance for adding port information to the Cluster Genesis
+    """Class instance for adding port information to the Power-Up
     inventory file.
     Args:
         dhcp_leases_file (str): file path for the dnsmasq.leases file.
