@@ -25,9 +25,11 @@ from shutil import copy2
 from subprocess import Popen, PIPE
 from netaddr import IPNetwork, IPAddress, IPSet
 from tabulate import tabulate
+from textwrap import dedent
 
 from lib.config import Config
 import lib.logger as logger
+from lib.exception import UserException
 
 PATTERN_DHCP = r"^\|_*\s+(.+):(.+)"
 PATTERN_MAC = r'[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
@@ -960,3 +962,394 @@ def get_col_pos(tbl, hdrs, row_char='-'):
                 break
 
     return col_idx
+
+
+def nginx_modify_conf(conf_path, directives={}, locations={}, reload=True,
+                      clear=False):
+    """Create/modify nginx configuration file
+
+    Directives are defined in a dictionary, e.g.:
+
+        directives={'listen': 80', 'server_name': 'powerup'}
+
+    Locations are defined in a dictionary with values as strings or
+    lists, e.g.:
+
+        locations={'/': ['root /srv', 'autoindex on'],
+                   '/cobbler': 'alias /var/www/cobbler'}
+
+    *note: Semicolons (;) are auto added if not present
+
+    Args:
+        conf_path (str): Path to nginx configuration file
+        directives (dict, optional): Server directives
+        locations (dict, optional): Location definitions
+        reload (bool, optional): Reload nginx after writing config
+        clear (bool, optional): Remove any existing configuration data
+
+    Returns:
+        int: Return code from nginx syntax check ('nginx -t')
+             If syntax check rc=0 and reload=True the return code
+             from 'systemctl restart nginx.service'
+    """
+
+    collecting_directive_data = False
+    collecting_location_data = False
+    current_location = None
+
+    if not clear and os.path.isfile(conf_path):
+        LOG.debug(f"Loading existing nginx config: '{conf_path}")
+        with open(conf_path, 'r') as file_object:
+            for line in file_object:
+                if 'server {' in line:
+                    collecting_directive_data = True
+                elif 'location' in line:
+                    collecting_directive_data = False
+                    current_location = line.strip()[9:-2]
+                    if current_location not in locations:
+                        collecting_location_data = True
+                        locations[current_location] = []
+                    else:
+                        current_location = None
+                elif '}' in line and collecting_location_data:
+                    collecting_location_data = False
+                    current_location = None
+                elif collecting_location_data:
+                    locations[current_location].append(line.strip())
+                elif '}' in line and collecting_directive_data:
+                    collecting_directive_data = False
+                elif collecting_directive_data:
+                    data_split = line.split(maxsplit=1)
+                    if data_split[0] not in directives:
+                        directives[data_split[0]] = data_split[1].strip()
+
+    LOG.debug(f"Writing nginx config: '{conf_path}")
+    with open(conf_path, 'w') as file_object:
+        file_object.write('server {\n')
+
+        for key, value in directives.items():
+            if not value.endswith(';'):
+                value = value + ';'
+            file_object.write(f'    {key} {value}\n')
+
+        for key, value_list in locations.items():
+            file_object.write(f'    location {key} ' + '{\n')
+            if type(value_list) is str:
+                value_list = value_list.split('\n')
+            for value in value_list:
+                if not value.endswith(';'):
+                    value = value + ';'
+                file_object.write(f'        {value}\n')
+            file_object.write('    }\n')
+
+        file_object.write('}\n')
+
+    cmd = (f'nginx -t')
+    stdout, stderr, rc = sub_proc_exec(cmd)
+    LOG.debug(f"Command: \'{cmd}\'\nstdout: \'{stdout}\'\n"
+              f"stderr: \'{stderr}\'\nrc: {rc}")
+    if rc != 0:
+        LOG.warning('Nginx configuration check failed')
+    elif reload:
+        cmd = ('systemctl restart nginx.service')
+        stdout, stderr, rc = sub_proc_exec(cmd)
+        LOG.debug(f"Command: \'{cmd}\'\nstdout: \'{stdout}\'\n"
+                  f"stderr: \'{stderr}\'\nrc: {rc}")
+        if rc != 0:
+            LOG.warning('Nginx failed to start')
+
+    return rc
+
+
+def dnsmasq_add_dhcp_range(dhcp_range,
+                           lease_time='1h',
+                           conf_path='/etc/dnsmasq.conf',
+                           reload=True):
+    """Add DHCP range to existing dnsmasq configuration
+
+    Args:
+        dhcp_range (str, optional): Range of IP addresses to lease to clients
+                                    formatted as "<start_ip>,<end_ip>"
+        lease_time (str, optional): Time duration of IP leases
+        conf_path (str, optional): Path to dnsmasq configuration file
+        reload (bool, optional): Reload dnsmasq after writing config
+
+    Returns:
+        int: Return code from nginx syntax check ('dnsmasq --test')
+             If syntax check rc=0 and reload=True the return code
+             from 'systemctl restart dnsmasq.service'
+    """
+
+    append_line(conf_path, f'dhcp-range={dhcp_range},{lease_time}',
+                check_exists=True)
+    cmd = (f'dnsmasq --test')
+    stdout, stderr, rc = sub_proc_exec(cmd)
+    LOG.debug(f"Command: \'{cmd}\'\nstdout: \'{stdout}\'\n"
+              f"stderr: \'{stderr}\'\nrc: {rc}")
+    if rc != 0:
+        LOG.warning('dnsmasq configuration check failed')
+    elif reload:
+        cmd = ('systemctl restart dnsmasq.service')
+        stdout, stderr, rc = sub_proc_exec(cmd)
+        LOG.debug(f"Command: \'{cmd}\'\nstdout: \'{stdout}\'\n"
+                  f"stderr: \'{stderr}\'\nrc: {rc}")
+        if rc != 0:
+            LOG.error('dnsmasq service restart failed')
+
+    return rc
+
+
+def dnsmasq_config_pxelinux(interface=None,
+                            dhcp_range=None,
+                            lease_time='1h',
+                            default_route=None,
+                            tftp_root='/var/lib/tftpboot',
+                            conf_path='/etc/dnsmasq.conf',
+                            reload=True):
+    """Create dnsmasq configuration to support PXE boots
+
+    *note*: This is overwrite any existing configuration located at
+            'conf_path'!
+
+    Args:
+        interface (str, optional): Only listen for requests on given interface
+        dhcp_range (str, optional): Range of IP addresses to lease to clients
+                                    formatted as "<start_ip>,<end_ip>"
+        lease_time (str, optional): Time duration of IP leases
+        default_route (str, optional): IP pushed to clients as default route
+        conf_path (str, optional): Path to dnsmasq configuration file
+        reload (bool, optional): Reload dnsmasq after writing config
+
+    Returns:
+        int: Return code from nginx syntax check ('dnsmasq --test')
+             If syntax check rc=0 and reload=True the return code
+             from 'systemctl restart dnsmasq.service'
+    """
+
+    backup_file(conf_path)
+
+    with open(conf_path, 'w') as file_object:
+        file_object.write(
+            "# POWER-Up generated configuration file for dnsmasq\n\n")
+
+        if interface is not None:
+            file_object.write(f"interface={interface}\n\n")
+
+        file_object.write(dedent(f"""\
+            dhcp-lease-max=1000
+            dhcp-authoritative
+            dhcp-boot=pxelinux.0
+
+            enable-tftp
+            tftp-root={tftp_root}
+            user=root
+        \n"""))
+
+        if default_route is not None:
+            file_object.write(f"dhcp-option=3,{default_route}\n\n")
+
+        if dhcp_range is not None:
+            file_object.write(f"dhcp-range={dhcp_range},{lease_time}\n")
+
+    cmd = (f'dnsmasq --test')
+    stdout, stderr, rc = sub_proc_exec(cmd)
+    LOG.debug(f"Command: \'{cmd}\'\nstdout: \'{stdout}\'\n"
+              f"stderr: \'{stderr}\'\nrc: {rc}")
+    if rc != 0:
+        LOG.warning('dnsmasq configuration check failed')
+    elif reload:
+        cmd = 'systemctl enable dnsmasq.service'
+        resp, err, rc = sub_proc_exec(cmd)
+        if rc != 0:
+            LOG.error('Failed to enable dnsmasq service')
+
+        cmd = 'systemctl restart dnsmasq.service'
+        stdout, stderr, rc = sub_proc_exec(cmd)
+        LOG.debug(f"Command: \'{cmd}\'\nstdout: \'{stdout}\'\n"
+                  f"stderr: \'{stderr}\'\nrc: {rc}")
+        if rc != 0:
+            LOG.error('dnsmasq service restart failed')
+
+    return rc
+
+
+def pxelinux_set_default(server,
+                         kernel,
+                         initrd,
+                         kickstart=None,
+                         kopts=None,
+                         dir_path='/var/lib/tftpboot/pxelinux.cfg/'):
+    """Create default pxelinux profile
+
+    This function assumes that the server is hosting the kernel,
+    initrd, and kickstart (if specified) over http. The default
+    'dir_path' requires root access.
+
+    Args:
+        server (str): IP or hostname of http server hosting files
+        kernel (str): HTTP path to installer kernel
+        initrd (str): HTTP path to installer initrd
+        kickstart (str, optional): HTTP path to installer kickstart
+        kopts (str, optional): Any additional kernel options
+        dir_path (str, optional): Path to pxelinux directory
+    """
+
+    kopts_base = (f"ksdevice=bootif lang=  kssendmac text")
+
+    if kickstart is not None:
+        kopts_base += f"  ks=http://{server}/{kickstart}"
+
+    if kopts is not None:
+        kopts = kopts_base + f"  {kopts}"
+    else:
+        kopts = kopts_base
+
+    default = os.path.join(dir_path, 'default')
+    os.makedirs(dir_path, exist_ok=True)
+
+    with open(default, 'w') as file_object:
+        file_object.write(dedent(f"""\
+            default linux
+
+            label linux
+              kernel http://{server}/{kernel}
+              initrd http://{server}/{initrd}
+              ipappend 2
+              append  {kopts}
+
+        """))
+
+
+def firewall_add_services(services):
+    """Add services to be allowed in firewall rules
+
+    Args:
+        services (str or list): Service(s) to be permanently allowed
+
+    Returns:
+        int: Binary error code
+    """
+
+    if type(services) is str:
+        services = [services]
+
+    fw_err = 0
+    cmd = 'systemctl status firewalld.service'
+    resp, err, rc = sub_proc_exec(cmd)
+    if 'Active: active (running)' in resp.splitlines()[2]:
+        LOG.debug('Firewall is running')
+    else:
+        cmd = 'systemctl enable firewalld.service'
+        resp, err, rc = sub_proc_exec(cmd)
+        if rc != 0:
+            fw_err += 1
+            LOG.error('Failed to enable firewall service')
+
+        cmd = 'systemctl start firewalld.service'
+        resp, err, rc = sub_proc_exec(cmd)
+        if rc != 0:
+            fw_err += 10
+            LOG.error('Failed to start firewall')
+
+    for service in services:
+        cmd = f'firewall-cmd --permanent --add-service={service}'
+        resp, err, rc = sub_proc_exec(cmd)
+        if rc != 0:
+            fw_err += 100
+            LOG.error(f'Failed to enable {service} service on firewall')
+
+    cmd = 'firewall-cmd --reload'
+    resp, err, rc = sub_proc_exec(cmd)
+    if 'success' not in resp:
+        fw_err += 1000
+        LOG.error('Error attempting to restart firewall')
+
+    return fw_err
+
+
+def extract_iso_image(iso_path, dest_dir):
+    """Extract ISO image into directory
+
+    If a (non-empty) directory matching the iso file already exists in
+    the destination directory extraction is not attempted.
+
+    Args:
+        iso_path (str): Path to ISO file
+        dest_dir (str): Path to an existing directory that the ISO will
+                        be extracted into. A subdirectory matching the
+                        image filename will be created.
+
+    Returns:
+        tuple: ('str: Relative path to kernel',
+                'str: Relative path to initrd')
+
+    Raises:
+        UserException: iso_path is not a valid file path
+                       iso_path does not end in '.iso'
+                       can't find kernel or initrd in extracted image
+    """
+
+    if not os.path.isfile(iso_path):
+        raise UserException(f"Invalid iso_path: '{iso_path}")
+    elif not iso_path.lower().endswith('.iso'):
+        raise UserException(f"File does not end with '.iso': '{iso_path}'")
+
+    name = os.path.basename(iso_path)[:-4]
+    iso_dir = os.path.join(dest_dir, name)
+
+    if not os.path.isdir(iso_dir):
+        os.makedirs(iso_dir)
+
+    if len(os.listdir(iso_dir)) == 0:
+        bash_cmd(f'xorriso -osirrox on -indev {iso_path} -extract / {iso_dir}')
+        bash_cmd(f'chmod 755 {iso_dir}')
+
+    filename_parsed = {item.lower() for item in name.split('-')}
+    kernel = None
+    initrd = None
+    if {'ubuntu', 'amd64'}.issubset(filename_parsed):
+        sub_path = 'install/netboot/ubuntu-installer/amd64'
+        kernel = os.path.join(name, sub_path, 'linux')
+        initrd = os.path.join(name, sub_path, 'initrd.gz')
+    elif {'ubuntu', 'ppc64el'}.issubset(filename_parsed):
+        sub_path = 'install/netboot/ubuntu-installer/ppc64el'
+        kernel = os.path.join(name, sub_path, 'vmlinux')
+        initrd = os.path.join(name, sub_path, 'initrd.gz')
+    elif ({'rhel', 'x86_64'}.issubset(filename_parsed) or
+            {'centos', 'x86_64'}.issubset(filename_parsed)):
+        sub_path = 'images/pxeboot'
+        kernel = os.path.join(name, sub_path, 'vmlinuz')
+        initrd = os.path.join(name, sub_path, 'initrd.img')
+    elif ({'rhel', 'ppc64le'}.issubset(filename_parsed) or
+            {'centos', 'ppc64le'}.issubset(filename_parsed)):
+        sub_path = 'ppc/ppc64'
+        kernel = os.path.join(name, sub_path, 'vmlinuz')
+        initrd = os.path.join(name, sub_path, 'initrd.img')
+
+    if not os.path.isfile(kernel):
+        kernel = None
+    if not os.path.isfile(initrd):
+        initrd = None
+
+    # If kernel or initrd isn't in the above matrix search for them
+    if kernel is None or initrd is None:
+        kernel_names = {'linux', 'vmlinux', 'vmlinuz'}
+        initrd_names = {'initrd.gz', 'initrd.img', 'initrd'}
+
+        for dirpath, dirnames, filenames in os.walk(iso_dir):
+            if kernel is None and not kernel_names.isdisjoint(set(filenames)):
+                rel_dir = os.path.relpath(dirpath, dest_dir)
+                kernel = (os.path.join(
+                    rel_dir, kernel_names.intersection(set(filenames)).pop()))
+            if initrd is None and not initrd_names.isdisjoint(set(filenames)):
+                rel_dir = os.path.relpath(dirpath, dest_dir)
+                initrd = (os.path.join(
+                    rel_dir, initrd_names.intersection(set(filenames)).pop()))
+            if kernel is not None and initrd is not None:
+                break
+
+    if kernel is None or initrd is None:
+        raise UserException("Unable to find kernel and/or initrd in ISO image:"
+                            f" kernel: '{kernel}' initrd: '{initrd}'")
+
+    return kernel, initrd

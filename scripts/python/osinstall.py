@@ -25,11 +25,15 @@ from collections import namedtuple
 from pyroute2 import IPRoute
 import sys
 from time import sleep
+from netaddr import IPNetwork
 
 import lib.logger as logger
 import lib.interfaces as interfaces
-from lib.genesis import get_package_path, get_sample_configs_path
+from lib.genesis import get_package_path, get_sample_configs_path, \
+    get_os_images_path
 import lib.utilities as u
+from nginx_setup import nginx_setup
+from ip_route_get_to import ip_route_get_to
 
 GEN_PATH = get_package_path()
 GEN_SAMPLE_CONFIGS_PATH = get_sample_configs_path()
@@ -47,6 +51,76 @@ def osinstall(profile_path):
 
 #    osi.config_interfaces()
 #    validate(p)
+
+    prof = Profile(profile_path)
+    p = prof.get_profile_tuple()
+
+    # allow services in firewall rules
+    u.firewall_add_services(['http', 'tftp', 'dhcp'])
+
+    # nginx install and configuration
+    nginx_setup()
+
+    # dnsmasq configuration
+    dhcp_start = 21
+    dhcp_lease_time = '5m'
+    if (p.bmc_address_mode == 'static' or
+            p.bmc_ethernet_ifc == p.pxe_ethernet_ifc):
+        interfaces = p.pxe_ethernet_ifc
+    else:
+        interfaces = (p.bmc_ethernet_ifc + ',' + p.pxe_ethernet_ifc)
+
+    pxe_network = IPNetwork(p.pxe_subnet_cidr)
+    dhcp_pxe_ip_range = (str(pxe_network.network + dhcp_start) + ',' +
+                         str(pxe_network.network + pxe_network.size - 1))
+
+    u.dnsmasq_config_pxelinux(interface=interfaces,
+                              dhcp_range=dhcp_pxe_ip_range,
+                              lease_time=dhcp_lease_time)
+
+    if p.bmc_address_mode == 'dhcp':
+        bmc_network = IPNetwork(p.bmc_subnet_cidr)
+        dhcp_bmc_ip_range = (str(bmc_network.network + dhcp_start) + ',' +
+                             str(bmc_network.network + bmc_network.size - 1))
+        u.dnsmasq_add_dhcp_range(dhcp_range=dhcp_bmc_ip_range,
+                                 lease_time=dhcp_lease_time)
+
+    # extract install image iso
+    http_root = '/srv'
+    http_osinstall = 'osinstall'
+    image_dir = os.path.join(http_root, http_osinstall)
+    if not os.path.isdir(image_dir):
+        os.mkdir(image_dir)
+        os.chmod(image_dir, 0o755)
+    kernel, initrd = u.extract_iso_image(p.iso_image_file, image_dir)
+
+    # copy kickstart to http dir
+    kickstart = None
+    kickstart_path = None
+    if 'ubuntu' in kernel.lower():
+        kickstart_path = os.path.join(get_os_images_path(),
+                                      'config/ubuntu-simple.seed')
+    elif 'rhel' in kernel.lower():
+        kickstart_path = os.path.join(get_os_images_path(),
+                                      'config/RHEL-7-simple.ks')
+
+    if kickstart_path is not None:
+        kickstart = os.path.basename(kickstart_path)
+        u.copy_file(kickstart_path,
+                    os.path.join(http_root, http_osinstall, kickstart))
+        os.chmod(os.path.join(http_root, http_osinstall, kickstart), 0o755)
+        kickstart = os.path.join(http_osinstall, kickstart)
+
+    # pxelinux default configuration
+    server = ip_route_get_to(str(pxe_network.ip))
+    if server not in pxe_network:
+        log.error(f'No direct route to PXE subnet! route={server}')
+
+    u.pxelinux_set_default(
+        server=server,
+        kernel=os.path.join(http_osinstall, kernel),
+        initrd=os.path.join(http_osinstall, initrd),
+        kickstart=kickstart)
 
 
 class Profile():
