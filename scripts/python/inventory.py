@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -14,10 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
 
 import argparse
 import json
@@ -41,8 +37,6 @@ INVENTORY_INIT = {
     'client_nodes': {
         'children': [],
         'vars': {
-            'reboot_wait_interval': 660,
-            'reboot_delay_time': 300
         }
     },
     '_meta': {

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,19 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import argparse
 import time
 import sys
 import os
 import re
-from subprocess import Popen, PIPE
+from subprocess import PIPE
 from pyroute2 import IPRoute, NetlinkError
 from netaddr import IPNetwork
-from pyghmi.ipmi import command
-from pyghmi.exceptions import IpmiException
 from orderedattrdict import AttrDict
 from tabulate import tabulate
 
@@ -40,6 +35,10 @@ from lib.switch import SwitchFactory
 from lib.exception import UserException, UserCriticalException
 from get_dhcp_lease_info import GetDhcpLeases
 from lib.genesis import get_dhcp_pool_start, GEN_PATH
+from lib.utilities import sub_proc_exec, sub_proc_launch
+import lib.bmc as _bmc
+from set_power_clients import set_power_clients
+from set_bootdev_clients import set_bootdev_clients
 
 # offset relative to bridge address
 NAME_SPACE_OFFSET_ADDR = 1
@@ -61,17 +60,6 @@ def main(config_path):
 
     if not val.validate_pxe():
         log.error('Failed cluster nodes PXE validation')
-
-
-def _sub_proc_launch(cmd, stdout=PIPE, stderr=PIPE):
-    data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-    return data
-
-
-def _sub_proc_exec(cmd, stdout=PIPE, stderr=PIPE):
-    data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-    stdout, stderr = data.communicate()
-    return stdout, stderr
 
 
 class NetNameSpace(object):
@@ -96,7 +84,10 @@ class NetNameSpace(object):
         self._disconnect_container()
         self.log.debug('Creating network namespace {}'.format(self.name))
 
-        stdout, stderr = _sub_proc_exec('ip netns add {}'.format(self.name))
+        stdout, stderr, rc = sub_proc_exec('ip netns add {}'.format(self.name))
+        if rc:
+            self.log.debug('An error occurred while creating namespace '
+                           f' {self.name}.\nreturn code: {rc}\nWarning: {stderr}')
         if stderr:
             if 'File exists' in stderr:
                 self.log.debug(stderr)
@@ -108,10 +99,10 @@ class NetNameSpace(object):
         self.peer_ifc = 'veth-' + self.name
 
         try:
-            self.ip.link_create(
-                ifname=self.br_ifc, peer=self.peer_ifc, kind='veth')
+            self.ip.link(
+                "add", ifname=self.br_ifc, peer=self.peer_ifc, kind='veth')
         except NetlinkError as exc:
-            if 'File exists' not in exc:
+            if 'File exists' not in str(exc):
                 self.log.error('Failed creating veth pair. {}'.format(exc))
                 sys.exit(1)
 
@@ -131,14 +122,14 @@ class NetNameSpace(object):
         # bring up the interfaces
         cmd = 'ip netns exec {} ip link set dev {} up'.format(
             self.name, self.peer_ifc)
-        stdout, stderr = _sub_proc_exec(cmd)
+        stdout, stderr, rc = sub_proc_exec(cmd)
 
         cmd = 'ip netns exec {} ip link set dev lo up'.format(self.name)
-        stdout, stderr = _sub_proc_exec(cmd)
+        stdout, stderr, rc = sub_proc_exec(cmd)
 
         cmd = 'ip netns exec {} ip addr add {} dev {} brd +' \
             .format(self.name, addr, self.peer_ifc)
-        stdout, stderr = _sub_proc_exec(cmd)
+        stdout, stderr, rc = sub_proc_exec(cmd)
 
         # verify address setup
         # cmd = 'ip netns exec {} ip addr show'.format(self.name)
@@ -164,7 +155,7 @@ class NetNameSpace(object):
             cmd (string)
         """
         cmd = 'ip netns exec {} {}'.format(self.name, cmd)
-        data = _sub_proc_launch(cmd, stdout, stderr)
+        data = sub_proc_launch(cmd, stdout, stderr)
         return data
 
     def _exec_cmd(self, cmd, stdout=PIPE, stderr=PIPE):
@@ -175,14 +166,14 @@ class NetNameSpace(object):
             cmd (string)
         """
         cmd = 'ip netns exec {} {}'.format(self.name, cmd)
-        std_out, std_err = _sub_proc_exec(cmd, stdout, stderr)
-        return std_out, std_err
+        std_out, std_err, rc = sub_proc_exec(cmd, stdout, stderr)
+        return std_out, std_err, rc
 
     def _destroy_name_sp(self):
         self.ip.link('set', index=self.idx_br_ifc, state='down')
         self.ip.link('del', index=self.idx_br_ifc)
         self.ip.close()
-        stdout, stderr = _sub_proc_exec('ip netns del {}'.format(self.name))
+        stdout, stderr, rc = sub_proc_exec('ip netns del {}'.format(self.name))
 
     def _disconnect_container(self):
         """ Disconnects any attached containers by bringing down all veth pairs
@@ -229,7 +220,7 @@ class ValidateClusterHardware(object):
             raise UserException(exc)
         # initialize ipmi list of access info
         self.ran_ipmi = False
-        self.ipmi_list_ai = {}
+        self.bmc_ai = {}
         vlan_ipmi = self.cfg.get_depl_netw_client_vlan(if_type='ipmi')[0]
         vlan_pxe = self.cfg.get_depl_netw_client_vlan(if_type='pxe')[0]
         self.dhcp_pxe_leases_file = GEN_PATH + \
@@ -264,63 +255,71 @@ class ValidateClusterHardware(object):
             pxe_cnt += len(self.cfg.get_client_switch_ports(label, 'pxe'))
         return ipmi_cnt, pxe_cnt
 
-    def _verify_ipmi(self, node_addr_list, cred_list):
-        """ Attempts to discover ipmi credentials and generate a list of all
+    def _get_credentials(self, node_addr_list, cred_list):
+        """ Attempts to discover bmc credentials and generate a list of all
         discovered nodes.  For each node try all available credentials.  If no
         credentials allow access, the node is not marked as succesful.
+
         Args:
             node_addr_list (list): list of ipv4 addresses for the discovered
             nodes. (ie those that previously fetched an address from the DHCP
              server.
             cred_list (list of lists): Each list item is a list containing the
-            the userid, password and number of nodes for a node template.
+            the userid, password, bmc_type and number of nodes for a node template.
+        return: bmc access info (dict) : Values hold tuple of userid, password,
+                bmc_type
         """
-        tot = [cred_list[x][2] for x in range(len(cred_list))]
+        tot = [cred_list[x][3] for x in range(len(cred_list))]
         tot = sum(tot)
         left = tot
+        max_attempts = 20
+        delay = 5
+        attempt = 0
+        timeout = 4
         print()
-        self.log.info("Validating IPMI communication")
+        self.log.info("Discover BMC credentials and verify communications")
         print()
+        nodes = {}
+        bmc_ai = {}
         for node in node_addr_list:
-            # resort list each time to maximize the probability of using the
-            # correct credentials with minimum attempts
-            cred_list.sort(key=lambda x: x[2], reverse=True)
-            for j, creds in enumerate(cred_list):
-                try:
-                    bmc = command.Command(
-                        node,
-                        userid=creds[0],
-                        password=creds[1])
-                except IpmiException as exc:
-                    if exc.message is not None:
-                        if 'Incorrect password' in exc.message or \
-                                'Unauthorized name' in exc.message:
-                            pass
-                    else:
-                        self.log.error(exc.message)
-                else:
-                    self.log.debug(
-                        node + ' power is ' + bmc.get_power()['powerstate'])
-                    # reduce the number of nodes left to talk to with these
-                    # credentials
-                    self.ipmi_list_ai[node] = cred_list[j][:-1]
-                    cred_list[j][2] -= 1
-                    left -= left
-                    print('\r{} of {} nodes communicating via IPMI'
-                          .format(tot - left, tot), end="")
-                    sys.stdout.flush()
-                    try:
-                        rc = bmc.set_power('off')
-                    except IpmiException as exc:
-                        self.log.error('Failed attempting reset on {}. {}'
-                                       .format(node, exc))
-                    rc = bmc.ipmi_session.logout()
-                    self.log.debug('Logging out rc: {}'.format(rc['success']))
-                    break
+            nodes[node] = False
+        while not all([x for x in nodes.values()]) and attempt <= max_attempts:
+            print(f'\rAttempt count: {max_attempts - attempt}  ', end='')
+            sys.stdout.flush()
+            attempt += 1
+            timeout += 1
+            node_list = [x for x in nodes if not nodes[x]]
+            for node in node_list:
+                # each time through re-sort cred_list based on nodes left with
+                # those credentials to maximize the probability
+                # of using the correct credentials with minimum attempts
+                cred_list.sort(key=lambda x: x[3], reverse=True)
+                for j, creds in enumerate(cred_list):
+                    self.log.debug(f'BMC {node} - Trying userid: {creds[0]} | '
+                                   f'password: {creds[1]} | bmc type: {creds[2]}')
+                    bmc = _bmc.Bmc(node, *creds[:-1], timeout=timeout)
+                    if bmc.is_connected():
+                        r = bmc.chassis_power('status')
+                        self.log.debug(f'Chassis power status: {r}')
+                        if r:
+                            nodes[node] = True
+                            time.sleep(1)
+                            self.log.debug(f'Node {node} is powered {r}')
+                            bmc_ai[node] = tuple(cred_list[j][:-1])
+                            cred_list[j][3] -= 1
+                            left -= left
+                            print(f'\r{tot - left} of {tot} nodes communicating via IPMI',
+                                  end='')
+                            sys.stdout.flush()
+                            bmc.logout()
+                        else:
+                            self.log.debug(f'No power status response from node {node}')
+            time.sleep(delay)
         if left != 0:
-            self.log.error('IPMI communication succesful with only {} of {} '
-                           'nodes'.format(tot - left, tot))
-        print()
+            self.log.error(f'IPMI communication successful with only {tot - left} '
+                           f'of {tot} nodes')
+        print('\n')
+        return bmc_ai
 
     def _get_ipmi_ports(self, switch_lbl):
         """ Get all of the ipmi ports for a given switch
@@ -469,31 +468,14 @@ class ValidateClusterHardware(object):
             the userid, password and number of nodes for a node template.
         """
         for node in node_addr_list:
-            reset = False
             for j, creds in enumerate(cred_list):
-                try:
-                    bmc = command.Command(
-                        node,
-                        userid=creds[0],
-                        password=creds[1])
-                except IpmiException as exc:
-                    if exc.message is not None:
-                        if 'Incorrect password' in exc.message or \
-                                'Unauthorized name' in exc.message:
-                            pass
-                    else:
-                        self.log.error(exc.message)
-                else:
-                    try:
-                        rc = bmc.reset_bmc()
-                    except IpmiException as exc:
-                        self.log.error('Failed attempting reset on {}'.format(node))
-                    reset = True
-                    rc = bmc.ipmi_session.logout()
-                    self.log.debug('Logging out rc: {}'.format(rc['success']))
+                bmc = _bmc.Bmc(node, creds[0], creds[1], creds[2])
+                if bmc.is_connected():
+                    self.log.info(f'Resetting BMC with existing ip address: {node}')
+                    if not bmc.bmc_reset('cold'):
+                        self.log.error(f'Failed attempting BMC reset on {node}')
+                    bmc.logout()
                     break
-            if not reset:
-                self.log.warning('Unable to reset BMC: {}'.format(node))
 
     def validate_ipmi(self):
         self.log.info("Discover and validate cluster nodes")
@@ -503,11 +485,11 @@ class ValidateClusterHardware(object):
         #           "running IPMI hardware validation.")
         #     print("Type 'C' to validate cluster nodes defined in current "
         #           "'config.yml'")
-        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     resp = input("Type 'T' to terminate Power-Up ")
         #     if resp == 'T':
-        #         resp = raw_input("Type 'y' to confirm ")
+        #         resp = input("Type 'y' to confirm ")
         #         if resp == 'y':
-        #             self.log.info("'{}' entered. Terminating Genesis at user "
+        #             self.log.info("'{}' entered. Terminating Power-Up at user "
         #                           "request".format(resp))
         #             sys.exit(1)
         #     elif resp == 'C':
@@ -538,34 +520,39 @@ class ValidateClusterHardware(object):
 
         # scan ipmi network for nodes with pre-existing ip addresses
         cmd = 'fping -r0 -a -g {} {}'.format(addr_st, addr_end)
-        node_list, stderr = _sub_proc_exec(cmd)
+        if rc != 0:
+            self.log.warning(f'Error scanning IPMI network. rc: {rc}')
+        node_list, stderr, rc = sub_proc_exec(cmd)
         self.log.debug('Pre-existing node list: \n{}'.format(node_list))
         node_list = node_list.splitlines()
 
         self._reset_existing_bmcs(node_list, cred_list)
 
-        print('Pause 20s for BMCs to begin reset')
-        time.sleep(20)
+        print('Pause 60s for BMCs to begin reset')
+        time.sleep(60)
 
-        cmd = 'dnsmasq --dhcp-leasefile={} --interface={} --dhcp-range={},{},{},600' \
-            .format(self.dhcp_ipmi_leases_file, self.ipmi_ns._get_name_sp_ifc_name(),
-                    addr_st, dhcp_end, netmask)
-
-        dns_list, stderr = _sub_proc_exec('pgrep dnsmasq')
+        dns_list, stderr, rc = sub_proc_exec('pgrep dnsmasq')
+        if rc != 0:
+            self.log.warning(f'Error looking for dnsmasq. rc: {rc}')
         dns_list = dns_list.splitlines()
 
         for pid in dns_list:
-            ns_name, stderr = _sub_proc_exec('ip netns identify {}'.format(pid))
+            ns_name, stderr, rc = sub_proc_exec('ip netns identify {}'.format(pid))
             if self.ipmi_ns._get_name_sp_name() in ns_name:
                 self.log.debug('DHCP already running in {}'.format(ns_name))
                 break
         else:
-            stdout, stderr = self.ipmi_ns._exec_cmd(cmd)
+            cmd = (f'dnsmasq --dhcp-leasefile={self.dhcp_ipmi_leases_file} '
+                   f'--interface={self.ipmi_ns._get_name_sp_ifc_name()} '
+                   f'--dhcp-range={addr_st},{dhcp_end},{netmask},600')
+            stdout, stderr, rc = self.ipmi_ns._exec_cmd(cmd)
+            if rc != 0:
+                self.log.warning(f'Error setting up dnsmasq. rc: {rc}')
             print(stderr)
 
         # Scan up to 25 times. Delay 5 seconds between scans
         # Allow infinite number of retries
-        self.log.info('Scanning ipmi network on 5 s intervals')
+        self.log.info('Scanning BMC network on 5 s intervals')
         cnt = 0
         cnt_down = 25
         while cnt < ipmi_cnt:
@@ -576,7 +563,7 @@ class ValidateClusterHardware(object):
                 sys.stdout.flush()
                 time.sleep(5)
                 cmd = 'fping -r0 -a -g {} {}'.format(addr_st, dhcp_end)
-                stdout, stderr = _sub_proc_exec(cmd)
+                stdout, stderr, rc = sub_proc_exec(cmd)
                 node_list = stdout.splitlines()
                 cnt = len(node_list)
                 if cnt >= ipmi_cnt:
@@ -597,37 +584,41 @@ class ValidateClusterHardware(object):
                 break
             print('\n\nPress Enter to continue scanning for cluster nodes.\nOr')
             print("Or enter 'C' to continue cluster deployment with a subset of nodes")
-            resp = raw_input("Or Enter 'T' to terminate Cluster Genesis ")
+            resp = input("Or Enter 'T' to terminate Power-Up ")
             if resp == 'T':
-                resp = raw_input("Enter 'y' to confirm ")
+                resp = input("Enter 'y' to confirm ")
                 if resp == 'y':
-                    self.log.info("'{}' entered. Terminating Genesis at user request"
+                    self.log.info("'{}' entered. Terminating Power-Up at user request"
                                   .format(resp))
                     self._teardown_ns(self.ipmi_ns)
                     sys.exit(1)
             elif resp == 'C':
                 print('\nNot all nodes have been discovered')
-                resp = raw_input("Enter 'y' to confirm continuation of"
-                                 " deployment without all nodes ")
+                resp = input("Enter 'y' to confirm continuation of"
+                             " deployment without all nodes ")
                 if resp == 'y':
-                    self.log.info("'{}' entered. Continuing Genesis".format(resp))
+                    self.log.info("'{}' entered. Continuing PowerUp".format(resp))
                     break
         self.node_list = node_list
         if cnt < ipmi_cnt:
             self.log.warning('Failed to validate expected number of nodes')
 
         if len(node_list) > 0 and len(cred_list) > 0:
-            self._verify_ipmi(node_list, cred_list)
+            # Verify and power off nodes
+            self.bmc_ai = self._get_credentials(node_list, cred_list)
+            if not self.bmc_ai:
+                self.log.error('Critical error. Unable to establish BMC communication '
+                               'with any cluster nodes.\n.')
+                sys.exit('Exiting.')
 
-        self.log.info('Cycling power to all cluster nodes. Pausing 1 minute')
+        # set_power_cients('off') has built in 60 s delay
+        self.log.info('\nPowering off cluster nodes')
+        set_power_clients('off', clients=self.bmc_ai)
 
-        t1 = time.time()
-        self._power_all(self.ipmi_list_ai, 'off')
+        set_power_clients('on', clients=self.bmc_ai)
 
-        while time.time() < t1 + 60:
-            time.sleep(1)
-
-        self._power_all(self.ipmi_list_ai, 'on', bootdev='network')
+        self.log.debug('\nSetting "network" boot device on all nodes')
+        set_bootdev_clients('network', clients=self.bmc_ai)
 
         self.log.debug('Cluster nodes IPMI validation complete')
         self.ran_ipmi = True
@@ -635,35 +626,40 @@ class ValidateClusterHardware(object):
             raise UserException('Not all node IPMI ports validated')
 
     def _get_cred_list(self):
+        """Returns list of list.  Each list has the credentials
+        for a node template(userid, password, bmc_type).
+        Note that there is no association to any ip address.
+        """
         cred_list = []
         for idx in self.cfg.yield_ntmpl_ind():
-            cred_list.append([self.cfg.get_ntmpl_ipmi_userid(index=idx),
-                             self.cfg.get_ntmpl_ipmi_password(index=idx)])
             for idx_ipmi in self.cfg.yield_ntmpl_phyintf_ipmi_ind(idx):
                 port_cnt = self.cfg.get_ntmpl_phyintf_ipmi_pt_cnt(idx, idx_ipmi)
-                cred_list[idx].append(port_cnt)
+            cred_list.append([self.cfg.get_ntmpl_ipmi_userid(index=idx),
+                             self.cfg.get_ntmpl_ipmi_password(index=idx),
+                             self.cfg.get_ntmpl_bmc_type(index=idx),
+                             port_cnt])
         return cred_list
 
     def _teardown_ns(self, ns):
         # kill dnsmasq
-        dns_list, stderr = _sub_proc_exec('pgrep dnsmasq')
+        dns_list, stderr, rc = sub_proc_exec('pgrep dnsmasq')
         dns_list = dns_list.splitlines()
 
         for pid in dns_list:
-            ns_name, stderr = _sub_proc_exec('ip netns identify ' + pid)
+            ns_name, stderr, rc = sub_proc_exec('ip netns identify ' + pid)
             if ns._get_name_sp_name() in ns_name:
                 self.log.debug('Killing dnsmasq {}'.format(pid))
-                stdout, stderr = _sub_proc_exec('kill -15 ' + pid)
+                stdout, stderr, rc = sub_proc_exec('kill -15 ' + pid)
 
         # kill tcpdump
-        tcpdump_list, stderr = _sub_proc_exec('pgrep tcpdump')
+        tcpdump_list, stderr, rc = sub_proc_exec('pgrep tcpdump')
         tcpdump_list = tcpdump_list.splitlines()
 
         for pid in tcpdump_list:
-            ns_name, stderr = _sub_proc_exec('ip netns identify ' + pid)
+            ns_name, stderr, rc = sub_proc_exec('ip netns identify ' + pid)
             if ns._get_name_sp_name() in ns_name:
                 self.log.debug('Killing tcpdump {}'.format(pid))
-                stdout, stderr = _sub_proc_exec('kill -15 ' + pid)
+                stdout, stderr, rc = sub_proc_exec('kill -15 ' + pid)
 
         # reconnect the veth pair to the container
         ns._reconnect_container()
@@ -711,11 +707,11 @@ class ValidateClusterHardware(object):
         #           "running PXE hardware validation.")
         #     print("Type 'C' to validate cluster nodes defined in current "
         #           "'config.yml'")
-        #     resp = raw_input("Type 'T' to terminate Cluster Genesis ")
+        #     resp = input("Type 'T' to terminate Power-Up ")
         #     if resp == 'T':
-        #         resp = raw_input("Type 'y' to confirm ")
+        #         resp = input("Type 'y' to confirm ")
         #         if resp == 'y':
-        #             self.log.info("'{}' entered. Terminating Genesis at user "
+        #             self.log.info("'{}' entered. Terminating Power-Up at user "
         #                           "request".format(resp))
         #             sys.exit(1)
         #     elif resp == 'C':
@@ -738,7 +734,7 @@ class ValidateClusterHardware(object):
         netmask = str(addr.netmask)
         addr.value += NAME_SPACE_OFFSET_ADDR
         addr = str(addr)
-        rc = False
+        foundall = False
         dhcp_st = get_dhcp_pool_start()
         pxe_ns = NetNameSpace('pxe-ns-', 'br-pxe-' + str(pxe_vlan), addr)
 
@@ -747,11 +743,7 @@ class ValidateClusterHardware(object):
         addr_st = self._add_offset_to_address(pxe_network, dhcp_st)
         addr_end = self._add_offset_to_address(pxe_network, dhcp_st + pxe_cnt + 2)
 
-        cmd = 'dnsmasq --dhcp-leasefile={} --interface={} --dhcp-range={},{},{},3600' \
-            .format(self.dhcp_pxe_leases_file, pxe_ns._get_name_sp_ifc_name(),
-                    addr_st, addr_end, netmask)
-
-        dns_list, stderr = _sub_proc_exec('pgrep dnsmasq')
+        dns_list, stderr, rc = sub_proc_exec('pgrep dnsmasq')
         dns_list = dns_list.splitlines()
 
         if os.path.exists(self.dhcp_pxe_leases_file):
@@ -759,30 +751,36 @@ class ValidateClusterHardware(object):
 
         # delete any remnant dnsmasq processes
         for pid in dns_list:
-            ns_name, stderr = _sub_proc_exec('ip netns identify {}'.format(pid))
+            ns_name, stderr, rc = sub_proc_exec('ip netns identify {}'.format(pid))
             if pxe_ns._get_name_sp_name() in ns_name:
                 self.log.debug('Killing dnsmasq. pid {}'.format(pid))
-                stdout, stderr = _sub_proc_exec('kill -15 ' + pid)
+                stdout, stderr, rc = sub_proc_exec('kill -15 ' + pid)
 
-        stdout, stderr = pxe_ns._exec_cmd(cmd)
+        cmd = (f'dnsmasq --dhcp-leasefile={self.dhcp_pxe_leases_file} '
+               f'--interface={pxe_ns._get_name_sp_ifc_name()} '
+               f'--dhcp-range={addr_st},{addr_end},{netmask},3600')
+        stdout, stderr, rc = pxe_ns._exec_cmd(cmd)
+        if rc != 0:
+            self.log.warning(f'Error configuring dnsmasq. rc: {rc}')
 
         if os.path.exists(self.tcp_dump_file):
             os.remove(self.tcp_dump_file)
 
-        cmd = 'sudo tcpdump -X -U -i {} -w {} --immediate-mode  port 67' \
-            .format(pxe_ns._get_name_sp_ifc_name(), self.tcp_dump_file)
-
-        tcpdump_list, stderr = _sub_proc_exec('pgrep tcpdump')
+        tcpdump_list, stderr, rc = sub_proc_exec('pgrep tcpdump')
         tcpdump_list = tcpdump_list.splitlines()
 
         # delete any remnant tcpdump processes
         for pid in tcpdump_list:
-            ns_name, stderr = _sub_proc_exec('ip netns identify ' + pid)
+            ns_name, stderr, rc = sub_proc_exec('ip netns identify ' + pid)
             if pxe_ns._get_name_sp_name() in ns_name:
                 self.log.debug('Killing tcpdump. pid {}'.format(pid))
-                stdout, stderr = _sub_proc_exec('kill -15 ' + pid)
+                stdout, stderr, rc = sub_proc_exec('kill -15 ' + pid)
 
-        pxe_ns._launch_cmd(cmd)
+        cmd = (f'sudo tcpdump -X -U -i {pxe_ns._get_name_sp_ifc_name()} '
+               f'-w {self.tcp_dump_file} --immediate-mode  port 67')
+        proc = pxe_ns._launch_cmd(cmd)
+        if not isinstance(proc, object):
+            self.log.error(f'Failure to launch process of tcpdump monitor {proc}')
 
         # Scan up to 25 times. Delay 10 seconds between scans
         # Allow infinite number of retries
@@ -802,9 +800,11 @@ class ValidateClusterHardware(object):
                 time.sleep(10)
                 # read the tcpdump file if size is not 0
                 if os.path.exists(self.tcp_dump_file) and os.path.getsize(self.tcp_dump_file):
-                    dump, stderr = _sub_proc_exec(cmd)
+                    dump, stderr, rc = sub_proc_exec(cmd)
+                    if rc != 0:
+                        self.log.warning(f'Error reading tcpdump file. rc: {rc}')
                     if 'reading' not in stderr:
-                        self.log.warning('Failure reading tcpdump file - {}'.format(stderr))
+                        self.log.warning(f'Failure reading tcpdump file - {stderr}')
                 mac_list = self._get_macs(mac_list, dump)
                 cnt = len(mac_list)
                 if cnt > cnt_prev:
@@ -813,7 +813,7 @@ class ValidateClusterHardware(object):
                     time.sleep(5)
                     self._build_port_table_pxe(mac_list)
                 if cnt >= pxe_cnt:
-                    rc = True
+                    foundall = True
                     print('\r{} of {} nodes requesting PXE boot. Scan count: {} '
                           .format(cnt, pxe_cnt, cnt_down - i), end="")
                     break
@@ -829,11 +829,11 @@ class ValidateClusterHardware(object):
             print('\n\nPress Enter to continue scanning for cluster nodes.')
             print("Or enter 'C' to continue cluster deployment with a subset of nodes")
             print("Or enter 'R' to cycle power to missing nodes")
-            resp = raw_input("Or enter 'T' to terminate Cluster Genesis ")
+            resp = input("Or enter 'T' to terminate Power-Up ")
             if resp == 'T':
-                resp = raw_input("Enter 'y' to confirm ")
+                resp = input("Enter 'y' to confirm ")
                 if resp == 'y':
-                    self.log.info("'{}' entered. Terminating Genesis at user"
+                    self.log.info("'{}' entered. Terminating Power-Up at user"
                                   " request".format(resp))
                     self._teardown_ns(self.ipmi_ns)
                     self._teardown_ns(pxe_ns)
@@ -842,27 +842,24 @@ class ValidateClusterHardware(object):
                 self._reset_unfound_nodes()
             elif resp == 'C':
                 print('\nNot all nodes have been discovered')
-                resp = raw_input("Enter 'y' to confirm continuation of"
-                                 " deployment without all nodes ")
+                resp = input("Enter 'y' to confirm continuation of"
+                             " deployment without all nodes ")
                 if resp == 'y':
-                    self.log.info("'{}' entered. Continuing Genesis".format(resp))
+                    self.log.info("'{}' entered. Continuing Power-Up".format(resp))
                     break
         if cnt < pxe_cnt:
             self.log.warning('Failed to validate expected number of nodes')
 
         self._teardown_ns(pxe_ns)
 
-        self.log.debug('\nCycling power to discovered nodes.\n')
-
         # Cycle power on all discovered nodes if bootdev set to 'network'
         if bootdev == 'network':
-            t1 = time.time()
-            self._power_all(self.ipmi_list_ai, 'off')
+            self.log.debug('\nCycling power to discovered nodes.\n')
+            set_power_clients('off', clients=self.bmc_ai)
 
-            while time.time() < t1 + 60:
-                time.sleep(1)
+            set_power_clients('on', clients=self.bmc_ai)
 
-            self._power_all(self.ipmi_list_ai, 'on', bootdev, persist=False)
+            set_bootdev_clients('network', clients=self.bmc_ai)
 
         self._teardown_ns(self.ipmi_ns)
 
@@ -871,7 +868,7 @@ class ValidateClusterHardware(object):
         self._reset_existing_bmcs(self.node_list, self._get_cred_list())
 
         self.log.info('Cluster nodes validation complete')
-        if not rc:
+        if not foundall:
             raise UserException('Not all node PXE ports validated')
 
     def _reset_unfound_nodes(self):
@@ -915,120 +912,8 @@ class ValidateClusterHardware(object):
                 return True
         return False
 
-    def _reset_bmcs(self, ipmi_list_ai):
-        print('Resetting BMCs')
-        for node in ipmi_list_ai.keys():
-            print(node)
-            try:
-                bmc = command.Command(
-                    node,
-                    userid=self.ipmi_list_ai[node][0],
-                    password=self.ipmi_list_ai[node][1])
-            except IpmiException as exc:
-                self.log.error(exc.message)
-                break
-
-            try:
-                rc = bmc.reset_bmc()
-            except IpmiException as exc:
-                self.log.error('Failed attempting BMC reset on {}'.format(node[0]))
-
-            rc = bmc.ipmi_session.logout()
-            self.log.debug('Logging out rc: {}'.format(rc['success']))
-
-    def _power_all(self, ipmi_list_ai, state, bootdev=None, persist=False):
-        """Power on or off all nodes in node_list
-        Args:
-            ipmi_list_ai (list of dict{(ipv4),[list of userid, password]}):
-            state (str): 'on' or 'off'
-            bootdev (str): 'network' or 'default'
-        """
-        if bootdev:
-            t1 = time.time()
-            for node in sorted(ipmi_list_ai):
-                try:
-                    bmc = command.Command(
-                        node,
-                        userid=self.ipmi_list_ai[node][0],
-                        password=self.ipmi_list_ai[node][1])
-                except IpmiException as exc:
-                    self.log.error('Failed login attempting set bootdev ' +
-                                   exc.message)
-                else:
-                    try:
-                        rc = bmc.set_bootdev(bootdev, persist)
-                        self.log.debug('Node boot device set to {}'.format(bootdev))
-                    except IpmiException as exc:
-                        self.log.error('Failed attempting set boot device. {}'
-                                       .format(exc.message))
-                    else:
-                        try:
-                            rc = bmc.get_bootdev()
-                        except IpmiException as exc:
-                            self.log.error('Failed attempting get boot device. {}'
-                                           .format(exc.message))
-                        else:
-                            if 'error' in rc or rc['bootdev'] != bootdev:
-                                self.log.error('Failed attempting get boot device on {}'
-                                               .format(node))
-                            else:
-                                self.log.debug('Get boot successful on {}: \n{}'.
-                                               format(node, rc))
-                    rc = bmc.ipmi_session.logout()
-                    self.log.debug('Logging out rc: {}'.format(rc['success']))
-
-            while time.time() < t1 + 1:
-                time.sleep(0.5)
-
-        for node in sorted(ipmi_list_ai):
-            try:
-                bmc = command.Command(
-                    node,
-                    userid=self.ipmi_list_ai[node][0],
-                    password=self.ipmi_list_ai[node][1])
-            except IpmiException as exc:
-                self.log.error(exc.message)
-                break
-
-            try:
-                rc = bmc.set_power(state)
-                self.log.debug('Node {} power state: {}'.format(node, rc))
-            except IpmiException as exc:
-                self.log.error('Failed attempting power {} of {}'.format(state, node))
-
-            rc = bmc.ipmi_session.logout()
-            self.log.debug('Logging out rc: {}'.format(rc['success']))
-
-        for node in sorted(ipmi_list_ai):
-            try:
-                bmc = command.Command(
-                    node,
-                    userid=self.ipmi_list_ai[node][0],
-                    password=self.ipmi_list_ai[node][1])
-            except IpmiException as exc:
-                self.log.error(exc.message)
-                break
-
-            success = False
-            for i in range(4):
-                try:
-                    rc = bmc.get_power()
-                    self.log.debug('Power status: {}'.format(rc))
-                    if 'powerstate' in rc.keys():
-                        if rc['powerstate'] == state:
-                            success = True
-                            break
-                    time.sleep(1)
-                except IpmiException as exc:
-                    self.log.debug('Power status: {}'.format(exc))
-            if not success:
-                self.log.error('Failed setting power state to {} for node {}'
-                               .format(state, node))
-            rc = bmc.ipmi_session.logout()
-            self.log.debug('Logging out rc: {}'.format(rc['success']))
-
     def _get_network(self, type_):
-        """Returns details of a Genesis network.
+        """Returns details of a Power-Up network.
         Args:
             type_ (str): Either 'pxe' or 'ipmi'
         Returns:

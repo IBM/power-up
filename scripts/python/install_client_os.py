@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2018 IBM Corp.
 #
 # All Rights Reserved.
@@ -15,9 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import argparse
 import re
 import os.path
@@ -26,8 +23,8 @@ from subprocess import Popen, PIPE
 from time import sleep
 
 from cobbler_set_netboot_enabled import cobbler_set_netboot_enabled
-from ipmi_set_bootdev import ipmi_set_bootdev
-from ipmi_set_power import ipmi_set_power
+from set_bootdev_clients import set_bootdev_clients
+from set_power_clients import set_power_clients
 from lib.config import Config
 from lib.inventory import Inventory
 import lib.logger as logger
@@ -41,7 +38,7 @@ IS_CONTAINER = gen.is_container()
 def _sub_proc_exec(cmd):
     data = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
     stdout, stderr = data.communicate()
-    return stdout, stderr
+    return stdout.decode("utf-8"), stderr.decode("utf-8")
 
 
 def _get_lists(latest_list, handled_list):
@@ -64,9 +61,9 @@ def _get_lists(latest_list, handled_list):
 def install_client_os(config_path=None):
     log = logger.getlogger()
     cobbler_set_netboot_enabled(True)
-    ipmi_set_power('off', config_path, wait=POWER_WAIT)
-    ipmi_set_bootdev('network', False, config_path)
-    ipmi_set_power('on', config_path, wait=POWER_WAIT)
+    set_power_clients('off', config_path, wait=POWER_WAIT)
+    set_bootdev_clients('network', False, config_path)
+    set_power_clients('on', config_path, wait=POWER_WAIT)
     cfg = Config(config_path)
     inv = Inventory(config_path)
 
@@ -94,7 +91,7 @@ def install_client_os(config_path=None):
               format(installing_cnt, client_cnt, cnt, gen.Color.up_one))
         sys.stdout.flush()
         if new_list:
-            ipmi_set_bootdev('default', True, config_path, new_list)
+            set_bootdev_clients('default', True, config_path, new_list)
         else:
             sleep(10)
         if installing_cnt == client_cnt:

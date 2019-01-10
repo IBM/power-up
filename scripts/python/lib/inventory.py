@@ -16,9 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 from enum import Enum
 from orderedattrdict import AttrDict, DefaultAttrDict
 
@@ -89,6 +86,7 @@ class Inventory(object):
         INTERFACES = 'interfaces'
         IFACE = 'iface'
         DEVICE = 'DEVICE'
+        BMC_TYPE = 'bmc_type'
 
     def __init__(self, cfg_file=None, inv_file=None):
         self.log = logger.getlogger()
@@ -115,6 +113,7 @@ class Inventory(object):
         self.nodes[self.InvKey.LABEL] = []
         self.nodes[self.InvKey.HOSTNAME] = []
         self.nodes[self.InvKey.RACK_ID] = []
+        self.nodes[self.InvKey.BMC_TYPE] = []
         self.nodes[self.InvKey.IPMI] = AttrDict()
         self.nodes[self.InvKey.PXE] = AttrDict()
         self.nodes[self.InvKey.DATA] = AttrDict()
@@ -152,6 +151,10 @@ class Inventory(object):
 
     def add_nodes_rack_id(self, rack_id):
         self.nodes.rack_id.append(rack_id)
+
+####
+    def add_nodes_bmc_type(self, bmc_type):
+        self.nodes.bmc_type.append(bmc_type)
 
     def add_nodes_switches_ipmi(self, switches):
         self.nodes.ipmi.switches.append(switches)
@@ -212,9 +215,9 @@ class Inventory(object):
 
     def _flatten(self, data):
         def items():
-            for key, value in data.iteritems():
+            for key, value in iter(data.items()):
                 if isinstance(value, dict):
-                    for subkey, subvalue in self._flatten(value).iteritems():
+                    for subkey, subvalue in iter(self._flatten(value).items()):
                         yield key + '.' + subkey, subvalue
                 else:
                     yield key, value
@@ -224,7 +227,7 @@ class Inventory(object):
         nodes = []
         flat = self._flatten(self.nodes)
 
-        for item_key, item_values in flat.iteritems():
+        for item_key, item_values in iter(flat.items()):
             for index, item_value in enumerate(item_values):
                 if len(nodes) <= index:
                     nodes.append(DefaultAttrDict(dict))
@@ -286,6 +289,17 @@ class Inventory(object):
 
         return self._get_members(self.inv.nodes, self.InvKey.HOSTNAME, index)
 
+    def get_nodes_bmc_type(self, index=None):
+        """Get nodes bmc type
+        Args:
+            index (int, optional): List index
+
+        Returns:
+            str: nodes hostname
+        """
+
+        return self._get_members(self.inv.nodes, self.InvKey.BMC_TYPE, index)
+
     def yield_nodes_hostname(self):
         """Yield nodes hostnames
         Returns:
@@ -334,7 +348,7 @@ class Inventory(object):
         return mac, ipaddr
 
     def get_nodes_ipmi_userid(self, index=None):
-        """Get nodes IPMI userid
+        """Get nodes BMC userid
         Args:
             index (int, optional): List index
 
@@ -346,7 +360,7 @@ class Inventory(object):
             self.inv.nodes, self.InvKey.IPMI, index)[self.InvKey.USERID]
 
     def get_nodes_ipmi_password(self, index=None):
-        """Get nodes IPMI password
+        """Get nodes BMC password
         Args:
             index (int, optional): List index
 
@@ -648,6 +662,41 @@ class Inventory(object):
         self._add_macs(macs, self.InvKey.DATA)
         self.dbase.dump_inventory(self.inv)
 
+    def get_data_interfaces(self):
+        """Get data interface information
+
+        Returns:
+            dict of list of 5-tuples: {node1: [(switch, port, device,
+                                                mac), ...],
+                                       node2: [(...)], ...}
+        """
+        mac_dict = {}
+        for node in self.inv.nodes:
+            device_list = []
+            for index, device in enumerate(
+                    node[self.InvKey.DATA][self.InvKey.DEVICES]):
+                switch = node[self.InvKey.DATA][self.InvKey.SWITCHES][index]
+                port = node[self.InvKey.DATA][self.InvKey.PORTS][index]
+                mac = node[self.InvKey.DATA][self.InvKey.MACS][index]
+                device_list.append((switch, port, device, mac))
+            mac_dict[node[self.InvKey.HOSTNAME]] = device_list
+
+        return mac_dict
+
+    def check_data_interfaces_macs(self):
+        """Check if MAC addresses are populated for all data interfaces
+
+        Returns:
+            bool: True if all MACs are populated
+        """
+        for node in self.inv.nodes:
+            device_list = []
+            for mac in node[self.InvKey.DATA][self.InvKey.MACS]:
+                if mac is None:
+                    return False
+
+        return True
+
     def _add_ipaddrs(self, ipaddrs, type_):
         for node in self.inv.nodes:
             for index, mac in enumerate(node[type_][self.InvKey.MACS]):
@@ -731,8 +780,8 @@ class Inventory(object):
                                 "MAC: %s" % set_mac)
 
         for interface in self.inv.nodes[node_index][self.InvKey.INTERFACES]:
-            for key, value in interface.iteritems():
-                if isinstance(value, basestring):
+            for key, value in iter(interface.items()):
+                if isinstance(value, str):
                     value_split = []
                     for _value in value.split():
                         if old_name == _value or old_name in _value.split('.'):

@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import nested_scopes, generators, division, absolute_import, \
-    with_statement, print_function, unicode_literals
-
 import sys
 import platform
 import os.path
@@ -34,6 +31,7 @@ GEN_SCRIPTS_PYTHON_PATH = os.path.join(GEN_SCRIPTS_PATH, 'python', '')
 GEN_PLAY_PATH = os.path.join(GEN_PATH, 'playbooks', '')
 GEN_PASSIVE_PATH = os.path.join(GEN_PATH, 'passive', '')
 GEN_LOGS_PATH = os.path.join(GEN_PATH, 'logs', '')
+GEN_SOFTWARE_PATH = os.path.join(GEN_PATH, 'software', '')
 OPSYS = platform.dist()[0]
 DEFAULT_CONTAINER_NAME = PROJECT_NAME
 CONTAINER_PACKAGE_PATH = '/opt/' + PROJECT_NAME
@@ -45,8 +43,9 @@ SCRIPTS_DIR = 'scripts'
 PYTHON_DIR = 'python'
 OS_IMAGES_DIR = 'os-images'
 PLAYBOOKS_DIR = 'playbooks'
+HOSTS_FILE = 'hosts'
+DYNAMIC_INVENTORY = 'inventory.py'
 CONFIG_FILE = 'config.yml'
-LXC_CONF_FILE_PATH = 'playbooks/lxc-conf.yml'
 SSH_PRIVATE_KEY_FILE = os.path.expanduser('~/.ssh/gen')
 SSH_PRIVATE_KEY_FILE_CONTAINER = '/root/.ssh/gen'
 SSH_PUBLIC_KEY_FILE = SSH_PRIVATE_KEY_FILE + '.pub'
@@ -54,8 +53,9 @@ CFG_FILE_NAME = 'config.yml'
 CFG_FILE = GEN_PATH + CFG_FILE_NAME
 INV_FILE_NAME = 'inventory.yml'
 INV_FILE = GEN_PATH + INV_FILE_NAME
-LXC_DIR = os.path.expanduser('~/.local/share/lxc/')
+ANSIBLE = 'ansible'
 ANSIBLE_PLAYBOOK = 'ansible-playbook'
+ANSIBLE_VAULT = 'ansible-vault'
 POWER_TIME_OUT = 60
 POWER_WAIT = 10
 POWER_SLEEP_TIME = 2 * 60
@@ -63,6 +63,7 @@ COBBLER_INSTALL_DIR = '/opt/cobbler'
 COBBLER_USER = 'cobbler'
 COBBLER_PASS = 'cobbler'
 DHCP_POOL_START = 21
+SWITCH_LOCK_PATH = '/var/lock/'
 
 
 class Color:
@@ -86,6 +87,15 @@ class Color:
     up_ten = '\033[10A'
     header1 = '          ' + bold + underline
     endc = '\033[0m'
+
+
+def get_switch_lock_path():
+    if is_container():
+        match = re.search(r'(/\w+)/', CONTAINER_PACKAGE_PATH ).group(1)
+        path = os.path.join(match, SWITCH_LOCK_PATH[1:])
+    else:
+        path = SWITCH_LOCK_PATH
+    return path
 
 
 def load_localhost(filename):
@@ -112,8 +122,12 @@ def get_inventory_realpath(config_path=None):
     # file.  If callled outside the container, returns the realpath of the
     # inventory.yml file corresponding to the specified config file.
     if is_container():
-        return INV_FILE
+        return get_container_inventory_realpath()
     return os.path.realpath(get_symlink_path(config_path))
+
+
+def get_container_inventory_realpath():
+    return os.path.join(CONTAINER_PACKAGE_PATH, INV_FILE_NAME)
 
 
 def get_container_name(config_path=None):
@@ -125,7 +139,8 @@ def get_container_name(config_path=None):
 
 def is_container_running():
     cont_running = False
-    lxc_ls_output = subprocess.check_output(['bash', '-c', 'lxc-ls -f'])
+    lxc_ls_output = subprocess.check_output(['bash', '-c', 'lxc-ls -f']
+                                            ).decode("utf-8")
     lxc_ls_output_search = re.search('^%s\d+\s+RUNNING' %
                                      (DEFAULT_CONTAINER_NAME + '-pxe'),
                                      lxc_ls_output, re.MULTILINE)
@@ -136,7 +151,8 @@ def is_container_running():
 
 def container_addr():
     cont_address = None
-    lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f'])
+    lxc_ls_output = subprocess.check_output(['bash', '-c', 'sudo lxc-ls -f']
+                                            ).decode("utf-8")
     cont_address = re.search('(\S+),\s+(\S+),', lxc_ls_output, re.MULTILINE)
     if cont_address is None:
         return None
@@ -202,8 +218,16 @@ def get_python_path():
     return os.path.join(GEN_PATH, SCRIPTS_DIR, PYTHON_DIR)
 
 
+def get_ansible_path():
+    return os.path.join(get_venv_path(), 'bin', ANSIBLE)
+
+
 def get_ansible_playbook_path():
     return os.path.join(get_venv_path(), 'bin', ANSIBLE_PLAYBOOK)
+
+
+def get_ansible_vault_path():
+    return os.path.join(get_venv_path(), 'bin', ANSIBLE_VAULT)
 
 
 def get_os_images_path():
@@ -218,8 +242,12 @@ def get_playbooks_path():
     return os.path.join(GEN_PATH, PLAYBOOKS_DIR)
 
 
-def get_lxc_conf_file_path():
-    return os.path.join(GEN_PATH, LXC_CONF_FILE_PATH)
+def get_hosts_file_path():
+    return os.path.join(get_playbooks_path(), HOSTS_FILE)
+
+
+def get_dynamic_inventory_path():
+    return os.path.join(get_python_path(), DYNAMIC_INVENTORY)
 
 
 def get_config_file_name():
@@ -277,7 +305,7 @@ def check_os_profile(profile):
         "ubuntu-16.04-server-ppc64el": "ubuntu-16.04.5-server-ppc64el",
         "ubuntu-18.04-live-server-amd64": "ubuntu-18.04.1-live-server-amd64",
         "ubuntu-18.04-server-amd64": "ubuntu-18.04.1-server-amd64",
-        "ubuntu-18.04-server-ppc64el": "ubuntu-18.04.1-server-ppc64el",}
+        "ubuntu-18.04-server-ppc64el": "ubuntu-18.04.1-server-ppc64el"}
     if profile in list(ubuntu_lts_pointers):
         return ubuntu_lts_pointers[profile]
     else:
