@@ -19,6 +19,7 @@
 
 import importlib
 import os
+import stat
 import sys
 import getpass
 import subprocess
@@ -28,7 +29,7 @@ import enable_deployer_gateway
 import validate_cluster_hardware
 import configure_mgmt_switches
 import remove_client_host_keys
-from lib.utilities import scan_ping_network
+from lib.utilities import scan_ping_network, sub_proc_exec
 import download_os_images
 import lib.argparse_gen as argparse_gen
 import lib.logger as logger
@@ -55,6 +56,13 @@ class Gen(object):
         self.args = args
         self.config_file_path = gen.GEN_PATH
         self.cont_config_file_path = gen.CONTAINER_PACKAGE_PATH + '/'
+
+        ssh_log = os.path.join(gen.GEN_LOGS_PATH, 'ssh_paramiko')
+        if not os.path.isfile(ssh_log):
+            os.mknod(ssh_log)
+        if not os.access(ssh_log, os.W_OK):
+            cmd = f'sudo chmod 666 {ssh_log}'
+            res, err, rc = sub_proc_exec(cmd)
 
     def _check_root_user(self, cmd):
         if getpass.getuser() != self.ROOTUSER:
