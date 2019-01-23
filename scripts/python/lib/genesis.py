@@ -32,6 +32,7 @@ GEN_PLAY_PATH = os.path.join(GEN_PATH, 'playbooks', '')
 GEN_PASSIVE_PATH = os.path.join(GEN_PATH, 'passive', '')
 GEN_LOGS_PATH = os.path.join(GEN_PATH, 'logs', '')
 GEN_SOFTWARE_PATH = os.path.join(GEN_PATH, 'software', '')
+GEN_SAMPLE_CONFIGS_PATH = os.path.join(GEN_PATH, 'sample-configs', '')
 OPSYS = platform.dist()[0]
 DEFAULT_CONTAINER_NAME = PROJECT_NAME
 CONTAINER_PACKAGE_PATH = '/opt/' + PROJECT_NAME
@@ -183,6 +184,8 @@ def get_package_path():
         return get_container_package_path()
     return GEN_PATH
 
+def get_sample_configs_path():
+    return GEN_SAMPLE_CONFIGS_PATH
 
 def get_scripts_path():
     if is_container():

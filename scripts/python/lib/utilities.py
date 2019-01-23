@@ -18,6 +18,7 @@ from glob import glob
 import os
 import re
 import sys
+import time
 import subprocess
 import fileinput
 import readline
@@ -31,6 +32,12 @@ import lib.logger as logger
 
 PATTERN_MAC = r'[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
 CalledProcessError = subprocess.CalledProcessError
+
+
+def is_ipaddr(ip):
+    if re.search(r'\A(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
+                 '(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\Z', ip):
+        return True
 
 
 def get_network_addr(ipaddr, prefix):
@@ -516,6 +523,7 @@ def get_dir(src_dir):
         path (str or None) : Selected path
     """
     rows = 10
+    log = logger.getlogger()
     if not src_dir:
         path = os.path.abspath('.')
     else:
@@ -793,7 +801,6 @@ def ansible_pprint(ansible_output):
                 index_indent = False
 
     return pretty_out
-
 
 def get_col_pos(tbl, hdrs, row_char='-'):
     """Gets the indices for the column positions in a text table
