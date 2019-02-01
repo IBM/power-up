@@ -25,13 +25,17 @@ from shutil import copy2
 from subprocess import Popen, PIPE
 from netaddr import IPNetwork, IPAddress, IPSet
 from tabulate import tabulate
-import code
 
 from lib.config import Config
 import lib.logger as logger
 
 PATTERN_DHCP = r"^\|_*\s+(.+):(.+)"
 PATTERN_MAC = r'[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
+PATTERN_IP = (r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
+              r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+PATTERN_EMBEDDED_IP = (r'(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
+                       r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
+
 CalledProcessError = subprocess.CalledProcessError
 
 LOG = logger.getlogger()
@@ -104,12 +108,14 @@ def has_dhcp_servers(interface):
 
 
 def is_ipaddr(ip):
-    if re.search(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
-                 '(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$', ip):
+    if re.search(PATTERN_IP, ip):
         return True
 
 
 def get_network_addr(ipaddr, prefix):
+    """ Return the base address of the subnet in which the ipaddr / prefix
+        reside.
+    """
     return str(IPNetwork(f'{ipaddr}/{prefix}').network)
 
 
@@ -119,6 +125,26 @@ def get_netmask(prefix):
 
 def get_prefix(netmask):
     return IPAddress(netmask).netmask_bits()
+
+
+def get_network_size(cidr):
+    """ return the decimal size of the cidr address
+    """
+    return IPNetwork(cidr).size
+
+
+def add_offset_to_address(addr, offset):
+    """calculates an address with an offset added. offset can be negative.
+    Args:
+        addr (str): ipv4 or cidr representation of address
+        offset (int): integer offset
+    Returns:
+        addr_.ip (str) address in ipv4 representation
+    """
+    addr_ = IPNetwork(addr)
+    addr_.value += offset
+    return str(addr_.ip)
+
 
 def is_overlapping_addr(subnet1, subnet2):
     """ Checks if two ipv4 subnets are overlapping
