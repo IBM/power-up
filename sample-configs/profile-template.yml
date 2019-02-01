@@ -12,7 +12,7 @@
 #           valid dtypes are intm-n, int-or-none, ipv4, ipv4mask
 
 bmc_vlan_number:
-    val: 11
+    val:
     desc: BMC VLAN number
     help: The BMC VLAN is the VLAN number of the vlan in which the BMC ports
         reside. Power-Up can create a tagged VLAN interface on a physical
@@ -51,7 +51,7 @@ bmc_address_mode:
     ftype: select-one
 
 pxe_vlan_number:
-    val: 12
+    val:
     desc: PXE VLAN number
     help:
         The PXE VLAN is the VLAN number of the vlan in which the PXE ports

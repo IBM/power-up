@@ -60,7 +60,7 @@ class OSinstall(npyscreen.NPSAppManaged):
         return ifcs_state
 
     def get_up_phys_ifcs(self):
-        """ Create a dictionary of links.  For each link, val = operational state
+        """ Create a list of 'UP' links.
         """
         ifcs_up = []
         for link in IPR.get_links():
@@ -68,11 +68,32 @@ class OSinstall(npyscreen.NPSAppManaged):
                 if link.get_attr('IFLA_OPERSTATE') == 'UP':
                     link_name = link.get_attr('IFLA_IFNAME')
                     ifcs_up.append(link_name)
-                    # ifcs_state[link_name] = link.get_attr('IFLA_OPERSTATE')
         return ifcs_up
 
+    def is_valid_profile(self):
+        """ Validates the content of the profile data.
+        Returns:
+            msg (str) empty if passed, else contains warning and error msg
+        """
+        msg = ''
+        p = self.get_profile_tuple()
+
+        if u.is_overlapping_addr(f'{p.bmc_subnet}/{p.bmc_subnet_prefix}',
+                                 f'{p.pxe_subnet}/{p.pxe_subnet_prefix}'):
+            msg += 'Warning, BMC and PXE subnets are overlapping\n'
+
+        if p.bmc_subnet_prefix != p.pxe_subnet_prefix:
+            msg += 'Warning, BMC and PXE subnets are different sizes\n'
+
+        if not os.path.isfile(p.iso_image_file):
+            msg += ('Error. Operating system ISO image file not found: \n'
+                    '{p.iso_image_file}')
+
+        return msg
+
     def onStart(self):
-        self.addForm('MAIN', OSinstall_form, name='Welcome to PowerUP')
+        self.addForm('MAIN', OSinstall_form, name='Welcome to PowerUP    '
+                     'Press F1 in any field for field help')
 
     def load_profile(self, profile):
         try:
@@ -117,9 +138,43 @@ class OSinstall(npyscreen.NPSAppManaged):
             yaml.dump(self.profile, f, indent=4, default_flow_style=False)
 
 
-class OSinstall_form(npyscreen.Form):
+class OSinstall_form(npyscreen.ActionFormV2):
     def afterEditing(self):
         self.parentApp.setNextForm(self.next_form)
+
+    def on_cancel(self):
+        res = npyscreen.notify_yes_no('Quit without saving?', title='cancel 1',
+                                      editw=1)
+        self.next_form = None if res else 'MAIN'
+
+    def on_ok(self):
+        msg = self.parentApp.is_valid_profile()
+        if msg:
+            if 'Error' in msg:
+                npyscreen.notify_ok(f'{msg}\n Please resolve issues.',
+                                    title='cancel 1', editw=1)
+                self.next_form = 'MAIN'
+                res = False
+            else:
+                msg = (msg + '--------------------- \nBegin OS install?\n'
+                       '(No to continue editing the profile data.)')
+                res = npyscreen.notify_yes_no(msg, title='Profile validation', editw=1)
+
+            self.next_form = None if res else 'MAIN'
+
+        if res:
+            for item in self.prof:
+                if hasattr(self.prof[item], 'ftype'):
+                    if self.prof[item]['ftype'] == 'eth-ifc':
+                        self.prof[item]['val'] = self.eth_lst[self.fields[item].value]
+                    elif self.prof[item]['ftype'] == 'select-one':
+                        self.prof[item]['val'] = \
+                            self.prof[item]['values'][self.fields[item].value[0]]
+                    else:
+                        self.prof[item]['val'] = self.fields[item].value
+                else:
+                    self.prof[item]['val'] = self.fields[item].value
+            self.parentApp.update_profile(self.prof)
 
     def while_editing(self, instance):
         # instance is the instance of the widget you're moving into
@@ -206,38 +261,20 @@ class OSinstall_form(npyscreen.Form):
             elif 'eth-ifc' in prev_fld_ftype:
                 pass
 
-        if instance.name == 'OK':  # Write the data
-            self.verify_data()
-            for item in self.prof:
-                if hasattr(self.prof[item], 'ftype'):
-                    if self.prof[item]['ftype'] == 'eth-ifc':
-                        self.prof[item]['val'] = self.eth_lst[self.fields[item].value]
-                    elif self.prof[item]['ftype'] == 'select-one':
-                        self.prof[item]['val'] = \
-                            self.prof[item]['values'][self.fields[item].value[0]]
-                    else:
-                        self.prof[item]['val'] = self.fields[item].value
-                else:
-                    self.prof[item]['val'] = self.fields[item].value
-            self.parentApp.update_profile(self.prof)
+
+#        if instance.name == 'Press me':
+#            if self.press_me_butt.value == True:
+#                pass
 
         if field:
             self.prev_field = field
         else:
             self.prev_field = ''
 
-        if instance.name != 'OK':
+        if instance.name not in ['OK', 'Cancel', 'CANCEL']:
             self.helpmsg = self.prof[field].help
         else:
             self.prev_field = ''
-
-    def verify_data(self):
-        self.next_form = None
-        val = self.fields['iso_image_file'].value
-        if not os.path.isfile(val):
-            self.next_form = 'MAIN'
-        #    npyscreen.notify_confirm(f'Specified iso file does not exist: {val}',
-        #                             title=self.prev_field, editw=1)
 
     def h_help(self, char):
         npyscreen.notify_confirm(self.helpmsg, title=self.prev_field, editw=1)
@@ -284,8 +321,6 @@ class OSinstall_form(npyscreen.Form):
                                              name=fname,
                                              value=str(self.prof[item]['val']),
                                              begin_entry_at=20)
-#                self.fields[item].entry_widget.add_handlers({curses.KEY_F1:
-#                                                            self.h_help})
             elif 'ipv4mask' in dtype:
                 self.fields[item] = self.add(npyscreen.TitleText, name=fname,
                                              value=str(self.prof[item]['val']),
@@ -325,6 +360,9 @@ class OSinstall_form(npyscreen.Form):
             self.fields[item].entry_widget.add_handlers({curses.KEY_F1:
                                                         self.h_help})
 
+#        self.press_me_butt = self.add(npyscreen.MiniButtonPress,
+#                                     name='Press me')
+
 
 def validate(profile_tuple):
     LOG = logger.getlogger()
@@ -340,8 +378,9 @@ def main():
     logger.create('nolog', 'info')
     LOG = logger.getlogger()
     try:
+        profile = 'profile.yml'
         osi = OSinstall()
-        osi.load_profile(PROFILE)
+        osi.load_profile(profile)
         osi.run()
         p = osi.get_profile_tuple()
         LOG.debug(p)
@@ -353,3 +392,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+>>>>>>> master

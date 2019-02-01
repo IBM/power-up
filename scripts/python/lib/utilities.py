@@ -23,8 +23,9 @@ import fileinput
 import readline
 from shutil import copy2
 from subprocess import Popen, PIPE
-from netaddr import IPNetwork, IPAddress
+from netaddr import IPNetwork, IPAddress, IPSet
 from tabulate import tabulate
+import code
 
 from lib.config import Config
 import lib.logger as logger
@@ -118,6 +119,18 @@ def get_netmask(prefix):
 
 def get_prefix(netmask):
     return IPAddress(netmask).netmask_bits()
+
+def is_overlapping_addr(subnet1, subnet2):
+    """ Checks if two ipv4 subnets are overlapping
+    Inputs:
+        subnet1,subnet2 (str) ipv4 subnet in cidr format
+    Returns:
+        True if the two subnets overlap, False if they do not.
+    """
+    if IPSet([subnet1]).intersection(IPSet([subnet2])):
+        return True
+    else:
+        return False
 
 
 def bash_cmd(cmd):
