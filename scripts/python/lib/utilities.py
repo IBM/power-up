@@ -18,29 +18,104 @@ from glob import glob
 import os
 import re
 import sys
-import time
 import subprocess
 import fileinput
 import readline
 from shutil import copy2
 from subprocess import Popen, PIPE
-from netaddr import IPNetwork, IPAddress
+from netaddr import IPNetwork, IPAddress, IPSet
 from tabulate import tabulate
 
 from lib.config import Config
 import lib.logger as logger
 
+PATTERN_DHCP = r"^\|_*\s+(.+):(.+)"
 PATTERN_MAC = r'[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
+PATTERN_IP = (r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
+              r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+PATTERN_EMBEDDED_IP = (r'(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
+                       r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
+
 CalledProcessError = subprocess.CalledProcessError
+
+LOG = logger.getlogger()
+DHCP_SERVER_CMD = "sudo nmap --script broadcast-dhcp-discover -e {0}"
+
+
+def parse_dhcp_servers(nmap_response):
+    """ parse nmap output response
+
+    Args:
+        nmap_response (str): Output of nmap --script broadcast-dhcp-discover -e
+
+    Returns:
+        data (dict): dictionary parsed from data
+
+        {'Broadcast Address': '192.168.12.255',
+        'DHCP Message Type': 'DHCPOFFER',
+        'Domain Name Server': '192.168.12.2',
+        'IP Address Lease Time: 0 days, 0:02': '00',
+        'IP Offered': '192.168.12.249',
+        'Rebinding Time Value: 0 days, 0:01': '45',
+        'Renewal Time Value: 0 days, 0:01': '00',
+        'Router': '192.168.12.3',
+        'Server Identifier': '192.168.12.2',
+        'Subnet Mask': '255.255.255.0',
+        'broadcast-dhcp-discover': ''}
+    """
+    matches = re.findall(PATTERN_DHCP, nmap_response, re.MULTILINE)
+    data = {a: b.strip() for a, b in matches}
+    return data
+
+
+def get_dhcp_servers(interface):
+    """ get dhcp servers by running nmap
+
+    Args:
+        interface (str): interface to query for dhcp servers
+
+    Returns:
+        output (str): string output of command
+    """
+    cmd = DHCP_SERVER_CMD.format(interface)
+    output = ""
+    data = None
+    try:
+        output = bash_cmd(cmd)
+    except Exception as e:
+        LOG.error("{0}".format(e))
+        raise e
+    else:
+        data = parse_dhcp_servers(output)
+    return data
+
+
+def has_dhcp_servers(interface):
+    """ does interface have dhcp servers
+
+    Args:
+        interface (str): interface to query for dhcp servers
+
+    Returns:
+         isTrue (int): true or false
+    """
+    try:
+        dct = get_dhcp_servers(interface)
+        return 'DHCPOFFER' in dct['DHCP Message Type']
+    except:
+        pass
+    return False
 
 
 def is_ipaddr(ip):
-    if re.search(r'\A(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
-                 '(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\Z', ip):
+    if re.search(PATTERN_IP, ip):
         return True
 
 
 def get_network_addr(ipaddr, prefix):
+    """ Return the base address of the subnet in which the ipaddr / prefix
+        reside.
+    """
     return str(IPNetwork(f'{ipaddr}/{prefix}').network)
 
 
@@ -50,6 +125,38 @@ def get_netmask(prefix):
 
 def get_prefix(netmask):
     return IPAddress(netmask).netmask_bits()
+
+
+def get_network_size(cidr):
+    """ return the decimal size of the cidr address
+    """
+    return IPNetwork(cidr).size
+
+
+def add_offset_to_address(addr, offset):
+    """calculates an address with an offset added. offset can be negative.
+    Args:
+        addr (str): ipv4 or cidr representation of address
+        offset (int): integer offset
+    Returns:
+        addr_.ip (str) address in ipv4 representation
+    """
+    addr_ = IPNetwork(addr)
+    addr_.value += offset
+    return str(addr_.ip)
+
+
+def is_overlapping_addr(subnet1, subnet2):
+    """ Checks if two ipv4 subnets are overlapping
+    Inputs:
+        subnet1,subnet2 (str) ipv4 subnet in cidr format
+    Returns:
+        True if the two subnets overlap, False if they do not.
+    """
+    if IPSet([subnet1]).intersection(IPSet([subnet2])):
+        return True
+    else:
+        return False
 
 
 def bash_cmd(cmd):
@@ -523,7 +630,6 @@ def get_dir(src_dir):
         path (str or None) : Selected path
     """
     rows = 10
-    log = logger.getlogger()
     if not src_dir:
         path = os.path.abspath('.')
     else:
@@ -801,6 +907,7 @@ def ansible_pprint(ansible_output):
                 index_indent = False
 
     return pretty_out
+
 
 def get_col_pos(tbl, hdrs, row_char='-'):
     """Gets the indices for the column positions in a text table

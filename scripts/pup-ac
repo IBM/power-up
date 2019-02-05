@@ -35,7 +35,7 @@ _pup()
     cmd="pup"
 
     sub_cmds=" setup config validate deploy post-deploy software utils osinstall"
-    comm_opts=" --help --all --log-level-file --log-level-print"
+    comm_opts=" --help --all --log-level-file --log-level-print --extra-vars"
 
     if [[ ${prev} == "$cmd" ]] && [[ ${cur} == -* ]]; then
         opts=$comm_opts
@@ -67,8 +67,16 @@ _pup()
         return 0
     fi
 
-    array=(setup config validate utils deploy post-deploy osinstall)
-    if [[ " ${array[@]} " =~ " ${second} " ]]; then
+    if ([[ ${second} == deploy ]] || [[ ${second} == post-deploy ]] || [[ ${second} == osinstall ]]); then
+        if ([[ ${cur} != -* ]] && [[ ${prev} != *.yml ]]); then
+            files=`ls "$pup_path"*.yml | sed -E 's/(.+)\///'`
+            COMPREPLY=( $( compgen -W "${files[@]}" -- ${cur} ) )
+            return 0
+        fi
+    fi
+
+    if ([[ ${second} == setup ]] || [[ ${second} == config ]] || \
+        [[ ${second} == validate ]] || [[ ${second} == utils ]]); then
         if ([[ ${cur} != -* ]] && [[ ${prev} != *.yml ]]); then
             files=`ls "$pup_path"*.yml | sed -E 's/(.+)\///'`
             COMPREPLY=( $( compgen -W "${files[@]}" -- ${cur} ) )
