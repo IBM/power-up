@@ -27,6 +27,7 @@ from pyroute2 import IPRoute
 import sys
 from time import sleep
 from netaddr import IPNetwork
+from jinja2 import Template
 
 import lib.logger as logger
 import lib.interfaces as interfaces
@@ -56,7 +57,8 @@ def osinstall(profile_path):
 
     profile_object = Profile(profile_path)
     dnsmasq_configuration(profile_object)
-    kernel, initrd, kickstart = extract_install_image(profile_object)
+    kernel, initrd = extract_install_image(profile_object)
+    kickstart = render_kickstart(profile_object)
     pxelinux_configuration(profile_object, kernel, initrd, kickstart)
 
 
@@ -87,33 +89,77 @@ def dnsmasq_configuration(profile_object):
 
 
 def extract_install_image(profile_object):
-    p = profile_object.get_node_profile_tuple()
     http_root = '/srv'
     http_osinstall = 'osinstall'
+
+    p = profile_object.get_node_profile_tuple()
+
     image_dir = os.path.join(http_root, http_osinstall)
     if not os.path.isdir(image_dir):
         os.mkdir(image_dir)
         os.chmod(image_dir, 0o755)
     kernel, initrd = u.extract_iso_image(p.iso_image_file, image_dir)
 
-    # copy kickstart to http dir
+    return kernel, initrd
+
+
+def render_kickstart(profile_object, kickstart_template=None):
+    http_root = '/srv'
+    http_osinstall = 'osinstall'
+
+    p_netw = profile_object.get_network_profile_tuple()
+    p_node = profile_object.get_node_profile_tuple()
+
     kickstart = None
-    kickstart_path = None
-    if 'ubuntu' in kernel.lower():
-        kickstart_path = os.path.join(get_os_images_path(),
-                                      'config/ubuntu-simple.seed')
-    elif 'rhel' in kernel.lower():
-        kickstart_path = os.path.join(get_os_images_path(),
-                                      'config/RHEL-7-simple.ks')
 
-    if kickstart_path is not None:
-        kickstart = os.path.basename(kickstart_path)
-        u.copy_file(kickstart_path,
-                    os.path.join(http_root, http_osinstall, kickstart))
-        os.chmod(os.path.join(http_root, http_osinstall, kickstart), 0o755)
-        kickstart = os.path.join(http_osinstall, kickstart)
+    image_name = os.path.basename(p_node.iso_image_file)[:-4]
 
-    return kernel, initrd, kickstart
+    if kickstart_template is None:
+        if 'ubuntu' in image_name.lower():
+            kickstart_template = os.path.join(get_os_images_path(),
+                                              'config/ubuntu-default.seed')
+        elif 'rhel' in image_name.lower():
+            kickstart_template = os.path.join(get_os_images_path(),
+                                              'config/RHEL-7-default.ks.j2')
+
+    if kickstart_template is not None:
+        kickstart = os.path.join(http_osinstall,
+                                 os.path.basename(kickstart_template))
+        if kickstart.endswith('.j2'):
+            kickstart = kickstart[:-3]
+        kickstart_out = os.path.join(http_root,
+                                     http_osinstall,
+                                     os.path.basename(kickstart_template))
+        if kickstart_out.endswith('.j2'):
+            kickstart_out = kickstart_out[:-3]
+
+        j2_vars = {'default_user': 'rhel75',
+                   'default_pass': 'passw0rd',
+                   'pass_crypted': False,
+                   'install_disk': None,
+                   'domain': 'localdomain',
+                   'timezone': 'America/Chicago',
+                   'utc': True,
+                   }
+
+        pxe_network = IPNetwork(p_netw.pxe_subnet_cidr)
+        j2_vars['http_server'] = ip_route_get_to(str(pxe_network.ip))
+
+        j2_vars['http_repo_name'] = image_name
+        j2_vars['http_repo_dir'] = os.path.join(http_osinstall,
+                                                j2_vars['http_repo_name'])
+
+        j2_vars['hostname'] = p_node.hostname
+
+        with open(kickstart_template, 'r') as file_object:
+            template = Template(file_object.read())
+
+        with open(kickstart_out, 'w') as file_object:
+            file_object.write(template.render(**j2_vars))
+
+        os.chmod(kickstart_out, 0o755)
+
+    return kickstart
 
 
 def pxelinux_configuration(profile_object, kernel, initrd, kickstart):
