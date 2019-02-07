@@ -61,7 +61,7 @@ def osinstall(profile_path):
 
 
 def dnsmasq_configuration(profile_object):
-    p = profile_object.get_profile_tuple()
+    p = profile_object.get_network_profile_tuple()
     dhcp_start = 21
     dhcp_lease_time = '5m'
     if (p.bmc_address_mode == 'static' or
@@ -87,7 +87,7 @@ def dnsmasq_configuration(profile_object):
 
 
 def extract_install_image(profile_object):
-    p = profile_object.get_profile_tuple()
+    p = profile_object.get_node_profile_tuple()
     http_root = '/srv'
     http_osinstall = 'osinstall'
     image_dir = os.path.join(http_root, http_osinstall)
@@ -119,7 +119,7 @@ def extract_install_image(profile_object):
 def pxelinux_configuration(profile_object, kernel, initrd, kickstart):
     log = logger.getlogger()
     http_osinstall = 'osinstall'
-    p = profile_object.get_profile_tuple()
+    p = profile_object.get_network_profile_tuple()
     pxe_network = IPNetwork(p.pxe_subnet_cidr)
     server = ip_route_get_to(str(pxe_network.ip))
     if server not in pxe_network:
