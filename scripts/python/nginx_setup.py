@@ -25,14 +25,15 @@ from lib.utilities import sub_proc_exec, nginx_modify_conf
 from repos import PowerupRepo
 
 
-def nginx_setup(repo_id='nginx'):
+def nginx_setup(root_dir='/srv', repo_id='nginx'):
     """Install and setup nginx http server
 
     Args:
+        root_dir (str): Path to root directory for requests
         repo_id (str): Name of nginx yum repository
 
     Returns:
-        int: Return code from
+        int: Return code from 'systemctl restart nginx.service'
     """
 
     log = logger.getlogger()
@@ -76,7 +77,7 @@ def nginx_setup(repo_id='nginx'):
         except OSError:
             log.warning('Failed renaming /etc/nginx/conf.d/default.conf')
 
-    nginx_location = {'/': ['root /srv', 'autoindex on']}
+    nginx_location = {'/': [f'root {root_dir}', 'autoindex on']}
     nginx_directives = {'listen': '80', 'server_name': 'powerup'}
 
     nginx_modify_conf('/etc/nginx/conf.d/server1.conf',

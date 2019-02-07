@@ -46,22 +46,21 @@ PROFILE = 'profile.yml'
 def osinstall(profile_path):
     log = logger.getlogger()
     log.debug('osinstall')
+
+    u.firewall_add_services(['http', 'tftp', 'dhcp'])
+    nginx_setup(root_dir='/srv')
+
     osi = OSinstall(profile_path)
     osi.run()
 
-#    osi.config_interfaces()
-#    validate(p)
+    profile_object = Profile(profile_path)
+    dnsmasq_configuration(profile_object)
+    kernel, initrd, kickstart = extract_install_image(profile_object)
+    pxelinux_configuration(profile_object, kernel, initrd, kickstart)
 
-    prof = Profile(profile_path)
-    p = prof.get_profile_tuple()
 
-    # allow services in firewall rules
-    u.firewall_add_services(['http', 'tftp', 'dhcp'])
-
-    # nginx install and configuration
-    nginx_setup()
-
-    # dnsmasq configuration
+def dnsmasq_configuration(profile_object):
+    p = profile_object.get_profile_tuple()
     dhcp_start = 21
     dhcp_lease_time = '5m'
     if (p.bmc_address_mode == 'static' or
@@ -85,7 +84,9 @@ def osinstall(profile_path):
         u.dnsmasq_add_dhcp_range(dhcp_range=dhcp_bmc_ip_range,
                                  lease_time=dhcp_lease_time)
 
-    # extract install image iso
+
+def extract_install_image(profile_object):
+    p = profile_object.get_profile_tuple()
     http_root = '/srv'
     http_osinstall = 'osinstall'
     image_dir = os.path.join(http_root, http_osinstall)
@@ -111,7 +112,14 @@ def osinstall(profile_path):
         os.chmod(os.path.join(http_root, http_osinstall, kickstart), 0o755)
         kickstart = os.path.join(http_osinstall, kickstart)
 
-    # pxelinux default configuration
+    return kernel, initrd, kickstart
+
+
+def pxelinux_configuration(profile_object, kernel, initrd, kickstart):
+    log = logger.getlogger()
+    http_osinstall = 'osinstall'
+    p = profile_object.get_profile_tuple()
+    pxe_network = IPNetwork(p.pxe_subnet_cidr)
     server = ip_route_get_to(str(pxe_network.ip))
     if server not in pxe_network:
         log.error(f'No direct route to PXE subnet! route={server}')
