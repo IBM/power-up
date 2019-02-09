@@ -32,7 +32,7 @@ import lib.logger as logger
 from lib.exception import UserException
 
 PATTERN_DHCP = r"^\|_*\s+(.+):(.+)"
-PATTERN_MAC = r'[\da-fA-F]{2}:){5}[\da-fA-F]{2}'
+PATTERN_MAC = r'([\da-fA-F]{2}:){5}[\da-fA-F]{2}'
 PATTERN_IP = (r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
               r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
 PATTERN_EMBEDDED_IP = (r'(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
@@ -107,6 +107,25 @@ def has_dhcp_servers(interface):
     except:
         pass
     return False
+
+
+def scan_subnet(cidr):
+    cmd = f'sudo nmap -sn {cidr}'
+    res, err, rc = sub_proc_exec(cmd)
+    items = []
+    if rc != 0:
+        LOG.error(f'Error while scanning subnet {cidr}, rc: {rc}')
+    for line in res.split('Nmap scan report'):
+        match = re.search(PATTERN_EMBEDDED_IP, line)
+        if match:
+            ip = match.group(0)
+            match2 = re.search(PATTERN_MAC, line)
+            if match2:
+                mac = match2.group(0)
+            else:
+                mac = ''
+            items += [(ip, mac)]
+    return items
 
 
 def is_ipaddr(ip):
