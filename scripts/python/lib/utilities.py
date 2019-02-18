@@ -18,6 +18,7 @@ from glob import glob
 import os
 import re
 import sys
+import datetime
 import subprocess
 import fileinput
 import readline
@@ -188,9 +189,9 @@ def bash_cmd(cmd):
         output (str): stdout from command
     """
     log = logger.getlogger()
-    command = ['bash', '-c', cmd]
-    log.debug('Run subprocess: %s' % ' '.join(command))
-    output = subprocess.check_output(command, universal_newlines=True,
+    _cmd = ['bash', '-c', cmd]
+    log.debug('Run subprocess: %s' % ' '.join(_cmd))
+    output = subprocess.check_output(_cmd, universal_newlines=True,
                                      stderr=subprocess.STDOUT)
     try:
         output = output.decode('utf-8')
@@ -979,3 +980,7 @@ def get_col_pos(tbl, hdrs, row_char='-'):
                 break
 
     return col_idx
+
+
+def timestamp():
+    return datetime.datetime.now().strftime("%d-%h-%Y-%H-%M-%S")
