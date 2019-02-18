@@ -503,6 +503,7 @@ def get_url(url='http://', fileglob='', prompt_name='', repo_chk='', contains=[]
     Output:
         url (str) URL for one file or repository directory
     """
+    from lib.genesis import GEN_SOFTWARE_PATH
     print(f'Enter {prompt_name} URL. ("sss" at end of URL to skip)')
     if fileglob:
         print('Do not include filenames in the URL. A search of the URL')
@@ -512,6 +513,24 @@ def get_url(url='http://', fileglob='', prompt_name='', repo_chk='', contains=[]
         if url.endswith('sss'):
             url = None
             break
+
+        if 'artifactory.swg' in url:
+            fnd_creds = False
+            while not fnd_creds:
+                path = os.path.join(GEN_SOFTWARE_PATH, 'artifactory.credentials')
+                if os.path.isfile(path):
+                    with open(path, 'r') as f:
+                        creds = f.read().rstrip('\n')
+                        fnd_creds = True
+                else:
+                    print('No artifactory credentials file found')
+                    r = get_selection('Retry\nTerminate Sofware install',
+                                      ('R', 'T'))
+                    if r == 'T':
+                        sys.exit('PowerUp software install terminated by user')
+            url = f'https://{creds}{url}'
+            break
+
         if repo_chk:
             url = url if url.endswith('/') else url + '/'
         try:
@@ -843,7 +862,7 @@ def get_file_path(filename='/home'):
     print('/home/user1/myfile[56].2  Search for myfile5.2 or myfile6.2 under /home/user1/')
     print('/home/user1/*/            List directories under /home/user1')
     print()
-    maxl = 40
+    maxl = 10
     while True:
         print("Enter a file name to search for ('L' to leave without making a selction): ")
         filename = rlinput(bold("File: "), filename)
@@ -855,7 +874,7 @@ def get_file_path(filename='/home'):
             print(bold(f'Found {len(files)} matching'))
             if len(files) > maxl:
                 print(f'\nSearch returned more than {maxl} items. Showing first {maxl}')
-                files = files[:40]
+                files = files[:maxl]
             choices = [str(i + 1) for i in range(len(files))]
             choices.append('S')
             choices.append('L')

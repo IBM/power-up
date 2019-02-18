@@ -376,18 +376,24 @@ class PowerupRepoFromRpm(PowerupRepo):
         """Interactive search for the rpm path.
         Returns: Path to file or None
         """
-        while True:
+        continu = True
+        while continu:
             self.rpm_path = get_file_path(filepath)
+            if '.rpm' not in self.rpm_path:
+                r = get_yesno('Continue searching')
+                if not r:
+                    continu = False
             # Check for .rpm files in the chosen file
-            cmd = 'rpm -qlp self.rpm_path'
+            cmd = f'rpm -qlp {self.rpm_path}'
             resp, err, rc = sub_proc_exec(cmd)
-            if self.rpm_path:
-                if '.rpm' not in resp:
-                    print('There are no ".rpm" files in the selected path')
-                    if get_yesno('Use selected path? ', default='n'):
-                        return self.rpm_path
+            if rc != 0:
+                print('An error occured while querying the selcted rpm file')
+                return
             else:
-                return None
+                if '.rpm' not in resp:
+                    print('There are no ".rpm" files in the selected file')
+                else:
+                    return self.rpm_path
 
     def copy_rpm(self, src_path):
         """copy the selected rpm file (self.rpm_path) to the /srv/{self.repo_id}
@@ -414,6 +420,8 @@ class PowerupRepoFromRpm(PowerupRepo):
         extract_dir = self.repo_dir
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir)
+
+        # Move to the target directory
         os.chdir(extract_dir)
         cmd = f'rpm2cpio {src_path} | sudo cpio -div'
         resp, err, rc = sub_proc_exec(cmd, shell=True)
@@ -467,9 +475,24 @@ class PowerupAnaRepoFromRepo(PowerupRepo):
         super(PowerupAnaRepoFromRepo, self).__init__(repo_id, repo_name, arch, rhel_ver)
         self.repo_type = 'ana'
 
-    def sync_ana(self, url, rejlist='', acclist=''):
-        """Syncs an Anaconda repository using wget or rsync.
+    def get_pkg_list(self, path):
+        """ Looks for the repodata.json file. If present, it is loaded and the
+        package list is extracted and returned
+        Args:
+            path (str): url to the repodata
+        Returns:
+            list of packages. Full names, no path.
         """
+        if os.path.isfile(path):
+            with open(path, 'r') as f:
+                repodata = f.read()
+        else:
+            return
+
+        repodata = json.loads(repodata)
+        pkgs = repodata['packages'].keys()
+        return pkgs
+
     def _update_repodata(self, path):
         """ Update the repodata.json file to reflect the actual contents of the
         repodata directory.
@@ -494,7 +517,6 @@ class PowerupAnaRepoFromRepo(PowerupRepo):
         pkgs = {pkg:repodata['packages'][pkg] for pkg in
                 repodata['packages'] if pkg in file_list}
 
-
         # Build the new dict from the original. Replace the value of the 'packages'
         # key in the new dict
         new_repodata = {}
@@ -510,6 +532,18 @@ class PowerupAnaRepoFromRepo(PowerupRepo):
 
         return status
 
+    def sync_ana(self, url, rejlist=None, acclist=None):
+        """Syncs an Anaconda repository using wget or rsync.
+        To download the entire repository, leave the accept list (acclist) and rejlist
+        empty. Alternately, set the acclist to all or the rejlist to all to accept or
+        reject the entire repo. Note that the accept list and reject list are mutually
+        exclusive.
+        inputs:
+            acclist (str): Accept list. List of files to download. If specified,
+                only the listed files will be downloaded.
+            rejlist (str): Reject list. List of files to reject. If specified,
+                the entire repository except the files in the rejlist will be downloaded.
+        """
         def _get_table_row(file_handle):
             """read lines from file handle until end of table row </tr> found
             return:
@@ -531,32 +565,55 @@ class PowerupAnaRepoFromRepo(PowerupRepo):
                 dest_dir = f'/srv/repos/{self.repo_id}' + url[url.find('/pkgs/'):]
             elif '/conda-forge' in url:
                 dest_dir = f'/srv/repos/{self.repo_id}' + url[url.find('/conda-forge'):]
+            elif self.repo_id == 'ibmai':
+                dest_dir = os.path.join(f'/srv/repos/{self.repo_id}',
+                                        url.rsplit('/', 2)[1])
             self.log.info(f'Syncing {self.repo_name}')
-            self.log.info('This can take many minutes or hours for large repositories\n')
+            self.log.info('This can take several minutes\n')
 
-            if acclist:
-                ctrl = '--accept'
-                _list = acclist
-                if 'index.html' not in _list and '/conda-forge' not in url:
-                    _list += ',index.html'
-                if 'repodata.json' not in _list:
-                    _list += ',repodata.json'
-                if 'repodata.json.bz2' not in _list:
-                    _list += ',repodata.json.bz2'
-            else:
-                ctrl = '--reject'
-                _list = rejlist
+            # Get the repodata.json files and html index files
+            # -S = preserve time stamp.  -N = only if Newer or missing -P = download path
+            for file in ('repodata.json', 'repodata2.json', 'repodata.json.bz2',
+                         'index.html'):
+                cmd = (f'wget -N -S -P {dest_dir} {url}{file}')
+                res, err, rc = sub_proc_exec(cmd, shell=True)
+                if rc != 0 and file == 'repodata.json':
+                    self.log.error(f'Error downloading {file}.  rc: {rc}')
+                err = err.splitlines()
+                for line in err:
+                    if '-- not retrieving' in line:
+                        print(line, '\n')
 
-            # remove directory path components up to '/pkgs'
-            if '/pkgs' in url:
-                cd_cnt = url[3 + url.find('://'):url.find('/pkgs')].count('/')
-            elif '/conda-forge' in url:
-                cd_cnt = url[3 + url.find('://'):url.find('/conda-forge')].count('/')
-            cmd = (f"wget -m -nH --cut-dirs={cd_cnt} {ctrl} '{_list}' "
-                   f"-P /srv/repos/{self.repo_id} {url}")
-            rc = sub_proc_display(cmd, shell=True)
-            if rc != 0:
-                self.log.error(f'Error downloading {url}.  rc: {rc}')
+            # Get the list of packages in the repo. Note that if both acclist
+            # and rejlist are not provided the full set of packages is downloaded
+            pkgs = self.get_pkg_list(os.path.join(dest_dir, 'repodata.json'))
+            download_set = set(pkgs)
+
+            if acclist and acclist != 'all':
+                download_set = download_set & set(acclist)
+                missing = set(acclist) - download_set
+                if missing:
+                    self.log.warning('The following packages are not present at \n'
+                                     f'{url}\n{missing}')
+            elif rejlist:
+                if rejlist == 'all':
+                    download_set = ()
+                else:
+                    download_set = download_set - set(rejlist)
+
+            # Get em
+            for file in sorted(download_set):
+                print(file)
+                cmd = (f'wget -N -S -P {dest_dir} {url}{file}')
+                res, err, rc = sub_proc_exec(cmd, shell=True)
+                if rc != 0:
+                    self.log.error(f'Error downloading {url}.  rc: {rc}')
+                err = err.splitlines()
+                for line in err:
+                    if '-- not retrieving' in line:
+                        print(line, '\n')
+            self._update_repodata(dest_dir)
+
         elif 'file:///' in url:
             src_dir = url[7:]
             if '/pkgs/' in url:
@@ -575,7 +632,7 @@ class PowerupAnaRepoFromRepo(PowerupRepo):
                 self.log.info(f'{self.repo_name} sync finished successfully')
 
         # Filter content of index.html
-        if '/conda-forge' not in dest_dir:
+        if '/pkgs' in dest_dir:
             filelist = os.listdir(dest_dir)
             filecnt = 0
             dest = dest_dir + 'index.html'
