@@ -18,6 +18,7 @@ from glob import glob
 import os
 import re
 import sys
+import datetime
 import subprocess
 import fileinput
 import readline
@@ -190,9 +191,9 @@ def bash_cmd(cmd):
         output (str): stdout from command
     """
     log = logger.getlogger()
-    command = ['bash', '-c', cmd]
-    log.debug('Run subprocess: %s' % ' '.join(command))
-    output = subprocess.check_output(command, universal_newlines=True,
+    _cmd = ['bash', '-c', cmd]
+    log.debug('Run subprocess: %s' % ' '.join(_cmd))
+    output = subprocess.check_output(_cmd, universal_newlines=True,
                                      stderr=subprocess.STDOUT)
     try:
         output = output.decode('utf-8')
@@ -1372,3 +1373,7 @@ def extract_iso_image(iso_path, dest_dir):
                             f" kernel: '{kernel}' initrd: '{initrd}'")
 
     return kernel, initrd
+
+
+def timestamp():
+    return datetime.datetime.now().strftime("%d-%h-%Y-%H-%M-%S")
