@@ -37,30 +37,23 @@ from lib.genesis import get_package_path, get_sample_configs_path, \
 import lib.utilities as u
 from nginx_setup import nginx_setup
 from ip_route_get_to import ip_route_get_to
+from lib.bmc import Bmc
 
 GEN_PATH = get_package_path()
 GEN_SAMPLE_CONFIGS_PATH = get_sample_configs_path()
 
 IPR = IPRoute()
 
-PROFILE = 'profile.yml'
+PROFILE = os.path.join(GEN_PATH, 'profile.yml')
+NODE_LIST = os.path.join(GEN_PATH, 'node_list.yml')
 
 
 def osinstall(profile_path):
     log = logger.getlogger()
     log.debug('osinstall')
 
-    u.firewall_add_services(['http', 'tftp', 'dhcp'])
-    nginx_setup(root_dir='/srv')
-
     osi = OSinstall(profile_path)
     osi.run()
-
-    profile_object = Profile(profile_path)
-    dnsmasq_configuration(profile_object)
-    kernel, initrd = extract_install_image(profile_object)
-    kickstart = render_kickstart(profile_object)
-    pxelinux_configuration(profile_object, kernel, initrd, kickstart)
 
 
 def dnsmasq_configuration(profile_object):
@@ -77,16 +70,21 @@ def dnsmasq_configuration(profile_object):
     dhcp_pxe_ip_range = (str(pxe_network.network + dhcp_start) + ',' +
                          str(pxe_network.network + pxe_network.size - 1))
 
-    u.dnsmasq_config_pxelinux(interface=interfaces,
-                              dhcp_range=dhcp_pxe_ip_range,
-                              lease_time=dhcp_lease_time)
+    rc = u.dnsmasq_config_pxelinux(interface=interfaces,
+                                   dhcp_range=dhcp_pxe_ip_range,
+                                   lease_time=dhcp_lease_time)
+
+    if rc != 0:
+        return rc
 
     if p.bmc_address_mode == 'dhcp':
         bmc_network = IPNetwork(p.bmc_subnet_cidr)
         dhcp_bmc_ip_range = (str(bmc_network.network + dhcp_start) + ',' +
                              str(bmc_network.network + bmc_network.size - 1))
-        u.dnsmasq_add_dhcp_range(dhcp_range=dhcp_bmc_ip_range,
-                                 lease_time=dhcp_lease_time)
+        rc = u.dnsmasq_add_dhcp_range(dhcp_range=dhcp_bmc_ip_range,
+                                      lease_time=dhcp_lease_time)
+
+    return rc
 
 
 def extract_install_image(profile_object):
@@ -178,6 +176,45 @@ def pxelinux_configuration(profile_object, kernel, initrd, kickstart):
         initrd=os.path.join(http_osinstall, initrd),
         kickstart=kickstart)
 
+
+def initiate_pxeboot(profile_object, node_list_file):
+    log = logger.getlogger()
+    p_node = profile_object.get_node_profile_tuple()
+    node_list = yaml.load(open(node_list_file))
+    for node in node_list:
+        ip = node['bmc_ip']
+        userid = p_node.bmc_userid
+        passwd = p_node.bmc_password
+        bmc = Bmc(ip, userid, passwd)
+        if bmc.is_connected():
+            log.debug(f"Successfully connected to BMC: host={ip} "
+                      f"userid={userid} password={passwd}")
+            bmc.chassis_power('off')
+            bmc.host_boot_source(source='network')
+            bmc.chassis_power('on')
+        else:
+            log.error(f"Unable to connect to BMC: host={ip} "
+                      f"userid={userid} password={passwd}")
+
+
+def reset_bootdev(profile_object, node_list_file):
+    log = logger.getlogger()
+    p_node = profile_object.get_node_profile_tuple()
+    node_list = yaml.load(open(node_list_file))
+    for node in node_list:
+        ip = node['bmc_ip']
+        userid = p_node.bmc_userid
+        passwd = p_node.bmc_password
+        bmc = Bmc(ip, userid, passwd)
+        if bmc.is_connected():
+            log.debug(f"Successfully connected to BMC: host={ip} "
+                      f"userid={userid} password={passwd}")
+            bmc.host_boot_source(source='disk')
+        else:
+            log.error(f"Unable to connect to BMC: host={ip} "
+                      f"userid={userid} password={passwd}")
+
+
 class Profile():
     def __init__(self, prof_path='profile-template.yml'):
         self.log = logger.getlogger()
@@ -195,24 +232,26 @@ class Profile():
                 self.prof_path = os.path.join(GEN_SAMPLE_CONFIGS_PATH,
                                               'profile-template.yml')
         try:
-            self.profile = yaml.load(open(self.prof_path), Loader=AttrDictYAMLLoader)
+            self.profile = yaml.load(open(self.prof_path),
+                                     Loader=AttrDictYAMLLoader)
         except IOError:
-            self.log.error(f'Unable to open the profile file: {self.prof_path}')
+            self.log.error('Unable to open the profile file: '
+                           f'{self.prof_path}')
             sys.exit(f'Unable to open the profile file: {self.prof_path}\n'
                      'Unable to continue with OS install')
 
     def get_profile(self):
         """Returns an ordered attribute dictionary with the profile data.
-        This is generally intended for use by Profile and the entry menu, not by
-        application code
+        This is generally intended for use by Profile and the entry menu, not
+        by application code
         """
         return self.profile
 
     def get_network_profile(self):
-        """Returns an ordered attribute dictionary with the network profile data.
-        This is generally intended for use by the entry menu, not by application
-        code. deepcopy is used to return a new copy of the relevent profile, not
-        a reference to the original.
+        """Returns an ordered attribute dictionary with the network profile
+        data. This is generally intended for use by the entry menu, not by
+        application code. deepcopy is used to return a new copy of the relevent
+        profile, not a reference to the original.
         """
         return copy.deepcopy(self.profile.network)
 
@@ -244,14 +283,14 @@ class Profile():
 
     def update_network_profile(self, profile):
         self.profile.network = profile
-        with open(GEN_PATH + 'profile.yml', 'w') as f:
+        with open(PROFILE, 'w') as f:
             yaml.dump(self.profile, f, indent=4, default_flow_style=False)
 
     def get_node_profile(self):
         """Returns an ordered attribute dictionary with the node profile data.
-        This is generally intended for use by the entry menu, not by application
-        code. deepcopy is used to return a new copy of the relevent profile, not
-        a reference to the original.
+        This is generally intended for use by the entry menu, not by
+        application code. deepcopy is used to return a new copy of the relevent
+        profile, not a reference to the original.
         """
         return copy.deepcopy(self.profile.node)
 
@@ -272,7 +311,7 @@ class Profile():
 
     def update_node_profile(self, profile):
         self.profile.node = profile
-        with open(GEN_PATH + 'profile.yml', 'w') as f:
+        with open(PROFILE, 'w') as f:
             yaml.dump(self.profile, f, indent=4, default_flow_style=False)
 
 
@@ -370,24 +409,31 @@ class OSinstall(npyscreen.NPSAppManaged):
         # create tagged vlan interfaces if any
         if p.bmc_vlan_number:
             bmc_ifc = p.bmc_ethernet_ifc + '.' + p.bmc_vlan_number
-            if not self.ifcs.is_vlan_used_elsewhere(p.bmc_vlan_number, bmc_ifc):
-                self.ifcs.create_tagged_ifc(p.bmc_ethernet_ifc, p.bmc_vlan_number)
+            if not self.ifcs.is_vlan_used_elsewhere(p.bmc_vlan_number,
+                                                    bmc_ifc):
+                self.ifcs.create_tagged_ifc(p.bmc_ethernet_ifc,
+                                            p.bmc_vlan_number)
 
         if p.pxe_vlan_number:
             pxe_ifc = p.pxe_ethernet_ifc + '.' + p.pxe_vlan_number
-            if not self.ifcs.is_vlan_used_elsewhere(p.pxe_vlan_number, pxe_ifc):
-                self.ifcs.create_tagged_ifc(p.pxe_ethernet_ifc, p.pxe_vlan_number)
+            if not self.ifcs.is_vlan_used_elsewhere(p.pxe_vlan_number,
+                                                    pxe_ifc):
+                self.ifcs.create_tagged_ifc(p.pxe_ethernet_ifc,
+                                            p.pxe_vlan_number)
 
-        if not self.ifcs.find_unused_addr_and_add_to_ifc(bmc_ifc, p.bmc_subnet_cidr):
+        if not self.ifcs.find_unused_addr_and_add_to_ifc(bmc_ifc,
+                                                         p.bmc_subnet_cidr):
             self.log.error(f'Failed to add an addr to {bmc_ifc}')
 
-        if not self.ifcs.find_unused_addr_and_add_to_ifc(pxe_ifc, p.pxe_subnet_cidr):
+        if not self.ifcs.find_unused_addr_and_add_to_ifc(pxe_ifc,
+                                                         p.pxe_subnet_cidr):
             self.log.error(f'Failed to add an addr to {pxe_ifc}')
 
 #            cmd = f'nmap -PR {p.bmc_subnet_cidr}'
 #            res, err, rc = u.sub_proc_exec(cmd)
 #            if rc != 0:
-#                self.log.error('An error occurred while scanning the BMC subnet')
+#                self.log.error('An error occurred while scanning the BMC '
+#                               'subnet')
 #            bmc_addr_dict = {}
 #            res = res.split('Nmap scan report')
 #            for item in res:
@@ -403,7 +449,8 @@ class OSinstall(npyscreen.NPSAppManaged):
 #            res = self.ifcs.route('del', dst=p.bmc_subnet_cidr,
 #                            oif=self.ifcs.link_lookup(ifname=bmc_ifc)[0])
 #            if res[0]['header']['error']:
-#                self.log.error(f'Error occurred removing route from {bmc_ifc}')
+#                self.log.error('Error occurred removing route from '
+#                               f'{bmc_ifc}')
 
 
 class MyButtonPress(npyscreen.MiniButtonPress):
@@ -470,7 +517,8 @@ class Pup_form(npyscreen.ActionFormV2):
 
             if ftype == 'file':
                 if not self.node[item]['val']:
-                    self.node[item]['val'] = os.path.join(GEN_PATH, 'os-images')
+                    self.node[item]['val'] = os.path.join(GEN_PATH,
+                                                          'os-images')
                 self.fields[item] = self.add(npyscreen.TitleFilenameCombo,
                                              name=fname,
                                              value=str(self.node[item]['val']),
@@ -483,7 +531,8 @@ class Pup_form(npyscreen.ActionFormV2):
                                              relx=relx)
             elif 'eth-ifc' in ftype:
                 eth = self.node[item]['val']
-                eth_lst = self.parentApp.ifcs.get_up_interfaces_names(_type='phys')
+                eth_lst = self.parentApp.ifcs.get_up_interfaces_names(
+                    _type='phys')
                 # Get the existing value to the top of the list
                 if eth in eth_lst:
                     eth_lst.remove(eth)
@@ -497,10 +546,12 @@ class Pup_form(npyscreen.ActionFormV2):
                                              scroll_exit=False)
             elif ftype == 'select-one':
                 if hasattr(self.node[item], 'val'):
-                    value = self.node[item]['values'].index(self.node[item]['val'])
+                    value = self.node[item]['values'].index(
+                        self.node[item]['val'])
                 else:
                     value = 0
-                self.fields[item] = self.add(npyscreen.TitleSelectOne, name=fname,
+                self.fields[item] = self.add(npyscreen.TitleSelectOne,
+                                             name=fname,
                                              max_height=2,
                                              value=value,
                                              values=self.node[item]['values'],
@@ -516,7 +567,8 @@ class Pup_form(npyscreen.ActionFormV2):
                         value = self.node[item]['val']
                 else:
                     value = None
-                self.fields[item] = self.add(npyscreen.TitleMultiSelect, name=fname,
+                self.fields[item] = self.add(npyscreen.TitleMultiSelect,
+                                             name=fname,
                                              max_height=10,
                                              value=value,
                                              values=self.node[item]['values'],
@@ -525,8 +577,10 @@ class Pup_form(npyscreen.ActionFormV2):
 
             elif 'button' in ftype:
                 if ',' in ftype:
-                    x = int(self.node[item]['ftype'].lstrip('button').split(',')[0])
-                    y = int(self.node[item]['ftype'].lstrip('button').split(',')[1])
+                    x = int(self.node[item]['ftype'].lstrip(
+                        'button').split(',')[0])
+                    y = int(self.node[item]['ftype'].lstrip(
+                        'button').split(',')[1])
                 self.fields[item] = self.add(MyButtonPress,
                                              name=self.node[item]['desc'],
                                              relx=x,
@@ -540,7 +594,8 @@ class Pup_form(npyscreen.ActionFormV2):
                                              begin_entry_at=20, width=40,
                                              relx=relx)
 
-            if hasattr(self.node[item], 'ftype') and 'button' in self.node[item]['ftype']:
+            if hasattr(self.node[item], 'ftype') and (
+                    'button' in self.node[item]['ftype']):
                 pass
             else:
                 self.fields[item].entry_widget.add_handlers({curses.KEY_F1:
@@ -563,12 +618,29 @@ class Pup_form(npyscreen.ActionFormV2):
             self.next_form = fvl[-1]
 
     def on_ok(self):
+        res = True
         fld_error = False
         val_error = False
         msg = []
         for item in self.node:
             if hasattr(self.node[item], 'dtype'):
                 if self.node[item]['dtype'] == 'no-save':
+                    if item == 'node_list':
+                        if len(self.fields[item].value) == 0:
+                            msg = ('No nodes selected!\n'
+                                   'Exit without installing to any clients?')
+                            res = npyscreen.notify_yes_no(msg, title='Warning',
+                                                          editw=1)
+                        else:
+                            selected_nodes = []
+                            for index in self.fields[item].value:
+                                bmc_ip = self.fields[item].values[index][0]
+                                bmc_mac = self.fields[item].values[index][1]
+                                selected_nodes.append({'bmc_ip': bmc_ip,
+                                                      'bmc_mac': bmc_mac})
+                            with open(NODE_LIST, 'w') as f:
+                                yaml.dump(selected_nodes, f, indent=4,
+                                          default_flow_style=False)
                     continue
                 elif self.node[item]['dtype'] == 'ipv4':
                     # npyscreen.notify_confirm(f"{self.fields[item].value}", editw=1)
@@ -630,8 +702,10 @@ class Pup_form(npyscreen.ActionFormV2):
                     if self.parentApp.NEXT_ACTIVE_FORM == 'MAIN':
                         self.parentApp.prof.update_network_profile(self.node)
                         self.next_form = 'NODE'
+                        self.configure_services()
                     elif self.parentApp.NEXT_ACTIVE_FORM == 'NODE':
                         self.parentApp.prof.update_node_profile(self.node)
+                        self.initiate_os_installation()
                         self.next_form = None
 
         elif fld_error or val_error:
@@ -702,7 +776,8 @@ class Pup_form(npyscreen.ActionFormV2):
             if instance.name == self.node[item].desc:
                 field = item
                 break
-        # npyscreen.notify_confirm(f'field: {field} prev field: {self.prev_field}', editw=1)
+        # npyscreen.notify_confirm(
+        #         f'field: {field} prev field: {self.prev_field}', editw=1)
         # On instantiation, self.prev_field is empty
         if self.prev_field:
             if field and hasattr(self.node[field], 'dtype'):
@@ -727,7 +802,8 @@ class Pup_form(npyscreen.ActionFormV2):
 
             if prev_fld_dtype == 'ipv4':
                 if not u.is_ipaddr(prev_fld_val):
-                    npyscreen.notify_confirm(f'Invalid Field value: {prev_fld_val}',
+                    npyscreen.notify_confirm(('Invalid Field value: '
+                                              f'{prev_fld_val}'),
                                              title=self.prev_field, editw=1)
                 else:
                     if prev_fld_lnkd_flds:
@@ -736,8 +812,10 @@ class Pup_form(npyscreen.ActionFormV2):
 
                         net_addr = u.get_network_addr(prev_fld_val, prefix)
                         if net_addr != prev_fld_val:
-                            npyscreen.notify_confirm(f'IP addr modified to: {net_addr}',
-                                                     title=self.prev_field, editw=1)
+                            npyscreen.notify_confirm(('IP addr modified to: '
+                                                      f'{net_addr}'),
+                                                     title=self.prev_field,
+                                                     editw=1)
                             self.fields[self.prev_field].value = net_addr
                             self.display()
 
@@ -746,7 +824,8 @@ class Pup_form(npyscreen.ActionFormV2):
                         ifc = self.parentApp.ifcs.get_interface_for_route(cidr)
                         # npyscreen.notify_confirm(f'ifc: {ifc}', editw=1)
                     if not ifc:
-                        ifc = self.parentApp.ifcs.get_up_interfaces_names(_type='phys')
+                        ifc = self.parentApp.ifcs.\
+                            get_up_interfaces_names(_type='phys')
                     else:
                         ifc = [ifc]
                     if ifc:
@@ -778,7 +857,8 @@ class Pup_form(npyscreen.ActionFormV2):
                     # npyscreen.notify_confirm(f'cidr: {cidr}', editw=1)
                     ifc = self.parentApp.ifcs.get_interface_for_route(cidr)
                     if not ifc:
-                        ifc = self.parentApp.ifcs.get_up_interfaces_names(_type='phys')
+                        ifc = self.parentApp.ifcs.get_up_interfaces_names(
+                            _type='phys')
                     else:
                         ifc = [ifc]
                     if ifc:
@@ -790,17 +870,18 @@ class Pup_form(npyscreen.ActionFormV2):
                         self.display()
 
             elif 'int-or-none' in prev_fld_dtype:
-                rng = self.node[self.prev_field]['dtype'].lstrip('int-or-none').\
-                    split('-')
+                rng = self.node[self.prev_field]['dtype'].\
+                    lstrip('int-or-none').split('-')
                 if prev_fld_val:
                     prev_fld_val = prev_fld_val.strip(' ')
                 if prev_fld_val and prev_fld_val != 'None':
                     try:
                         int(prev_fld_val)
                     except ValueError:
-                        npyscreen.notify_confirm(f"Enter digits 0-9 or enter 'None' "
-                                                 "or leave blank",
-                                                 title=self.prev_field, editw=1)
+                        npyscreen.notify_confirm("Enter digits 0-9 or enter "
+                                                 "'None' or leave blank",
+                                                 title=self.prev_field,
+                                                 editw=1)
                     else:
                         if (int(prev_fld_val) < int(rng[0]) or
                                 int(prev_fld_val) > int(rng[1])):
@@ -809,13 +890,15 @@ class Pup_form(npyscreen.ActionFormV2):
                             npyscreen.notify_confirm(msg, title=self.prev_field, editw=1)
 
             elif 'int' in prev_fld_dtype:
-                rng = self.node[self.prev_field]['dtype'].lstrip('int').split('-')
+                rng = self.node[self.prev_field]['dtype'].lstrip('int').\
+                    split('-')
                 if prev_fld_val:
                     try:
                         int(prev_fld_val)
                     except ValueError:
                         npyscreen.notify_confirm(f'Enter digits 0-9',
-                                                 title=self.prev_field, editw=1)
+                                                 title=self.prev_field,
+                                                 editw=1)
                     else:
                         if (int(prev_fld_val) < int(rng[0]) or
                                 int(prev_fld_val) > int(rng[1])):
@@ -829,8 +912,8 @@ class Pup_form(npyscreen.ActionFormV2):
                                              'f{prev_fld_val}',
                                              title=self.prev_field, editw=1)
                 elif '-iso' in prev_fld_dtype and '.iso' not in prev_fld_val:
-                    npyscreen.notify_confirm('Warning, the selected file does not have a '
-                                             '.iso extension',
+                    npyscreen.notify_confirm('Warning, the selected file does '
+                                             'not have a .iso extension',
                                              title=self.prev_field, editw=1)
             elif 'eth-ifc' in prev_fld_ftype:
                 pass
@@ -850,7 +933,8 @@ class Pup_form(npyscreen.ActionFormV2):
         npyscreen.notify_confirm(self.helpmsg, title=self.prev_field, editw=1)
 
     def h_enter(self, char):
-        npyscreen.notify_yes_no(f'Field Error: {self.field}', title='Enter', editw=1)
+        npyscreen.notify_yes_no(f'Field Error: {self.field}', title='Enter',
+                                editw=1)
 
     def when_press_edit_networks(self):
         self.next_form = 'MAIN'
@@ -859,15 +943,81 @@ class Pup_form(npyscreen.ActionFormV2):
     def scan_for_nodes(self):
         npyscreen.notify_confirm('Scanning for nodes')
 
+    def configure_services(self):
+        notify_title = "Configuring Services"
+
+        msg = "Adding firewall rules... "
+        npyscreen.notify(msg, title=notify_title)
+        rc = u.firewall_add_services(['http', 'tftp', 'dhcp'])
+        if rc != 0:
+            msg += "ERROR\nFailed to configure firewall!"
+            npyscreen.notify_confirm(msg, title=notify_title, editw=1)
+            self.next_form = None
+            return
+
+        msg += "done\nInstall and configure nginx... "
+        npyscreen.notify(msg, title=notify_title)
+        rc = nginx_setup(root_dir='/srv')
+        if rc != 0:
+            msg += "ERROR\nFailed to configure nginx!"
+            npyscreen.notify_confirm(msg, title=notify_title, editw=1)
+            self.next_form = None
+            return
+
+        msg += "done\nConfigure dnsmasq... "
+        npyscreen.notify(msg, title=notify_title)
+        rc = dnsmasq_configuration(self.parentApp.prof)
+        if rc != 0:
+            msg += "ERROR\nFailed to configure dnsmasq!"
+            npyscreen.notify_confirm(msg, title=notify_title, editw=1)
+            self.next_form = None
+            return
+        msg += "done\n"
+        npyscreen.notify(msg, title=notify_title)
+        sleep(1)
+
+    def initiate_os_installation(self):
+        notify_title = "Client OS Installation"
+
+        msg = "Extracting files from install image... "
+        npyscreen.notify(msg, title=notify_title)
+        kernel, initrd = extract_install_image(self.parentApp.prof)
+
+        msg += "done\nGenerate kickstart file... "
+        npyscreen.notify(msg, title=notify_title)
+        kickstart = render_kickstart(self.parentApp.prof)
+
+        msg += "done\nGenerate pxelinux configuration... "
+        npyscreen.notify(msg, title=notify_title)
+        pxelinux_configuration(self.parentApp.prof, kernel, initrd, kickstart)
+
+        msg += "done\nPXE boot nodes... "
+        npyscreen.notify(msg, title=notify_title)
+        initiate_pxeboot(self.parentApp.prof, NODE_LIST)
+
+        msg += "done\nWait 5 minutes... "
+        npyscreen.notify(msg, title=notify_title)
+        sleep(300)
+
+        msg += "done\nReset node boot device to disk... "
+        npyscreen.notify(msg, title=notify_title)
+        reset_bootdev(self.parentApp.prof, NODE_LIST)
+
+        msg += "done\n"
+        npyscreen.notify_confirm(msg, title=notify_title, editw=1)
+
 
 def validate(profile_tuple):
     LOG = logger.getlogger()
-    if profile_tuple.bmc_address_mode == "dhcp" or profile_tuple.pxe_address_mode == "dhcp":
+    if profile_tuple.bmc_address_mode == "dhcp" or (
+            profile_tuple.pxe_address_mode == "dhcp"):
         hasDhcpServers = u.has_dhcp_servers(profile_tuple.ethernet_port)
         if not hasDhcpServers:
-            LOG.warn("No Dhcp servers found on {0}".format(profile_tuple.ethernet_port))
+            LOG.warn("No Dhcp servers found on {0}".format(
+                profile_tuple.ethernet_port))
         else:
-            LOG.info("Dhcp servers found on {0}".format(profile_tuple.ethernet_port))
+            LOG.info("Dhcp servers found on {0}".format(
+                profile_tuple.ethernet_port))
 
 
 def main(prof_path):
