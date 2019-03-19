@@ -744,7 +744,6 @@ class Gen(object):
                 self.args.all = True
             if gen.GEN_SOFTWARE_PATH not in sys.path:
                 sys.path.append(gen.GEN_SOFTWARE_PATH)
-
             try:
                 self.args.name = self.args.name.split('.')[0]
                 software_module = importlib.import_module(self.args.name)
@@ -756,40 +755,59 @@ class Gen(object):
                                'class named "software"')
                 sys.exit(1)
             else:
-                soft = software_module.software(self.args.eval, self.args.non_interactive)
-            if self.args.prep is True or self.args.all is True:
-                try:
-                    soft.prep()
-                except AttributeError as exc:
-                    print(exc.message)
-                    print('The software class needs to implement a '
-                          'method named "setup"')
+                soft = software_module.software(self.args.eval, self.args.non_interactive, self.args.arch)
+            try:
+                if (self.args.prep is True or self.args.all is True) and self.args.step is not None:
+                    try:
+                        soft.prep_init()
+                        for step in self.args.step:
+                            run_this = "create_" + step
+                            if hasattr(soft, run_this):
+                                func = getattr(soft, run_this)
+                                func()
+                            else:
+                                print('\nUnable to find: ' + step + " in :" + self.args.name)
+                        soft.prep_post()
+                    except AttributeError as exc:
+                        print(exc)
+                elif (self.args.prep is True or self.args.all is True) and self.args.step is None:
+                    try:
+                        soft.prep()
+                    except AttributeError as exc:
+                        print(exc.message)
+                        print('The software class needs to implement a '
+                              'method named "setup"')
+            except KeyboardInterrupt as e:
+                soft.prep_post()
+                print('User exited ...\n' + str(e))
+            except Exception as e:
+                raise e
             if self.args.init_clients is True or self.args.all is True:
                 try:
                     soft.init_clients()
                 except AttributeError as exc:
-                    print(exc.message)
+                    print(exc)
                     print('The software class needs to implement a '
                           'method named "init_clients"')
             if self.args.install is True or self.args.all is True:
                 try:
                     soft.install()
                 except AttributeError as exc:
-                    print(exc.message)
+                    print(exc)
                     print('The software class needs to implement a '
                           'method named "install"')
             if self.args.README is True:
                 try:
                     soft.README()
                 except AttributeError as exc:
-                    print(exc.message)
+                    print(exc)
                     print('No "about" information available')
 
             if self.args.status is True:
                 try:
                     soft.status()
                 except AttributeError as exc:
-                    print(exc.message)
+                    print(exc)
                     print('No "status" information available')
 
         if cmd == argparse_gen.Cmd.UTIL.value:
