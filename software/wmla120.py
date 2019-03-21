@@ -240,9 +240,16 @@ class software(object):
             os.remove(self.vault_pass_file)
 
     def README(self):
+        kc_link = bold('   https://www.ibm.com/support/knowledgecenter/SSFHA8/ \n\n')
+        rtd_link = bold('   https://power-up.readthedocs.io/en/latest/Running-wmla.html\n\n')
         print(bold('\nWMLA Enterprise software installer module'))
         text = ('\nThis module installs the Watson Machine Learning Accelerated\n'
-                'Enterprise software to a cluster of OpenPOWER or x86 nodes.\n\n'
+                'Enterprise software to a cluster of OpenPOWER or x86 nodes.\n'
+                'Before beginning installation, be sure that the pre-requisite\n'
+                'setup steps have been performed. For guidance, see:\n\n'
+                + kc_link +
+                'For additional help in using the automated installer, see:\n\n'
+                + rtd_link +
                 'WMLA Enterprise installation involves three steps;\n'
                 '\n  1 - Preparation. Prepares the installer node software server.\n'
                 '       The preparation phase may be run multiple times if needed.\n'
@@ -253,10 +260,11 @@ class software(object):
                 f'       usage: pup software --install {self.my_name}\n\n'
                 'Before beginning, the following files should be extracted from the\n'
                 'Watson MLA Enterprise binary file and present on this node;\n'
-                f'- ibm-wmla-1.2.0*_{self.arch}.rpm\n'
+                f'- ibm-wmla-1.2.0_{self.arch}.bin\n'
+                f'- ibm-wmla-license-1.2.0-*.tar.bz2\n'
                 f'- conductor2.3.0.0_{self.arch}.bin\n'
                 '- conductor_entitlement.dat\n'
-                f'- dli-1.2.1.0_{self.arch}.bin\n'
+                f'- dli-1.2.2.0_{self.arch}.bin\n'
                 '- dli_entitlement.dat\n\n'
                 f'For installation status: pup software --status {self.my_name}\n'
                 f'To redisplay this README: pup software --README {self.my_name}\n\n'
