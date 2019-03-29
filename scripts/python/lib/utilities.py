@@ -167,6 +167,19 @@ def is_ipaddr(ip):
         return True
 
 
+def is_netmask(mask):
+    from netaddr import AddrFormatError
+    try:
+        if IPAddress(mask).is_netmask():
+            res = True
+        else:
+            res = False
+    except AddrFormatError:
+        res = False
+
+    return res
+
+
 def get_network_addr(ipaddr, prefix):
     """ Return the base address of the subnet in which the ipaddr / prefix
         reside.
