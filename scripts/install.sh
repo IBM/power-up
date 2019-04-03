@@ -18,6 +18,8 @@
 set -e
 source /etc/os-release
 arch=$(uname -m)
+is_p9=$(lscpu|grep POWER9) || true
+
 rhel_docker_ce_repo="[docker]
 name=Docker
 baseurl=http://ftp.unicamp.br/pub/ppc64el/rhel/7/docker-ppc64el/
@@ -69,7 +71,14 @@ elif [[ $ID == "rhel" ]]; then
         vim bridge-utils cpp flex bison unzip cmake fping gcc-c++ patch \
         perl-ExtUtils-MakeMaker perl-Thread-Queue ncurses-devel \
         bash-completion yum-utils createrepo sshpass python-tabulate \
-        openssl-devel tcpdump dnsmasq nmap syslinux-tftpboot xorriso bzip2
+        openssl-devel tcpdump dnsmasq nmap xorriso bzip2
+
+    # Needed for OSinstall, but not currently available on P9
+    if [[ -z "$is_p9" ]]; then
+        sudo yum --setopt=skip_missing_names_on_install=False -y install \
+            syslinux-tftpboot
+    fi
+
     sudo python36 -m ensurepip --default-pip
 
     if ! type "docker"; then
