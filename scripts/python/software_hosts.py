@@ -195,8 +195,11 @@ def _create_new_software_inventory(software_hosts_file_path):
 #   [all:vars]
 #   ansible_ssh_user=egoadmin
 #
-# Group names are defined within brackets
-# Hosts are defined with an FQDN or IP address
+# Group names are defined within brackets.
+# A valid configuration must have one master node and may have one
+# or more compute nodes.
+#
+# Hosts must be defined with a Fully Qualified Domain Name (FQDN)
 #   e.g.:
 #   [master]
 #   host1.domain.com  # master host
