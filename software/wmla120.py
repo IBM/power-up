@@ -24,7 +24,7 @@ import os
 import platform
 import re
 import sys
-from shutil import copy2
+from shutil import copy2, rmtree
 import calendar
 import time
 import yaml
@@ -337,10 +337,38 @@ class software(object):
 
             # Nginx web server status
             if item == 'Nginx Web Server':
-                cmd = 'curl -I 127.0.0.1'
-                resp, _, _ = sub_proc_exec(cmd)
-                if 'HTTP/1.1 200 OK' in resp:
-                    self.state[item] = 'Nginx is configured and running'
+                temp_dir = 'nginx-test-dir-123'
+                abs_temp_dir = os.path.join(self.root_dir, temp_dir)
+                test_file = 'test-file.abc'
+                test_path = os.path.join(abs_temp_dir, test_file)
+                try:
+                    rmtree(abs_temp_dir, ignore_errors=True)
+                    os.mkdir(abs_temp_dir)
+                    # os.mknod(test_file)
+                    with open(test_path, 'x') as f:
+                        pass
+                except:
+                    self.log.error('Failed trying to create temporary file '
+                                   f'{test_path}. Check access privileges')
+                    sys.exit('Exiting. Unable to continue.')
+                else:
+                    cmd = f'curl -I http://127.0.0.1/{temp_dir}/{test_file}'
+                    resp, _, _ = sub_proc_exec(cmd)
+                    if 'HTTP/1.1 200 OK' in resp:
+                        self.state[item] = 'Nginx is configured and running'
+                    else:
+                        print()
+                        msg = ('Nginx is unable to access content under '
+                               f'{self.root_dir}.\n This can be due to SElinux '
+                               'configuration, access priveleges or other reasons.')
+                        self.log.error(msg)
+                        sys.exit('Exiting. Unable to continue.')
+                finally:
+                    rmtree(abs_temp_dir, ignore_errors=True)
+                try:
+                    rmtree(abs_temp_dir, ignore_errors=True)
+                except:
+                    pass
                 continue
 
             # IBM AI Repo Free status
