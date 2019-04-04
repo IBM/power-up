@@ -70,12 +70,13 @@ class software(object):
         self.arch = arch
         self.ana_platform_basename = '64' if self.arch == "x86_64" else self.arch
         self.sw_vars_file_name = 'software-vars'
-        self.sw_vars_file_name = self.sw_vars_file_name + '-eval' if self.eval_ver else self.sw_vars_file_name
-        #  self.sw_vars_file_name = self.sw_vars_file_name if self.arch == "ppc64le" else self.sw_vars_file_name + "_" + self.arch
+        self.sw_vars_file_name = self.sw_vars_file_name + '-eval' if self.eval_ver \
+            else self.sw_vars_file_name
         self.sw_vars_file_name = self.sw_vars_file_name + ".yml"
         self.log.info(f"Using architecture: {self.arch}")
         # add filename to distinguish architecture
-        self.base_filename = f'{self.my_name}' if self.arch == 'ppc64le' else f'{self.my_name}_{self.arch}'
+        self.base_filename = f'{self.my_name}' if self.arch == 'ppc64le' \
+            else f'{self.my_name}_{self.arch}'
         self.state = self._get_state_dict()
         # Only yum repos should be listed under self.repo_id
         self.repo_id = {'EPEL Repository': f'epel-{self.arch}',
@@ -86,12 +87,14 @@ class software(object):
         self._load_pkglist()
 
         try:
-            self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + f'{self.sw_vars_file_name}'))
+            self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH +
+                                     f'{self.sw_vars_file_name}'))
         except IOError:
             # if no eval vars file exist, see if the license var file exists
             # and start with that
             try:
-                self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH + f'{self.sw_vars_file_name}'))
+                self.sw_vars = yaml.load(open(GEN_SOFTWARE_PATH +
+                                         f'{self.sw_vars_file_name}'))
             except IOError:
                 self.log.info('Creating software vars yaml file')
                 self.sw_vars = {}
@@ -441,42 +444,35 @@ class software(object):
         return False
 
     def _setup_firewall(self, eval_ver=False, non_int=False):
-        # Setup firewall to allow http
-        heading1('Setting up firewall')
-        fw_err = 0
-        cmd = 'systemctl status firewalld.service'
-        resp, _, rc = sub_proc_exec(cmd)
-        if 'Active: active (running)' in resp.splitlines()[2]:
-            self.log.debug('Firewall is running')
-        else:
-            cmd = 'systemctl enable firewalld.service'
+        if self._is_firewall_running():
+            heading1('Configuring firewall to enable http')
+            fw_err = 0
+            cmd = 'firewall-cmd --permanent --add-service=http'
             resp, err, rc = sub_proc_exec(cmd)
             if rc != 0:
-                fw_err += 1
-                self.log.error('Failed to enable firewall')
+                fw_err += 100
+                self.log.error('Failed to enable http service on firewall')
 
-            cmd = 'systemctl start firewalld.service'
+            cmd = 'firewall-cmd --reload'
             resp, err, rc = sub_proc_exec(cmd)
-            if rc != 0:
-                fw_err += 10
-                self.log.error('Failed to start firewall')
-        cmd = 'firewall-cmd --permanent --add-service=http'
-        resp, err, rc = sub_proc_exec(cmd)
-        if rc != 0:
-            fw_err += 100
-            self.log.error('Failed to enable http service on firewall')
+            if 'success' not in resp:
+                fw_err += 1000
+                self.log.error('Error attempting to restart firewall')
 
-        cmd = 'firewall-cmd --reload'
-        resp, err, rc = sub_proc_exec(cmd)
-        if 'success' not in resp:
-            fw_err += 1000
-            self.log.error('Error attempting to restart firewall')
-
-        self.status_prep(which='Firewall')
-        if self.state['Firewall'] == '-':
-            self.log.info('Failed to configure firewall')
+            self.status_prep(which='Firewall')
+            if self.state['Firewall'] == '-':
+                self.log.info('Failed to configure firewall')
+            else:
+                self.log.info(self.state['Firewall'])
         else:
-            self.log.info(self.state['Firewall'])
+            self.log.debug('Firewall is not running')
+            self.log.info(bold('The firewall is not enabled.\n'))
+            print('The PowerUp software installer utilizes Nginx web server.')
+            print('Nginx will run without the Firewall enabled, but it is \n'
+                  'advisable to utilize a firewall when running a web server.')
+            if not get_yesno('\nContinue with installation? ', default='y'):
+                self.log.info('Exiting at user request')
+                sys.exit()
 
     def _setup_nginx_server(self, eval_ver=False, non_int=False):
         # nginx setup
