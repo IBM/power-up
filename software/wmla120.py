@@ -58,7 +58,7 @@ class software(object):
     initialization activities. The install method implements the actual
     installation.
     """
-    def __init__(self, eval_ver=False, non_int=False, arch='ppc64le', proc_family=''):
+    def __init__(self, eval_ver=False, non_int=False, arch='ppc64le', proc_family='', engr_mode=False):
         self.log = logger.getlogger()
         self.log_lvl = logger.get_log_level_print()
         self.my_name = sys.modules[__name__].__name__
@@ -69,9 +69,7 @@ class software(object):
         self.proc_family = proc_family
         if self.arch == 'x86_64' and not proc_family:
             self.proc_family = self.arch
-        self.eng_mode = None
-        # self.eng_mode = 'custom-repo'
-        # self.eng_mode = 'gather-dependencies'
+        self.eng_mode = engr_mode
         yaml.add_constructor(YAMLVault.yaml_tag, YAMLVault.from_yaml)
         self.arch = arch
         self.ana_platform_basename = '64' if self.arch == "x86_64" else self.arch
@@ -1613,6 +1611,8 @@ class software(object):
                                        f'{self.my_name}_install_procedure{specific_arch}.yml'))
 
         for task in install_tasks:
+            if 'engr_mode' in task['tasks'] and not self.eng_mode:
+                continue
             heading1(f"Client Node Action: {task['description']}")
             if task['description'] == "Install Anaconda installer":
                 _interactive_anaconda_license_accept(
