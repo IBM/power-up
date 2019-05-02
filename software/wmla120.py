@@ -93,7 +93,8 @@ class software(object):
 
         self._load_filelist()
         self.eng_mode = engr_mode
-        yaml.add_constructor(YAMLVault.yaml_tag, YAMLVault.from_yaml)
+        yaml.FullLoader.add_constructor(YAMLVault.yaml_tag,
+                                        YAMLVault.from_yaml)
         self.ana_platform_basename = '64' if self.arch == "x86_64" else self.arch
 
         self.sw_vars_file_name = 'software-vars.yml'
@@ -105,7 +106,8 @@ class software(object):
         sw_vars_path = os.path.join(GEN_SOFTWARE_PATH, f'{self.sw_vars_file_name}')
         if os.path.isfile(sw_vars_path):
             try:
-                self.sw_vars = yaml.load(open(sw_vars_path))
+                self.sw_vars = yaml.full_load(
+                    open(GEN_SOFTWARE_PATH + f'{self.sw_vars_file_name}'))
             except IOError:
                 copy2(sw_vars_path, sw_vars_path + '.bak')
                 self.log.error(f'Unable to open {sw_vars_path}. \n'
@@ -1402,9 +1404,9 @@ class software(object):
 
     def _load_content(self):
         try:
-            self.content = yaml.load(open(GEN_SOFTWARE_PATH +
-                                     f'content-{self.my_name}.yml'),
-                                     Loader=AttrDictYAMLLoader)
+            self.content = yaml.full_load(open(GEN_SOFTWARE_PATH +
+                                          f'content-{self.my_name}.yml'),
+                                          Loader=AttrDictYAMLLoader)
         except IOError:
             self.log.error(f'Error opening the content list file '
                            f'(content-{self.base_filename}.yml)')
@@ -1412,8 +1414,8 @@ class software(object):
 
     def _load_pkglist(self):
         try:
-            self.pkgs = yaml.load(open(GEN_SOFTWARE_PATH + f'pkg-lists-'
-                                  f'{self.base_filename}.yml'))
+            self.pkgs = yaml.full_load(open(GEN_SOFTWARE_PATH + f'pkg-lists-'
+                                            f'{self.base_filename}.yml'))
         except IOError:
             self.log.error(f'Error opening the pkg lists file '
                            f'(pkg-lists-{self.base_filename}.yml)')
@@ -1425,8 +1427,8 @@ class software(object):
         # regular extression of [0-9]{0,3} Other asterisks are converted to regular
         # expression of .*
         try:
-            file_lists = yaml.load(open(GEN_SOFTWARE_PATH + f'file-lists-'
-                                   f'{self.base_filename}.yml'))
+            file_lists = yaml.full_load(open(GEN_SOFTWARE_PATH + f'file-lists-'
+                                             f'{self.base_filename}.yml'))
         except IOError:
             self.log.info('Error while reading installation file lists for '
                           'WMLA Enterprise')
@@ -1857,12 +1859,13 @@ class software(object):
                                             'dli', ana_ver)
 
         specific_arch = "_" + self.arch if self.arch == 'x86_64' else ""
+
         self.run_ansible_task(GEN_SOFTWARE_PATH + f'{self.my_name}_install_procedure{specific_arch}.yml')
 
     def run_ansible_task(self, yamlfile):
         log = logger.getlogger()
         try:
-            install_tasks = yaml.load(open(yamlfile))
+            install_tasks = yaml.full_load(open(yamlfile))
         except Exception as e:
             log.error("unable to open file: {0}\n error: {1}".format(yamlfile, e))
             raise e
@@ -2083,7 +2086,7 @@ def _set_spectrum_conductor_install_env(ansible_inventory, package, ana_ver=None
     init = True
     while not env_validated:
         try:
-            for key, value in yaml.load(open(envs_path)).items():
+            for key, value in yaml.full_load(open(envs_path)).items():
                 if value is None:
                     break
             else:
