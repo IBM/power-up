@@ -1604,19 +1604,17 @@ class software(object):
 
     def init_clients(self):
         log = logger.getlogger()
-
+        
         print(bold(f'\n\n\n  Initializing clients for install from  Repository : '
               f'{self.repo_shortname}'))
         print(bold(f'  Architecture: {self.arch}'))
         print(bold(f'  Processor family: {self.proc_family}'))
         time.sleep(1.5)
-
+        
         self.sw_vars['init_clients'] = self.repo_shortname
 
         self._update_software_vars()
-
         self.sw_vars['ansible_inventory'] = get_ansible_inventory()
-
         sudo_password = None
         if self.sw_vars['ansible_become_pass'] is None:
             sudo_password = self._cache_sudo_pass()
@@ -1642,7 +1640,17 @@ class software(object):
         elif self.sw_vars['ansible_become_pass'] is None:
             cmd += '--ask-become-pass '
             prompt_msg = "\nClient password required for privilege escalation"
-
+        # Verfication Loop
+        if get_yesno('Run configuration verification checks on cluster nodes '):
+            specific_arch = "_" + self.arch if self.arch == 'x86_64' else ""
+            validate_tasks = yaml.full_load(open(GEN_SOFTWARE_PATH + f'{self.my_name}'
+                                            f'_validate_procedure{specific_arch}.yml'))
+            for task in validate_tasks:
+                heading1(f"Validation Action: {task['description']}")
+                extra_args = ''
+                self._run_ansible_tasks(task['tasks'], extra_args)
+            print('Verfication Completed')
+        # Validate end
         run = True
         while run:
             log.info(f"Running Ansible playbook 'init_clients.yml' ...")
@@ -1744,7 +1752,6 @@ class software(object):
             with open(self.vault_pass_file, 'w') as vault_pass_file_out:
                 vault_pass_file_out.write(self.vault_pass)
             os.chmod(self.vault_pass_file, 0o600)
-
             if not validate or self._validate_ansible_become_pass(None):
                 return True
             else:
