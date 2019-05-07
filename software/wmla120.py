@@ -1618,13 +1618,13 @@ class software(object):
 
     def init_clients(self):
         log = logger.getlogger()
-        
+
         print(bold(f'\n\n\n  Initializing clients for install from  Repository : '
               f'{self.repo_shortname}'))
         print(bold(f'  Architecture: {self.arch}'))
         print(bold(f'  Processor family: {self.proc_family}'))
         time.sleep(1.5)
-        
+
         self.sw_vars['init_clients'] = self.repo_shortname
 
         self._update_software_vars()
@@ -1944,10 +1944,11 @@ class software(object):
     def _init_clients_check(self):
         ready = True
         if 'init_clients' not in self.sw_vars:
-            self.log.error('Initialization of clients has not been run. Please run\n'
+            self.log.error('The PowerUp data base is missing information from the \n'
+                           'init clients stage of install. Please run \n'
                            'pup software --init-clients \n'
                            'before running install.')
-            ready = False
+            sys.exit()
         if self.repo_shortname != self.sw_vars['init_clients']:
             self.log.warning('The cluster nodes were last configured for installation\n'
                              'from self.sw_vars["init_clients"], but you are requesting\n'
