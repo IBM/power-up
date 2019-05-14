@@ -853,6 +853,10 @@ class Pup_form(npyscreen.ActionFormV2):
         self.fields = {}  # dictionary for holding field instances
         self.next_form = self.parentApp.NEXT_ACTIVE_FORM
         self.talking_nodes = {}  # Nodes we can talk to using ipmi or openBMC
+        node_status_path = os.path.join(GEN_PATH, 'osinstall_node_status.yml')
+        if os.path.isfile(node_status_path):
+            os.remove(node_status_path)
+
         if hasattr(self.form, 'bmc_userid'):
             self.scan_uid = self.form.bmc_userid.val
             self.scan_pw = self.form.bmc_password.val

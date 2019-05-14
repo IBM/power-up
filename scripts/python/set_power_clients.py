@@ -79,9 +79,9 @@ def set_power_clients(state, config_path=None, clients=None, max_attempts=5,
     while clients_left and attempt < max_attempts:
         attempt += 1
         if attempt > 1:
-            print('Retrying set power {}. Attempt {} of {}'
-                  .format(state, attempt, max_attempts))
-            print('Clients remaining: {}'.format(clients_left))
+            log.info('Retrying set power {}. Attempt {} of {}'
+                     .format(state, attempt, max_attempts))
+            log.info('Clients remaining: {}'.format(clients_left))
         clients_set = []
         bmc_dict = {}
         for client in clients_left:
@@ -107,7 +107,7 @@ def set_power_clients(state, config_path=None, clients=None, max_attempts=5,
                 status = bmc_dict[client].chassis_power(state, wait)
                 if status:
                     if attempt in [2, 4, 8]:
-                        print(f'{client} - Power status: {status}')
+                        log.info(f'{client} - Power status: {status}')
                     # Allow delay between turn on to limit power surge
                     if state == 'on':
                         time.sleep(0.5)
@@ -122,8 +122,8 @@ def set_power_clients(state, config_path=None, clients=None, max_attempts=5,
                 status = bmc_dict[client].chassis_power('status')
                 if status:
                     if attempt in [2, 4, 8]:
-                        print(f'{client} - Power status: {status}, '
-                              f'required state: {state}')
+                        log.info(f'{client} - Power status: {status}, '
+                                 f'required state: {state}')
                     if status == state:
                         log.debug(f'Successfully set power {state} for node {client}')
                         clients_set += [client]
@@ -145,7 +145,7 @@ def set_power_clients(state, config_path=None, clients=None, max_attempts=5,
                      len(cred_list)))
 
     if state == 'off':
-        print('Pausing 60 sec for client power off')
+        log.info('Pausing 60 sec for client power off')
         time.sleep(60)
 
     if clients_left:
