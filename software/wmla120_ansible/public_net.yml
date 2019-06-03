@@ -95,10 +95,6 @@
   include: "mount.yml"
   become: yes
 
-#- name: Enable Repos
-#  include: "yum_repository.yml"
-#  become: yes
-
 - name: Restart Network
   include: "service.yml"
   become: yes
