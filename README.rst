@@ -2,7 +2,7 @@
 POWER-Up
 ========
 
-|ppc64le| |x86_64| 
+|ppc64le| |x86_64|
 
 POWER-Up automates deployment of baremetal OpenPOWER and x86 server
 clusters. It leverages open source tools such as Cobbler, Ansible,
@@ -21,7 +21,6 @@ For additional instructions and developer resources:
 * `Release Table <docs/Release-Table.rst>`_
 * `User's Guide <http://power-up.readthedocs.io>`_ at 'Read the Docs'
 * `Developer's Guide <docs/Dev-Guide.rst>`_
-* IRC: `#power-up channel on freenode.net <http://webchat.freenode.net/?channels=%23power-up&uio=d4>`_
 
 
 Authors
